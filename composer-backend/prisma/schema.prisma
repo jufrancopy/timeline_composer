@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["groupBy"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Composer {
+  id            Int      @id @default(autoincrement())
+  first_name    String
+  last_name     String
+  birth_year    Int
+  birth_month   Int?
+  birth_day     Int?
+  death_year    Int?
+  death_month   Int?
+  death_day     Int?
+  bio           String   @db.Text
+  notable_works String   @db.Text
+  period        String
+  references    String?
+  photo_url     String?
+  youtube_link  String?
+  mainRole      RoleType[] // Array de roles: COMPOSER, POET, CONDUCTOR, ARRANGER, PERFORMER
+  status        String   @default("PENDING_REVIEW") // PENDING_REVIEW, PUBLISHED, REJECTED
+  quality       String?  // A, B, C, D
+  email         String
+  ip_address    String?
+  rejection_reason String?
+  completeness_score Int?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  comments      Comment[]
+  ratings       Rating[]
+}
+
+model Comment {
+  id          Int      @id @default(autoincrement())
+  text        String
+  name        String
+  ip_address  String?
+  created_at  DateTime @default(now())
+
+  composer    Composer @relation(fields: [composerId], references: [id])
+  composerId  Int
+}
+
+model Rating {
+  id           Int      @id @default(autoincrement())
+  rating_value Int
+  ip_address   String?
+  created_at   DateTime @default(now())
+
+  composer     Composer @relation(fields: [composerId], references: [id])
+  composerId   Int
+
+  @@unique([composerId, ip_address]) // Un usuario (por IP) solo puede votar una vez por compositor
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  email     String
+  code      String
+  expiresAt DateTime
+}
+
+// El modelo User no se usa activamente en el código para la gestión de usuarios
+// pero lo mantenemos por si se implementa un sistema de login más robusto.
+model User {
+  id       Int      @id @default(autoincrement())
+  username String   @unique
+  password String
+}
+
+enum RoleType {
+  COMPOSER
+  POET
+  CONDUCTOR
+  ARRANGER
+  PERFORMER
+}
