@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Calendar } from 'lucide-react';
 
-const Ephemeris = ({ composers }) => {
+const Ephemeris = ({ composers, onGoToComposer }) => {
   const today = new Date();
   const currentDay = today.getDate();
   const currentMonth = today.getMonth() + 1; // JS months are 0-indexed
@@ -25,12 +25,19 @@ const Ephemeris = ({ composers }) => {
             const age = isBirthday ? today.getFullYear() - event.birth_year : today.getFullYear() - event.death_year;
 
             return (
-              <li key={event.id} className="flex items-center space-x-3">
+              <li 
+                key={event.id} 
+                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/10 transition-colors duration-200 cursor-pointer"
+                onClick={() => onGoToComposer(event.id)}
+              >
                 <Calendar className="w-5 h-5 text-purple-400" />
                 <div>
-                  <p className="text-white font-semibold">{event.first_name} {event.last_name}</p>
-                  <p className="text-sm text-gray-400">
-                    {isBirthday ? `Nacimiento` : `Fallecimiento`} en {year} (hace {age} años)
+                  <p className="text-lg font-bold text-white">{event.first_name} {event.last_name}</p>
+                  <p className="text-sm text-gray-300">
+                    {isBirthday
+                      ? `Nacimiento: ${event.birth_day}/${event.birth_month}/${event.birth_year} (hace ${age} años)`
+                      : `Fallecimiento: ${event.death_day}/${event.death_month}/${event.death_year} (hace ${age} años)`
+                    }
                   </p>
                 </div>
               </li>

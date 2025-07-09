@@ -250,6 +250,29 @@ app.put('/api/composers/:id/status', requireAdmin, async (req, res) => {
   }
 });
 
+app.put('/api/composers/migrate-periods', requireAdmin, async (req, res) => {
+  try {
+    const updatedModern = await prisma.composer.updateMany({
+      where: { period: 'MODERNO' },
+      data: { period: 'POSGUERRA' },
+    });
+
+    const updatedContemporaneo = await prisma.composer.updateMany({
+      where: { period: 'CONTEMPORANEO' },
+      data: { period: 'TRANSICION' },
+    });
+
+    res.json({
+      message: 'Migración de períodos completada',
+      modernToPosguerra: updatedModern.count,
+      contemporaneoToTransicion: updatedContemporaneo.count,
+    });
+  } catch (error) {
+    console.error('Error al migrar períodos:', error);
+    res.status(500).json({ error: 'Error al migrar períodos', details: error.message });
+  }
+});
+
 // Endpoint para actualizar todos los datos de un compositor (solo admin)
 app.put('/api/composers/:id', requireAdmin, async (req, res) => {
   const composerId = parseInt(req.params.id, 10);
@@ -480,7 +503,14 @@ app.post('/api/composers', async (req, res) => {
 
     const ip_address = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
 
-    const formattedPeriod = period.toUpperCase().replace(/\s+/g, '_');
+    const formattedPeriod = (() => {
+      const upperPeriod = period.toUpperCase().replace(/\s+/g, '_');
+      switch (upperPeriod) {
+        case 'MODERNO': return 'POSGUERRA';
+        case 'CONTEMPORANEO': return 'TRANSICION';
+        default: return upperPeriod;
+      }
+    })();
 
     const composer = await prisma.composer.create({
       data: {
@@ -867,6 +897,18 @@ app.get('/api/efemerides', async (req, res) => {
       orderBy: {
         birth_year: 'asc',
       },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        birth_year: true,
+        birth_month: true,
+        birth_day: true,
+        death_year: true,
+        death_month: true,
+        death_day: true,
+        // Asegúrate de incluir otros campos necesarios si los usas en el frontend
+      },
     });
 
     console.log(`[EFEMERIDES DEBUG] Compositores encontrados: ${efemerides.length}`);
@@ -882,18 +924,42 @@ app.get('/api/efemerides', async (req, res) => {
 });
 
 
-app.get('/api/debug-composers', async (req, res) => {
+app.get('/api/debug-published-composers', async (req, res) => {
   try {
     const composers = await prisma.composer.findMany({
       where: { status: 'PUBLISHED' },
-      select: { id: true, first_name: true, last_name: true, birth_month: true, birth_day: true, death_month: true, death_day: true, status: true },
+      select: { id: true, first_name: true, last_name: true, birth_year: true, period: true, youtube_link: true, photo_url: true, status: true },
       orderBy: { id: 'asc' },
     });
     console.log('[DEBUG] Compositores publicados en la DB:', JSON.stringify(composers, null, 2));
     res.json(composers);
   } catch (error) {
-    console.error('[DEBUG ERROR] Error al obtener compositores para depuración:', error);
-    res.status(500).json({ error: 'Error al obtener compositores para depuración' });
+    console.error('[DEBUG ERROR] Error al obtener compositores publicados para depuración:', error);
+    res.status(500).json({ error: 'Error al obtener compositores publicados para depuración' });
+  }
+});
+
+// Endpoint temporal para migrar períodos (solo admin)
+app.put('/api/composers/migrate-periods', requireAdmin, async (req, res) => {
+  try {
+    const updatedModern = await prisma.composer.updateMany({
+      where: { period: 'MODERNO' },
+      data: { period: 'POSGUERRA' },
+    });
+
+    const updatedContemporaneo = await prisma.composer.updateMany({
+      where: { period: 'CONTEMPORANEO' },
+      data: { period: 'TRANSICION' },
+    });
+
+    res.json({
+      message: 'Migración de períodos completada',
+      modernToPosguerra: updatedModern.count,
+      contemporaneoToTransicion: updatedContemporaneo.count,
+    });
+  } catch (error) {
+    console.error('Error al migrar períodos:', error);
+    res.status(500).json({ error: 'Error al migrar períodos', details: error.message });
   }
 });
 
