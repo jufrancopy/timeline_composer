@@ -4,67 +4,550 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TimeLine Composer - Únete a la Comunidad</title>
-    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --accent-color: #f59e0b;
+            --text-dark: #1f2937;
+            --text-light: #6b7280;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header con efecto parallax */
+        header {
+            background: var(--bg-gradient);
+            color: white;
+            padding: 100px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" fill="rgba(255,255,255,0.1)"><polygon points="0,0 1000,0 1000,100 0,80"/></svg>');
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .header-content h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 1s ease-out 0.2s forwards;
+        }
+
+        .subtitle {
+            font-size: 1.3rem;
+            font-weight: 300;
+            margin-bottom: 40px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 1s ease-out 0.4s forwards;
+        }
+
+        @keyframes slideInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Sección principal */
+        main {
+            padding: 80px 0;
+        }
+
+        section {
+            margin-bottom: 80px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        section:nth-child(2) { animation-delay: 0.2s; }
+        section:nth-child(3) { animation-delay: 0.4s; }
+        section:nth-child(4) { animation-delay: 0.6s; }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: var(--text-dark);
+            text-align: center;
+            position: relative;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: var(--accent-color);
+            border-radius: 2px;
+        }
+
+        /* Intro section */
+        #intro {
+            text-align: center;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 60px 40px;
+            border-radius: 20px;
+            margin-bottom: 60px;
+            box-shadow: var(--card-shadow);
+        }
+
+        #intro p {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            color: var(--text-light);
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Botones CTA */
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 15px 40px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .cta-button:hover::before {
+            left: 100%;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(37, 99, 235, 0.4);
+        }
+
+        /* Steps section */
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 50px;
+        }
+
+        .step {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-color);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .step:hover::before {
+            transform: scaleX(1);
+        }
+
+        .step:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            background: var(--bg-gradient);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 auto 20px;
+        }
+
+        .step h3 {
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            color: var(--text-dark);
+        }
+
+        .step p {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        /* Gamificación section */
+        #gamificacion {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            padding: 60px 40px;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #gamificacion::before {
+            content: '🎵';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 200px;
+            opacity: 0.1;
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        #gamificacion h2 {
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        #gamificacion h2::after {
+            background: var(--accent-color);
+        }
+
+        #gamificacion ul {
+            list-style: none;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #gamificacion li {
+            background: rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        #gamificacion li:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(10px);
+        }
+
+        #gamificacion strong {
+            color: var(--accent-color);
+        }
+
+        /* CTA Final */
+        #cta-final {
+            text-align: center;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 60px 40px;
+            border-radius: 20px;
+            margin-top: 60px;
+        }
+
+        #cta-final h2 {
+            color: var(--text-dark);
+            margin-bottom: 30px;
+        }
+
+        #cta-final p {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--text-dark);
+            color: white;
+            text-align: center;
+            padding: 40px 0;
+            margin-top: 80px;
+        }
+
+        footer p {
+            opacity: 0.8;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content h1 {
+                font-size: 2.5rem;
+            }
+            
+            .subtitle {
+                font-size: 1.1rem;
+            }
+            
+            h2 {
+                font-size: 2rem;
+            }
+            
+            .steps {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 0 15px;
+            }
+        }
+
+        /* Efectos de scroll */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Partículas decorativas */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: floatParticle 15s infinite linear;
+        }
+
+        @keyframes floatParticle {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.3;
+            }
+            90% {
+                opacity: 0.3;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
 </head>
 <body>
+    <div class="particles"></div>
 
     <header>
-        <h1>Presentando TimeLine Composer 🎼</h1>
-        <p class="subtitle">La plataforma colaborativa para construir la historia de la música paraguaya.</p>
+        <div class="container">
+            <div class="header-content">
+                <h1>TimeLine Composer 🎼</h1>
+                <p class="subtitle">La plataforma colaborativa para construir la historia de la música paraguaya</p>
+            </div>
+        </div>
     </header>
 
     <main>
-        <section id="intro">
-            <h2>¿Qué es TimeLine Composer?</h2>
-            <p>Es una línea de tiempo interactiva que documenta la vida y obra de los grandes compositores y poetas de Paraguay. Pero su verdadero poder está en la comunidad: ¡tú puedes ayudarnos a crecer!</p>
-            <a href="https://thepydeveloper.dev" class="cta-button">Ir a la Aplicación</a>
-        </section>
+        <div class="container">
+            <section id="intro">
+                <h2>¿Qué es TimeLine Composer?</h2>
+                <p>Una línea de tiempo interactiva que documenta la vida y obra de los grandes compositores y poetas de Paraguay. Su verdadero poder está en la comunidad: <strong>¡tú puedes ayudarnos a crecer!</strong></p>
+                <a href="https://thepydeveloper.dev" class="cta-button">🚀 Ir a la Aplicación</a>
+            </section>
 
-        <section id="flujo">
-            <h2>El Flujo Colaborativo: De tu Aporte a la Publicación</h2>
-            <p>Hemos diseñado un proceso transparente y justo para asegurar la calidad de cada dato. Así es como funciona:</p>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>Envía tu Aporte</h3>
-                    <p>Usas el formulario "Sugerir un Compositor" para enviarnos toda la información que tengas. ¡Cada detalle cuenta!</p>
+            <section id="flujo">
+                <h2>El Flujo Colaborativo</h2>
+                <p style="text-align: center; font-size: 1.2rem; color: var(--text-light); margin-bottom: 40px;">
+                    Hemos diseñado un proceso transparente y justo para asegurar la calidad de cada dato
+                </p>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <h3>Envía tu Aporte</h3>
+                        <p>Usa el formulario "Sugerir un Compositor" para enviarnos toda la información que tengas. ¡Cada detalle cuenta y hace la diferencia!</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <h3>Revisión del Curador</h3>
+                        <p>Un administrador revisa tu aporte, verifica las fuentes y la precisión de los datos. Tu sugerencia queda "Pendiente de Revisión".</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <h3>¡Aprobado y Publicado!</h3>
+                        <p>Si todo es correcto, se aprueba y publica. Si falta algo, recibirás una nota y podrás corregir tu aporte desde "Mis Aportes".</p>
+                    </div>
                 </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>Revisión del Curador</h3>
-                    <p>Un administrador revisa tu aporte, verifica las fuentes y la precisión de los datos. Tu sugerencia queda "Pendiente de Revisión".</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>¡Aprobado o a Corregir!</h3>
-                    <p>Si todo es correcto, se aprueba y publica. Si falta algo, el curador te dejará una nota y podrás corregir tu aporte desde "Mis Aportes".</p>
-                </div>
-            </div>
-        </section>
+            </section>
 
-        <section id="gamificacion">
-            <h2>🏆 ¡Gana Puntos y Sube en el Ranking!</h2>
-            <p>Creemos en reconocer el esfuerzo. Por eso, hemos "gamificado" la experiencia:</p>
-            <ul>
-                <li><strong>Puntaje de Completitud:</strong> Cada aporte recibe hasta 10 puntos según la calidad y cantidad de información.</li>
-                <li><strong>Ranking de Colaboradores:</strong> Los usuarios con más puntos aparecen en nuestro ranking. ¡Conviértete en un curador estrella!</li>
-                <li><strong>Transparencia:</strong> Puedes ver tus aportes, su estado y los puntos obtenidos en cualquier momento.</li>
-            </ul>
-        </section>
+            <section id="gamificacion">
+                <h2>🏆 ¡Gana Puntos y Sube en el Ranking!</h2>
+                <p style="text-align: center; font-size: 1.2rem; margin-bottom: 40px;">
+                    Creemos en reconocer el esfuerzo. Por eso, hemos gamificado la experiencia:
+                </p>
+                <ul>
+                    <li>
+                        <strong>Puntaje de Completitud:</strong> Cada aporte recibe hasta 10 puntos según la calidad y cantidad de información que proporciones.
+                    </li>
+                    <li>
+                        <strong>Ranking de Colaboradores:</strong> Los usuarios con más puntos aparecen en nuestro ranking público. ¡Conviértete en un curador estrella!
+                    </li>
+                    <li>
+                        <strong>Transparencia Total:</strong> Puedes ver tus aportes, su estado actual y los puntos obtenidos en cualquier momento desde tu perfil.
+                    </li>
+                </ul>
+            </section>
 
-        <section id="cta-final">
-            <h2>¿Listo para ser parte de la historia?</h2>
-            <p>Tu conocimiento es invaluable. Ayúdanos a crear el archivo digital más completo de la música paraguaya.</p>
-            <a href="https://thepydeveloper.dev" class="cta-button">Sugerir mi primer compositor</a>
-        </section>
+            <section id="cta-final">
+                <h2>¿Listo para ser parte de la historia?</h2>
+                <p>Tu conocimiento sobre la música paraguaya es invaluable. Ayúdanos a crear el archivo digital más completo y accesible para las futuras generaciones.</p>
+                <a href="https://thepydeveloper.dev" class="cta-button">🎵 Sugerir mi primer compositor</a>
+            </section>
+        </div>
     </main>
 
     <footer>
-        <p>&copy; 2024 TimeLine Composer. Un proyecto de código abierto.</p>
+        <div class="container">
+            <p>&copy; 2024 TimeLine Composer. Un proyecto de código abierto para preservar nuestra cultura musical.</p>
+        </div>
     </footer>
 
+    <script>
+        // Crear partículas flotantes
+        function createParticles() {
+            const particlesContainer = document.querySelector('.particles');
+            
+            for (let i = 0; i < 15; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Efectos de scroll
+        function handleScroll() {
+            const elements = document.querySelectorAll('section');
+            elements.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const elementVisible = 150;
+                
+                if (elementTop < window.innerHeight - elementVisible) {
+                    element.classList.add('visible');
+                }
+            });
+        }
+
+        // Smooth scroll para enlaces internos
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            createParticles();
+            handleScroll();
+        });
+
+        window.addEventListener('scroll', handleScroll);
+    </script>
 </body>
 </html>
