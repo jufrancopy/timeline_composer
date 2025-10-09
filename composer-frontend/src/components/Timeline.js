@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Music, Palette, Camera, Pen, Award, Calendar, Star, Clock, ExternalLink } from 'lucide-react';
+import { Music, Palette, Camera, Pen, Award, Calendar, Star, Clock, ExternalLink, Edit } from 'lucide-react';
+import Rating from './Rating';
+import Comments from './Comments';
 
-const Timeline = ({ composers = [], loading = false, newComposer = null, onNewComposerHandled = null }) => {
+const Timeline = ({ composers = [], loading = false, newComposer = null, onNewComposerHandled = null, onSuggestEdit }) => {
   // Estados del componente
   const [selectedItem, setSelectedItem] = useState(null);
   const [visibleItems, setVisibleItems] = useState([]);
@@ -236,33 +238,26 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
                         </span>
                       </div>
                       
-                      {isExpanded && (
+                      {true && (
                         <div className="mt-4 pt-4 border-t border-white/10 animate-fade-in-down">
                           <p className="text-gray-300 text-sm sm:text-base mb-4 italic">"{item.bio}"</p>
-                          <div className="flex items-center gap-2 text-sm text-purple-300 mb-3">
-                            <Calendar className="w-4 h-4" />
-                            <span>{formatLifespan(item)}</span>
-                          </div>
-                          {item.notable_works && (
-                            <div className="mb-4">
-                              <h4 className="font-semibold text-sm mb-2">Obras Destacadas:</h4>
-                              <p className="text-gray-300 text-sm">{item.notable_works}</p>
-                            </div>
-                          )}
+                          {item.notable_works && <p className="text-gray-300 text-sm mb-4"><strong className="font-semibold text-white">Obras Notables:</strong> {item.notable_works}</p>}
+                          
                           {embedUrl && (
-                            <div className="mt-4 rounded-lg overflow-hidden">
-                              <div className="relative pb-[56.25%] h-0">
-                                <iframe
-                                  src={embedUrl}
-                                  title={`Video de ${item.first_name}`}
-                                  frameBorder="0"
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                  allowFullScreen
-                                  className="absolute top-0 left-0 w-full h-full"
-                                ></iframe>
-                              </div>
+                            <div className="my-4 rounded-lg overflow-hidden aspect-video">
+                              <iframe src={embedUrl} title={`Video de ${item.first_name}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full"></iframe>
                             </div>
                           )}
+
+                          <Rating composerId={item.id} initialRating={item.rating_avg || 0} ratingCount={item.rating_count || 0} />
+                          <Comments composerId={item.id} />
+
+                          <div className="mt-4 flex justify-end">
+                            <button onClick={() => onSuggestEdit(item)} className="flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200 transition-colors">
+                              <Edit className="w-4 h-4" />
+                              Sugerir una mejora
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
