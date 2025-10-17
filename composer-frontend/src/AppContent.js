@@ -14,7 +14,9 @@ import CatedraDetailPage from './pages/CatedraDetailPage';
 import AlumnosPage from './pages/AlumnosPage';
 import DocentesPage from './pages/DocentesPage';
 import DocenteLoginPage from './pages/DocenteLoginPage';
+import AlumnoLoginPage from './pages/AlumnoLoginPage';
 import DocenteDashboardPage from './pages/DocenteDashboardPage';
+import AlumnoDashboardPage from './pages/AlumnoDashboardPage';
 import DocenteCatedraDetailPage from './pages/DocenteCatedraDetailPage';
 import DocenteAlumnoTareasPage from './pages/DocenteAlumnoTareasPage';
 import DocenteTareaPage from './pages/DocenteTareaPage';
@@ -49,6 +51,7 @@ function AppContent() {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('docenteToken');
     localStorage.removeItem('userToken');
+    localStorage.removeItem('token');
     setIsAdmin(false);
     setIsDocente(false);
     setIsStudent(false);
@@ -63,11 +66,21 @@ function AppContent() {
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<TimelinePage />} />
+          {/* Equivalente en Laravel->>Route::get('/about', [Controller::class, 'about']); */}
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contribute" element={<AddComposerForm />} />
           <Route path="/admin/login" element={<AdminLoginPage onLogin={handleAdminLogin} />} />
           <Route path="/docente/login" element={<DocenteLoginPage onLogin={handleDocenteLogin} />} />
+          <Route path="/alumno/login" element={<AlumnoLoginPage onLogin={handleStudentLogin} />} />
 
+          <Route 
+            path="/alumnos/dashboard" 
+            element={
+              <PrivateRoute>
+                <AlumnoDashboardPage />
+              </PrivateRoute>
+            } 
+          />
           <Route path="/my-contributions" element={<MyContributionsPage handleLogout={handleLogout} onLogin={handleStudentLogin} />} />
           
           {/* Rutas de Administrador Protegidas */}
@@ -106,7 +119,7 @@ function AppContent() {
             } 
           />
           <Route 
-            path="/docente/catedras/:id" 
+            path="/docente/catedra/:id" 
             element={
               <DocentePrivateRoute>
                 <DocenteCatedraDetailPage />
@@ -122,7 +135,7 @@ function AppContent() {
             } 
           />
           <Route
-            path="/docente/catedras/:catedraId/tareas/create"
+            path="/docente/catedra/:catedraId/tareas/create"
             element={
               <DocentePrivateRoute>
                 <DocenteTareaPage />
@@ -130,7 +143,7 @@ function AppContent() {
             }
           />
           <Route 
-            path="/docente/catedras/:catedraId/generate-evaluation"
+            path="/docente/catedra/:catedraId/generate-evaluation"
             element={
               <DocentePrivateRoute>
                 <DocenteGenerateEvaluationPage />
@@ -138,7 +151,7 @@ function AppContent() {
             } 
           />
           <Route
-            path="/docente/catedras/:catedraId/evaluations/create"
+            path="/docente/catedra/:catedraId/evaluations/create"
             element={
               <DocentePrivateRoute>
                 <DocenteEvaluationPage />
@@ -154,7 +167,7 @@ function AppContent() {
             }
           />
           <Route
-            path="/docente/catedras/:catedraId/alumnos/:alumnoId/evaluaciones/:evaluationId/results"
+            path="/docente/catedra/:catedraId/alumnos/:alumnoId/evaluaciones/:evaluationId/results"
             element={
               <DocentePrivateRoute>
                 <DocenteEvaluationResultsPage />
