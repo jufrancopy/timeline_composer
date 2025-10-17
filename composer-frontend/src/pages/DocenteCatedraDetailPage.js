@@ -94,26 +94,26 @@ const DocenteCatedraDetailPage = () => {
 
   const fetchCatedra = useCallback(async () => {
     try {
-      const response = await api.getDocenteCatedra(id);
+      const response = await api.getDocenteCatedraDetalles(id);
       setCatedra(response.data);
       
       // Calcular estadísticas
-      const tareasMaestras = response.data.tareasMaestras || [];
-      const evaluaciones = response.data.evaluaciones || [];
-      const alumnos = response.data.alumnos || [];
+      const tareasMaestras = response.data.TareaMaestra || [];
+      const evaluacionesMaestras = response.data.Evaluacion || [];
+      const alumnos = response.data.CatedraAlumno || [];
       
       setStats({
         tareasAsignadas: tareasMaestras.length,
         tareasEntregadas: tareasMaestras.reduce((acc, tarea) => {
-          const entregadasYCalificadas = tarea.asignaciones.filter(asig => asig.estado === 'ENTREGADA' || asig.estado === 'CALIFICADA').length;
+          const entregadasYCalificadas = tarea.TareaAsignacion.filter(asig => asig.estado === 'ENTREGADA' || asig.estado === 'CALIFICADA').length;
           return acc + entregadasYCalificadas;
         }, 0),
-        evaluacionesCreadas: evaluaciones.length,
+        evaluacionesCreadas: evaluacionesMaestras.length,
         alumnosInscritos: alumnos.length
       });
 
-      if (response.data.alumnos && response.data.alumnos.length > 0) {
-        fetchStudentPaymentStatuses(response.data.alumnos, response.data.id);
+      if (response.data.CatedraAlumno && response.data.CatedraAlumno.length > 0) {
+        fetchStudentPaymentStatuses(response.data.CatedraAlumno, response.data.id);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Error al cargar los detalles de la cátedra.');
@@ -124,7 +124,7 @@ const DocenteCatedraDetailPage = () => {
 
   const fetchDiasClase = useCallback(async () => {
     try {
-      const response = await api.getDiasClase(id);
+      const response = await api.getDocenteDiasClase(id);
       setDiasClase(response.data);
     } catch (err) {
       console.error("Error al cargar los días de clase:", err);
@@ -133,23 +133,26 @@ const DocenteCatedraDetailPage = () => {
   }, [id]);
 
   const fetchStudentPaymentStatuses = useCallback(async (alumnos, currentCatedraId) => {
+    console.log("[DOCENTE CATEDRA FRONTEND] Invocando fetchStudentPaymentStatuses.");
     const statuses = {};
+    console.log(`[DOCENTE CATEDRA FRONTEND] Procesando ${alumnos.length} alumnos.`);
     for (const inscripcion of alumnos) {
-      if (inscripcion.alumnoId) {
+      const studentIdentifier = inscripcion.alumnoId || inscripcion.composerId;
+      if (studentIdentifier) {
         try {
-          const response = await api.getDocenteAlumnoPagos(inscripcion.alumnoId);
+          const response = await api.getDocenteAlumnoPagos(studentIdentifier);
           if (response.data && Array.isArray(response.data.pagosConsolidados)) {
             response.data.pagosConsolidados.forEach(pagoCatedra => {
               if (pagoCatedra.catedraId === currentCatedraId) {
-                statuses[inscripcion.alumnoId] = pagoCatedra.estadoActual;
+                statuses[studentIdentifier] = pagoCatedra.estadoActual;
               }
             });
           } else {
-            console.warn(`API getDocenteAlumnoPagos did not return expected structure for alumno ${inscripcion.alumnoId}:`, response.data);
+            console.warn(`API getDocenteAlumnoPagos did not return expected structure for student ${studentIdentifier}:`, response.data);
           }
         } catch (error) {
-          console.error(`Error fetching payment status for student ${inscripcion.alumnoId}:`, error);
-          statuses[inscripcion.alumnoId] = 'ERROR_CARGA';
+          console.error(`Error fetching payment status for student ${studentIdentifier}:`, error);
+          statuses[studentIdentifier] = 'ERROR_CARGA';
         }
       }
     }
@@ -167,7 +170,7 @@ const DocenteCatedraDetailPage = () => {
 
   const fetchPlanesDeClase = useCallback(async () => {
     try {
-      const response = await api.getPlanesDeClaseForCatedra(id);
+      const response = await api.getDocentePlanesDeClaseForCatedra(id);
       setPlanesDeClase(response.data);
     } catch (err) {
       console.error("Error al cargar planes de clases:", err);
@@ -203,8 +206,8 @@ const DocenteCatedraDetailPage = () => {
   }, [id, fetchCatedra, fetchDiasClase, fetchPublicaciones, fetchPlanesDeClase]);
 
   useEffect(() => {
-    if (catedra?.tareasMaestras) {
-      const processed = catedra.tareasMaestras.map(tarea => ({
+    if (catedra?.TareaMaestra) {
+      const processed = catedra.TareaMaestra.map(tarea => ({
         ...tarea,
         tareaMaestra: tarea, // Self-reference to fit TaskCard's expectation
       }));
@@ -287,12 +290,12 @@ const DocenteCatedraDetailPage = () => {
   const handleTareaCreated = async (createdTarea) => {
     fetchCatedra();
     setIsTareaModalOpen(false);
-    toast.success(`Tarea '${createdTarea.titulo}' creada y publicada en el tablón.`);
-    fetchPublicaciones(); // Still need to refetch publications to show the new one from backend
+    toast.success(`Tarea '${createdTarea.titulo}' creada exitosamente. Asígnala para publicarla en el tablón.`);
+    // fetchPublicaciones(); // No se publica automáticamente hasta ser asignada
   };
 
-  const handleAssignTarea = (tareaId) => {
-    setSelectedTareaToAssign(tareaId);
+  const handleAssignTarea = (tarea) => {
+    setSelectedTareaToAssign(tarea);
     setIsAssignTareaModalOpen(true);
   };
 
@@ -301,6 +304,7 @@ const DocenteCatedraDetailPage = () => {
     setIsAssignTareaModalOpen(false);
     setSelectedTareaToAssign(null);
     toast.success('Tarea asignada a los alumnos con éxito.');
+    fetchPublicaciones(); // Actualizar el tablón de publicaciones también
   };
 
   const handleAssignEvaluation = (evaluationId) => {
@@ -316,10 +320,18 @@ const DocenteCatedraDetailPage = () => {
     fetchPublicaciones(); // Refetch publications to update tablón visibility
   };
 
-  const handleTareaUpdated = () => {
-    fetchCatedra();
-    setIsEditTareaModalOpen(false);
-    setEditingTarea(null);
+  const handleTareaUpdated = async (tareaMaestraId, updatedTareaData) => {
+    try {
+      await api.updateTareaForDocenteCatedra(catedra.id, tareaMaestraId, updatedTareaData);
+      toast.success('Tarea maestra actualizada exitosamente.');
+      fetchCatedra();
+      fetchPublicaciones(); // Para actualizar cualquier cambio en la publicación asociada
+      setIsEditTareaModalOpen(false);
+      setEditingTarea(null);
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Error al actualizar la tarea maestra.');
+      console.error('Error al actualizar la tarea maestra:', error);
+    }
   };
 
   const handleDeleteTarea = async (tareaId) => {
@@ -357,15 +369,14 @@ const DocenteCatedraDetailPage = () => {
       const createdEvaluation = response.data;
       Swal.fire({
         title: '¡Éxito!',
-        text: 'La evaluación ha sido generada y guardada correctamente.',
+        text: 'La evaluación ha sido generada y guardada correctamente. Asígnala para publicarla en el tablón.',
         icon: 'success',
-        timer: 2000,
+        timer: 3000,
         showConfirmButton: false
       });
       setIsEvaluationModalOpen(false);
       fetchCatedra();
-
-
+      // fetchPublicaciones(); // No se publica automáticamente hasta ser asignada
     } catch (error) {
       let errorMessage = error.response?.data?.error || 'No se pudo generar la evaluación.';
       if (errorMessage.includes('The model is overloaded')) {
@@ -383,9 +394,9 @@ const DocenteCatedraDetailPage = () => {
     setIsTaskDetailModalOpen(true);
   };
 
-  const handleToggleVisibility = async (publicacionId) => {
+  const handleToggleVisibility = async (publicacionId, catedraId) => {
     try {
-      await api.togglePublicacionVisibility(publicacionId);
+      await api.togglePublicacionVisibility(publicacionId, catedraId);
       toast.success('Visibilidad de la tarea actualizada.');
       fetchPublicaciones();
     } catch (error) {
@@ -516,7 +527,7 @@ const DocenteCatedraDetailPage = () => {
     });
     if (result.isConfirmed) {
       try {
-        await api.deleteMasterEvaluation(evaluationId);
+        await api.deleteDocenteEvaluation(id, evaluationId);
         Swal.fire('¡Eliminada!', 'La evaluación ha sido eliminada.', 'success');
         fetchCatedra();
       } catch (error) {
@@ -576,7 +587,7 @@ const DocenteCatedraDetailPage = () => {
     setSelectedPlanDeClases(null);
   };
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
+  const API_BASE_URL = process.env.REACT_APP_API_URL;
   const STATIC_ASSET_BASE_URL = API_BASE_URL.endsWith('/api') ? API_BASE_URL.slice(0, -4) : API_BASE_URL;
 
   // Extraer el ID del docente del token para usarlo en PublicacionCard
@@ -584,15 +595,12 @@ const DocenteCatedraDetailPage = () => {
   const [userRole, setUserRole] = useState(null); // Nuevo estado para el rol del usuario
 
   useEffect(() => {
-    const token = localStorage.getItem('docenteToken');
-    console.log('[DocenteCatedraDetailPage - useEffect] Token de docente en localStorage:', token ? token.substring(0, 10) + '...' : 'NO_TOKEN_ENCONTRADO');
+    const token = localStorage.getItem('docenteToken');    
     if (token) {
       try {
         const decoded = jwtDecode(token);
-        console.log('[DocenteCatedraDetailPage - useEffect] Token decodificado:', decoded);
         setCurrentDocenteId(decoded.docenteId);
         setUserRole(decoded.role); // Extraer el rol del token
-        console.log('[DocenteCatedraDetailPage - useEffect] currentDocenteId establecido a:', decoded.docenteId);
       } catch (error) {
         console.error('Error decodificando el token del docente:', error);
         setCurrentDocenteId(null);
@@ -734,8 +742,8 @@ const DocenteCatedraDetailPage = () => {
                     <span className="font-medium">Horarios</span>
                   </div>
                   <div className="space-y-1">
-                    {catedra.horariosPorDia && catedra.horariosPorDia.length > 0 ? (
-                      catedra.horariosPorDia.map((horario, index) => (
+                    {catedra.CatedraDiaHorario && catedra.CatedraDiaHorario.length > 0 ? (
+                      catedra.CatedraDiaHorario.map((horario, index) => (
                         <div key={index} className="text-sm">
                           <span className="text-white font-semibold">{horario.dia_semana}:</span>
                           <span className="text-slate-300 ml-1">{horario.hora_inicio} - {horario.hora_fin}</span>
@@ -767,7 +775,7 @@ const DocenteCatedraDetailPage = () => {
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-white">Tareas del Curso</h3>
-                    <p className="text-slate-400">{catedra.tareasMaestras?.length || 0} tareas asignadas</p>
+                    <p className="text-slate-400">{catedra.TareaMaestra?.length || 0} tareas asignadas</p>
                   </div>
                 </div>
                 <button
@@ -781,7 +789,7 @@ const DocenteCatedraDetailPage = () => {
             </div>
             
             <div className="p-6">
-              {(catedra.tareasMaestras?.length || 0) === 0 ? (
+              {(catedra.TareaMaestra?.length || 0) === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
                     <FileText className="text-slate-500" size={32} />
@@ -816,7 +824,7 @@ const DocenteCatedraDetailPage = () => {
                   </div>
                   <div>
             <h3 className="text-xl sm:text-2xl font-bold text-white">Evaluaciones</h3>
-                    <p className="text-slate-400">{catedra.evaluaciones?.length || 0} evaluaciones creadas</p>
+                    <p className="text-slate-400">{(catedra.Evaluacion?.length || 0)} evaluaciones creadas</p>
                   </div>
                 </div>
                 <button
@@ -830,8 +838,7 @@ const DocenteCatedraDetailPage = () => {
             </div>
             
             <div className="p-6">
-              {catedra.evaluaciones.length === 0 ? (
-                <div className="text-center py-12">
+              {(catedra.Evaluacion?.length || 0) === 0 ? (                <div className="text-center py-12">
                   <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
                     <Brain className="text-slate-500" size={32} />
                   </div>
@@ -848,11 +855,12 @@ const DocenteCatedraDetailPage = () => {
                           <th className="text-left py-4 px-4 text-slate-300 font-semibold">Título</th>
                           <th className="text-left py-4 px-4 text-slate-300 font-semibold">Preguntas</th>
                           <th className="text-left py-4 px-4 text-slate-300 font-semibold">Fecha</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Publicada</th>
                           <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {catedra.evaluaciones.map((evaluacion, index) => (
+                        {catedra.Evaluacion.map((evaluacion, index) => (
                           <tr key={evaluacion.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
                             <td className="py-4 px-4">
                               <div className="font-medium text-white">{evaluacion.titulo}</div>
@@ -860,11 +868,20 @@ const DocenteCatedraDetailPage = () => {
                             <td className="py-4 px-4">
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-600/20 text-blue-300 rounded-full text-sm border border-blue-500/30">
                                 <Target size={14} />
-                                {evaluacion.preguntas?.length || 0}
+                                {evaluacion.Pregunta?.length || 0}
                               </span>
                             </td>
                             <td className="py-4 px-4 text-slate-300">
                               {new Date(evaluacion.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="py-4 px-4">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border ${evaluacion.Publicacion?.visibleToStudents ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30'}`}>
+                                {
+                                  evaluacion.Publicacion && typeof evaluacion.Publicacion.visibleToStudents === 'boolean'
+                                    ? (evaluacion.Publicacion.visibleToStudents ? 'Sí' : 'No')
+                                    : 'N/A'
+                                }
+                              </span>
                             </td>
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-2">
@@ -899,7 +916,7 @@ const DocenteCatedraDetailPage = () => {
 
                   {/* Vista de tarjetas para pantallas pequeñas */}
                   <div className="block md:hidden space-y-4">
-                    {catedra.evaluaciones.map(evaluacion => (
+                    {catedra.Evaluacion.map(evaluacion => (
                       <EvaluationCard 
                         key={evaluacion.id} 
                         catedraId={catedra.id} 
@@ -1116,13 +1133,13 @@ const DocenteCatedraDetailPage = () => {
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-white">Alumnos Inscritos</h3>
-                  <p className="text-slate-400">{catedra.alumnos?.length || 0} estudiantes</p>
+                  <p className="text-slate-400">{catedra.CatedraAlumno?.length || 0} estudiantes</p>
                 </div>
               </div>
             </div>
             
             <div className="p-6">
-              {catedra.alumnos.length === 0 ? (
+              {catedra.CatedraAlumno.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
                     <Users className="text-slate-500" size={32} />
@@ -1142,12 +1159,19 @@ const DocenteCatedraDetailPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {catedra.alumnos.map((inscripcion) => {
-                        const nombre = inscripcion.alumno 
-                          ? `${inscripcion.alumno.nombre} ${inscripcion.alumno.apellido}` 
-                          : `${inscripcion.composer.first_name} ${inscripcion.composer.last_name} (Contrib.)`;
-                        const email = inscripcion.alumno ? inscripcion.alumno.email : (inscripcion.composer.email || 'N/A');
-                        const paymentStatus = studentPaymentStatuses[inscripcion.alumnoId];
+                      {catedra?.CatedraAlumno.map((inscripcion) => {
+                        const nombre = inscripcion.Alumno 
+                          ? `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}` 
+                          : inscripcion.Composer
+                            ? `${inscripcion.Composer.student_first_name} ${inscripcion.Composer.student_last_name} (Contrib.)`
+                            : 'Nombre Desconocido'; // Fallback
+                        const email = inscripcion.Alumno 
+                          ? inscripcion.Alumno.email 
+                          : inscripcion.Composer
+                            ? inscripcion.Composer.email
+                            : 'N/A'; // Fallback
+                        const studentIdentifier = inscripcion.alumnoId || inscripcion.composerId;
+                        const paymentStatus = studentPaymentStatuses[studentIdentifier];
                         
                         return (
                           <tr key={inscripcion.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
@@ -1171,7 +1195,7 @@ const DocenteCatedraDetailPage = () => {
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-2">
                                 <Link 
-                                  to={`/docente/catedra/${catedra.id}/alumno/${inscripcion.alumnoId}`}
+                                  to={`/docente/catedra/${catedra.id}/alumno/${inscripcion.alumnoId || inscripcion.composerId}`}
                                   className="p-2 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 hover:text-indigo-200 rounded-lg transition-all duration-200 border border-indigo-500/30"
                                   title="Revisar Tareas"
                                 >
@@ -1239,7 +1263,7 @@ const DocenteCatedraDetailPage = () => {
                         onDeletePublication={handleDeletePublicacion}
                         onDeleteComment={handleDeleteComment}
                         onEditPublication={() => openPublicacionModal(publicacion)}
-                        onInteractToggle={handleInteractToggle} // Nueva prop
+                        onToggleVisibility={(publicacionId) => handleToggleVisibility(publicacionId, catedra.id)} // Nueva prop
                         userType="docente"
                         userId={currentDocenteId}
                         docenteId={currentDocenteId} 
@@ -1318,7 +1342,7 @@ const DocenteCatedraDetailPage = () => {
             onCancel={() => setIsDiaClaseModalOpen(false)} 
             initialData={editingDiaClase} 
             isEditMode={!!editingDiaClase} 
-            scheduledDays={catedra?.horariosPorDia?.map(h => h.dia_semana)} 
+            scheduledDays={catedra?.CatedraDiaHorario?.map(h => h.dia_semana)} 
           />
         </Modal>
 
@@ -1338,7 +1362,7 @@ const DocenteCatedraDetailPage = () => {
             <AttendanceForm 
               catedraId={catedra?.id} 
               diaClaseId={selectedDiaClaseForAttendance.id} 
-              alumnos={catedra.alumnos} 
+              alumnos={catedra.CatedraAlumno}
               onSave={handleSaveAttendance} 
               onCancel={() => setIsAttendanceModalOpen(false)} 
             />
@@ -1407,8 +1431,7 @@ const DocenteCatedraDetailPage = () => {
                     {selectedTask.recursos.map((recurso, resIndex) => {
                       const fileName = recurso.split('/').pop();
                       const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileName.split('.').pop().toLowerCase());
-                      const fullRecursoUrl = `${STATIC_ASSET_BASE_URL}${recurso}`;
-                      
+                      const fullRecursoUrl = `${STATIC_ASSET_BASE_URL}/${recurso}`;
                       return (
                         <div key={resIndex} className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
                           {isImage ? (
@@ -1467,7 +1490,7 @@ const DocenteCatedraDetailPage = () => {
             onTareaAssigned={handleTareaAssigned} 
             onCancel={() => setIsAssignTareaModalOpen(false)} 
             userType="docente" 
-            initialTaskId={selectedTareaToAssign}
+            initialTask={selectedTareaToAssign}
           />
         </Modal>
 

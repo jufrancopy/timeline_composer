@@ -8,7 +8,7 @@ function AssignEvaluationForm({ catedraId, onEvaluationAssigned, onCancel, initi
   const [students, setStudents] = useState([]);
   const [selectedEvaluationId, setSelectedEvaluationId] = useState(initialEvaluationId || '');
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
-  const [fechaLimite, setFechaLimite] = useState(''); // New state for deadline
+  const [fechaEntrega, setFechaEntrega] = useState(''); // New state for deadline
   const [loadingEvaluations, setLoadingEvaluations] = useState(true);
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,8 +35,9 @@ function AssignEvaluationForm({ catedraId, onEvaluationAssigned, onCancel, initi
       // Fetch students
       try {
         setLoadingStudents(true);
-        const studentsResponse = await api.getDocenteCatedra(catedraId);
-        setStudents(studentsResponse.data.alumnos || []);
+        const studentsResponse = await api.getDocenteCatedraDetalles(catedraId);
+        console.log("Alumnos inscriptos en la Cátedra:", studentsResponse.data);
+        setStudents(studentsResponse.data.CatedraAlumno || []);
       } catch (err) {
         console.error("Error fetching students:", err);
         setError(prev => prev + " Error al cargar los alumnos.");
@@ -59,7 +60,8 @@ function AssignEvaluationForm({ catedraId, onEvaluationAssigned, onCancel, initi
   const handleSelectAllStudents = () => {
     if (selectedStudentIds.length === students.length) {
       setSelectedStudentIds([]);
-    } else {
+    }
+    else {
       setSelectedStudentIds(students.map(s => s.alumnoId));
     }
   };
@@ -76,7 +78,7 @@ function AssignEvaluationForm({ catedraId, onEvaluationAssigned, onCancel, initi
     }
 
     try {
-      await api.assignEvaluationToAlumnos(catedraId, selectedEvaluationId, { alumnoIds: selectedStudentIds, fecha_limite: fechaLimite || null });
+      await api.assignEvaluationToAlumnos(catedraId, selectedEvaluationId, selectedStudentIds, fechaEntrega || null);
       Swal.fire(
         '¡Evaluación Asignada!',
         'La evaluación ha sido asignada a los alumnos seleccionados y se han enviado las notificaciones.',
@@ -140,15 +142,15 @@ function AssignEvaluationForm({ catedraId, onEvaluationAssigned, onCancel, initi
 
         {/* Fecha Límite */}
         <div>
-          <label htmlFor="fechaLimite" className="block text-sm font-medium text-slate-300 mb-2">
+          <label htmlFor="fechaEntrega" className="block text-sm font-medium text-slate-300 mb-2">
             <Calendar size={16} className="inline-block mr-2 text-yellow-400" />
             Fecha Límite (Opcional):
           </label>
           <input
             type="date"
-            id="fechaLimite"
-            value={fechaLimite}
-            onChange={(e) => setFechaLimite(e.target.value)}
+            id="fechaEntrega"
+            value={fechaEntrega}
+            onChange={(e) => setFechaEntrega(e.target.value)}
             className="w-full p-3 bg-slate-700/70 border border-slate-600 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 text-slate-100"
             disabled={isSubmitting}
           />
@@ -180,10 +182,14 @@ function AssignEvaluationForm({ catedraId, onEvaluationAssigned, onCancel, initi
               </div>
               <div className="space-y-2">
                 {students.map((inscripcion) => {
-                  const alumno = inscripcion.alumno || inscripcion.composer;
-                  if (!alumno) return null; // Should not happen if data is consistent
-                  const studentId = inscripcion.alumnoId;
-                  const studentName = `${alumno.nombre || alumno.first_name} ${alumno.apellido || alumno.last_name}`;
+                  const alumno = inscripcion.Alumno || inscripcion.Composer;
+                  if (!alumno) return null;
+                  const studentId = inscripcion.alumnoId || inscripcion.composerId;
+                  const studentName = inscripcion.Alumno 
+                    ? `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}` 
+                    : inscripcion.Composer
+                      ? `${inscripcion.Composer.student_first_name} ${inscripcion.Composer.student_last_name}`
+                      : 'Nombre Desconocido';
                   return (
                     <label key={studentId} className="inline-flex items-center text-slate-200 cursor-pointer w-full">
                       <input

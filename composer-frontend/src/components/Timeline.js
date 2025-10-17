@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Music, Palette, Camera, Pen, Award, Calendar, Star, Clock, ExternalLink, Edit } from 'lucide-react';
+import { Music, Palette, Camera, Pen, Award, Calendar, Star, Clock, ExternalLink, Edit, ChevronDown, ChevronUp } from 'lucide-react';
 import Rating from './Rating';
 import Comments from './Comments';
 
@@ -8,6 +8,7 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
   const [selectedItem, setSelectedItem] = useState(null);
   const [visibleItems, setVisibleItems] = useState([]);
   const [internalComposers, setInternalComposers] = useState([]);
+  const [expandedPeriods, setExpandedPeriods] = useState({});
 
   // Datos de demostración cuando no hay composers
   const demoData = [
@@ -75,6 +76,10 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
 
   const sortComposersByBirthYear = useCallback((list) => [...list].sort((a, b) => (a.birth_year || 0) - (b.birth_year || 0)), []);
 
+  const PERIOD_ORDER = useMemo(() => [
+    'COLONIAL', 'INDEPENDENCIA', 'POSGUERRA', 'MODERNO', 'CONTEMPORANEO'
+  ], []);
+
   useEffect(() => {
     const dataToUse = composers.length > 0 ? composers : demoData;
     setInternalComposers(sortComposersByBirthYear(dataToUse));
@@ -97,8 +102,71 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
     'PINTOR': { icon: Palette, color: "from-yellow-500 to-orange-500", category: "Pintor" },
     'CINEASTA': { icon: Camera, color: "from-gray-600 to-gray-800", category: "Cineasta" },
     'ESCRITOR': { icon: Pen, color: "from-indigo-500 to-purple-500", category: "Escritor" },
+    'POET': { icon: Pen, color: "from-yellow-600 to-orange-600", category: "Poeta" },
+    'CONDUCTOR': { icon: Music, color: "from-green-500 to-blue-500", category: "Director" },
+    'ARRANGER': { icon: Music, color: "from-red-500 to-pink-500", category: "Arreglista" },
+    'PERFORMER': { icon: Star, color: "from-teal-500 to-green-500", category: "Intérprete" },
+    'ENSEMBLE_ORCHESTRA': { icon: Music, color: "from-blue-700 to-indigo-700", category: "Agrupación/Orquesta" },
     'DEFAULT': { icon: Award, color: "from-cyan-500 to-blue-500", category: "Creador" }
   }), []);
+
+  const groupedTimelineData = useMemo(() => {
+    const grouped = internalComposers.reduce((acc, composer) => {
+      const role = composer.mainRole && composer.mainRole.length > 0 ? composer.mainRole[0] : 'DEFAULT';
+      const categoryInfo = categoryMap[role] || categoryMap.DEFAULT;
+      const composerWithCategory = { ...composer, ...categoryInfo };
+      
+      const period = composer.period || 'UNKNOWN';
+      if (!acc[period]) {
+        acc[period] = [];
+      }
+      acc[period].push(composerWithCategory);
+      return acc;
+    }, {});
+
+    // Ordenar los períodos según PERIOD_ORDER y luego ordenar compositores dentro de cada período por año de nacimiento
+    const sortedGrouped = {};
+    PERIOD_ORDER.forEach(period => {
+      if (grouped[period]) {
+        sortedGrouped[period] = grouped[period].sort((a, b) => (a.birth_year || 0) - (b.birth_year || 0));
+      }
+    });
+    // Añadir períodos no definidos en PERIOD_ORDER al final
+    Object.keys(grouped).forEach(period => {
+      if (!PERIOD_ORDER.includes(period)) {
+        sortedGrouped[period] = grouped[period].sort((a, b) => (a.birth_year || 0) - (b.birth_year || 0));
+      }
+    });
+
+    return sortedGrouped;
+  }, [internalComposers, categoryMap, PERIOD_ORDER]);
+
+  const visibleItemsMap = useMemo(() => {
+    const map = {};
+    Object.values(groupedTimelineData).flat().forEach((item, index) => {
+      map[item.id] = index;
+    });
+    return map;
+  }, [groupedTimelineData]);
+
+  useEffect(() => {
+    if (Object.keys(groupedTimelineData).length > 0) {
+      // Inicializa todos los períodos como expandidos por defecto
+      const initialExpanded = Object.keys(groupedTimelineData).reduce((acc, period) => ({ ...acc, [period]: true }), {});
+      setExpandedPeriods(initialExpanded);
+      const timer = setTimeout(() => setVisibleItems(Object.values(groupedTimelineData).flat().map(item => item.id)), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [groupedTimelineData]);
+
+  const togglePeriodExpansion = (period) => {
+    setExpandedPeriods(prev => ({
+      ...prev,
+      [period]: !prev[period]
+    }));
+  };
+
+
 
   const getPeriodColor = (period) => {
     const colors = {
@@ -132,18 +200,7 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
 
   // --- LÓGICA DE DATOS ---
 
-  const timelineData = useMemo(() => internalComposers.map(composer => {
-    const role = composer.mainRole && composer.mainRole.length > 0 ? composer.mainRole[0] : 'DEFAULT';
-    const categoryInfo = categoryMap[role] || categoryMap.DEFAULT;
-    return { ...composer, ...categoryInfo };
-  }), [internalComposers, categoryMap]);
 
-  useEffect(() => {
-    if (timelineData.length > 0) {
-      const timer = setTimeout(() => setVisibleItems(timelineData.map((_, index) => index)), 100);
-      return () => clearTimeout(timer);
-    }
-  }, [timelineData]);
 
   const stats = useMemo(() => {
     if (internalComposers.length === 0) return { creators: 0, centuries: 0, disciplines: 0 };
@@ -198,7 +255,26 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
           
           {/* Elementos de la línea de tiempo */}
           <div className="space-y-8 sm:space-y-12">
-            {timelineData.map((item, index) => {
+            {Object.entries(groupedTimelineData).map(([period, items]) => (
+              <div key={period} className="mb-16">
+                <div className="flex items-center justify-center mb-8">
+                  <button 
+                    onClick={() => togglePeriodExpansion(period)}
+                    className={`flex items-center gap-2 text-2xl sm:text-3xl font-extrabold px-6 py-3 rounded-full transition-all duration-300 transform
+                      ${expandedPeriods[period] ? 'bg-purple-600/30 hover:bg-purple-600/50' : 'bg-gray-700/30 hover:bg-gray-600/50'}
+                      border border-white/10
+                    `}
+                  >
+                    <span className={`bg-clip-text text-transparent ${getPeriodColor(period).split(' ')[1].replace('text-','text-').replace('-800','').replace('text-gray-800','text-gray-300')}`}
+                      style={{ backgroundImage: `linear-gradient(to right, ${getPeriodColor(period).split(' ')[0].replace('bg-','').replace('-100','').replace('bg-gray-100','#a78bfa')}, ${getPeriodColor(period).split(' ')[1].replace('text-','').replace('-800','').replace('text-gray-800','#d8b4fe')})` }}
+                    >
+                      {period.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                    {expandedPeriods[period] ? <ChevronUp className="w-6 h-6 text-white" /> : <ChevronDown className="w-6 h-6 text-white" />}
+                  </button>
+                </div>
+                
+                {expandedPeriods[period] && items.map((item, index) => {
               const isExpanded = selectedItem === item.id;
               const embedUrl = getYouTubeEmbedUrl(item.youtube_link);
 
@@ -212,9 +288,9 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
                     // Solo en desktop aplicar el reverse
                     index % 2 === 0 ? 'sm:flex-row' : 'sm:flex-row-reverse'
                   } transition-all duration-700 transform ${
-                    visibleItems.includes(index) ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'
+                    visibleItems.includes(item.id) ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'
                   }`}
-                  style={{ transitionDelay: `${index * 150}ms` }}
+                  style={{ transitionDelay: `${visibleItemsMap[item.id] * 100}ms` }}
                 >
                   {/* Contenido */}
                   <div className={`w-full sm:w-5/12 ${
@@ -226,19 +302,19 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
                       }`}
                       onClick={() => setSelectedItem(isExpanded ? null : item.id)}
                     >
-                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">
                         {item.first_name} {item.last_name}
                       </h3>
-                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="text-xs sm:text-sm font-medium text-purple-300 bg-purple-500/20 px-3 py-1 rounded-full">
                           {item.category}
                         </span>
-                        <span className={`text-xs sm:text-sm font-medium ${getPeriodColor(item.period)} px-3 py-1 rounded-full border`}>
-                          {item.period}
+                        <span className="text-sm text-gray-400 font-medium">
+                          ({item.birth_year || 'N/A'} - {item.death_year || 'Presente'})
                         </span>
                       </div>
                       
-                      {true && (
+                      {isExpanded && (
                         <div className="mt-4 pt-4 border-t border-white/10 animate-fade-in-down">
                           <p className="text-gray-300 text-sm sm:text-base mb-4 italic">"{item.bio}"</p>
                           {item.notable_works && <p className="text-gray-300 text-sm mb-4"><strong className="font-semibold text-white">Obras Notables:</strong> {item.notable_works}</p>}
@@ -291,7 +367,9 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
                   <div className="hidden sm:block w-5/12"></div>
                 </div>
               );
-            })}
+                })}
+              </div>
+            ))}
           </div>
         </div>
 

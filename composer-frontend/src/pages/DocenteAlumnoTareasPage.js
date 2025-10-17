@@ -40,13 +40,15 @@ const DocenteAlumnoTareasPage = () => {
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [attachmentType, setAttachmentType] = useState(''); // 'image', 'pdf', or 'other'
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
-  const STATIC_ASSET_BASE_URL = process.env.REACT_APP_API_URL ? new URL(process.env.REACT_APP_API_URL).origin : 'http://localhost:4000';
+  const API_BASE_URL = process.env.REACT_APP_API_URL;
+  const STATIC_ASSET_BASE_URL = process.env.REACT_APP_API_URL ? new URL(process.env.REACT_APP_API_URL).origin : '';
 
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      console.log(`[FRONTEND] Fetching tareas para catedraId: ${catedraId}, alumnoId: ${alumnoId}`);
+      console.log(`[FRONTEND] Fetching evaluaciones para catedraId: ${catedraId}, alumnoId: ${alumnoId}`);
       const [tareasResponse, evaluacionesResponse] = await Promise.all([
         api.getEntregasForAlumno(catedraId, alumnoId),
         api.getEvaluacionesForAlumno(catedraId, alumnoId),
@@ -309,7 +311,7 @@ const DocenteAlumnoTareasPage = () => {
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-4 sm:p-6 md:p-8">
         <div className="max-w-4xl mx-auto">
-          <Link to={`/docente/catedras/${catedraId}`} className="mb-6 text-purple-400 hover:text-purple-300 inline-block">&larr; Volver a la Cátedra</Link>
+          <Link to={`/docente/catedra/${catedraId}`} className="mb-6 text-purple-400 hover:text-purple-300 inline-block">&larr; Volver a la Cátedra</Link>
           <div className="bg-white/5 backdrop-blur-lg p-6 rounded-lg shadow-xl mb-8">
             <h2 className="text-2xl sm:text-3xl font-bold">Revisando Tareas de:</h2>
             <p className="text-xl sm:text-2xl text-gray-300">{alumno.nombre} {alumno.apellido}</p>

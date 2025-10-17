@@ -33,3 +33,62 @@ code {
     animation: fade-in-down 0.5s ease-out;
   }
 }
+
+/* Estilos para ReactQuill en tema oscuro */
+.quill .ql-editor {
+  color: #FFFFFF !important;
+}
+
+.quill .ql-toolbar.ql-snow {
+  border: none !important;
+  background-color: #2d3748 !important; /* Tailwind gray-800 */
+}
+
+.quill .ql-container.ql-snow {
+  border: none !important;
+}
+
+.quill .ql-snow .ql-stroke {
+  stroke: #A0AEC0 !important; /* Tailwind gray-400 */
+}
+
+.quill .ql-snow .ql-fill {
+  fill: #A0AEC0 !important; /* Tailwind gray-400 */
+}
+
+.quill .ql-snow .ql-picker {
+  color: #A0AEC0 !important; /* Tailwind gray-400 */
+}
+
+.quill .ql-snow .ql-picker-label:hover,
+.quill .ql-snow .ql-picker-item:hover {
+  color: #FFFFFF !important; /* Texto blanco al pasar el ratón */
+  background-color: #4a5568 !important; /* Tailwind gray-600 */
+}
+
+.quill .ql-snow .ql-active .ql-stroke {
+  stroke: #8B5CF6 !important; /* Tailwind purple-500 */
+}
+
+.quill .ql-snow .ql-active .ql-fill {
+  fill: #8B5CF6 !important; /* Tailwind purple-500 */
+}
+
+.quill .ql-tooltip {
+  background-color: #2d3748 !important;
+  color: #FFFFFF !important;
+  border-color: #4a5568 !important;
+}
+
+.quill .ql-tooltip a {
+  color: #8B5CF6 !important;
+}
+
+.ql-snow.ql-toolbar button:hover, .ql-snow.ql-toolbar button.ql-active, .ql-snow.ql-toolbar .ql-picker-label:hover, .ql-snow.ql-toolbar .ql-picker-label.ql-active, .ql-snow.ql-toolbar .ql-picker-item:hover, .ql-snow.ql-toolbar .ql-picker-item.ql-selected {
+  color: #FFFFFF;
+  background-color: #4a5568;
+}
+
+.ql-snow.ql-toolbar button:active, .ql-snow.ql-toolbar button.ql-active, .ql-snow.ql-toolbar .ql-picker-label.ql-active, .ql-snow.ql-toolbar .ql-picker-item.ql-selected {
+  background-color: #6d28d9; /* Tailwind purple-700 */
+}

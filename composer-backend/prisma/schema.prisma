@@ -87,7 +87,7 @@ model Alumno {
   instrumento            String?
   detalles_adicionales   String?
   created_at             DateTime                 @default(now())
-  updated_at             DateTime
+  updated_at             DateTime                 @updatedAt
   nombre_tutor           String?
   telefono_tutor         String?
   vive_con_padres        Boolean?                 @default(false)
@@ -136,7 +136,7 @@ model Catedra {
   aula              String
   dias              String
   created_at        DateTime            @default(now())
-  updated_at        DateTime
+  updated_at        DateTime            @updatedAt
   docenteId         Int?
   modalidad_pago    ModalidadPago       @default(PARTICULAR)
   Docente           Docente?            @relation(fields: [docenteId], references: [id])
@@ -176,7 +176,7 @@ model CatedraDiaHorario {
   hora_fin    String
   catedraId   Int
   created_at  DateTime @default(now())
-  updated_at  DateTime
+  updated_at  DateTime @updatedAt
   Catedra     Catedra  @relation(fields: [catedraId], references: [id])
 }
 
@@ -187,7 +187,7 @@ model ComentarioPublicacion {
   autorAlumnoId  Int?
   autorDocenteId Int?
   created_at     DateTime    @default(now())
-  updated_at     DateTime
+  updated_at     DateTime    @updatedAt
   Alumno         Alumno?     @relation(fields: [autorAlumnoId], references: [id])
   Docente        Docente?    @relation(fields: [autorDocenteId], references: [id])
   Publicacion    Publicacion @relation(fields: [publicacionId], references: [id])
@@ -200,7 +200,7 @@ model CostoCatedra {
   monto_cuota     Float?
   es_gratuita     Boolean  @default(false)
   created_at      DateTime @default(now())
-  updated_at      DateTime
+  updated_at      DateTime @updatedAt
   Catedra         Catedra  @relation(fields: [catedraId], references: [id])
 }
 
@@ -209,7 +209,7 @@ model DiaClase {
   fecha      DateTime
   dia_semana String
   created_at DateTime     @default(now())
-  updated_at DateTime
+  updated_at DateTime     @updatedAt
   catedraId  Int
   Asistencia Asistencia[]
   Catedra    Catedra      @relation(fields: [catedraId], references: [id])
@@ -223,7 +223,7 @@ model Docente {
   otpSecret              String?
   otpEnabled             Boolean                  @default(false)
   created_at             DateTime                 @default(now())
-  updated_at             DateTime
+  updated_at             DateTime                 @updatedAt
   direccion              String?
   telefono               String?
   Catedra                Catedra[]
@@ -255,7 +255,7 @@ model EditSuggestion {
   suggester_email         String
   suggester_ip            String?
   created_at              DateTime   @default(now())
-  updated_at              DateTime
+  updated_at              DateTime   @updatedAt
   composerId              Int
   is_student_contribution Boolean?   @default(false)
   student_first_name      String?
@@ -282,7 +282,7 @@ model EvaluacionAsignacion {
   estado                 EstadoEvaluacionAsignacion @default(PENDIENTE)
   fecha_entrega          DateTime?
   created_at             DateTime                   @default(now())
-  updated_at             DateTime
+  updated_at             DateTime                   @updatedAt
   alumnoId               Int
   evaluacionId           Int
   publicacionId          Int?                       @unique
@@ -325,7 +325,7 @@ model PlanDeClases {
   docenteId        Int
   catedraId        Int
   created_at       DateTime             @default(now())
-  updated_at       DateTime
+  updated_at       DateTime             @updatedAt
   Catedra          Catedra              @relation(fields: [catedraId], references: [id])
   Docente          Docente              @relation(fields: [docenteId], references: [id])
   UnidadPlan       UnidadPlan[]
@@ -349,7 +349,7 @@ model Publicacion {
   autorAlumnoId          Int?
   autorDocenteId         Int?
   created_at             DateTime                 @default(now())
-  updated_at             DateTime
+  updated_at             DateTime                 @updatedAt
   tareaMaestraId         Int?                     @unique
   visibleToStudents      Boolean                  @default(false)
   evaluacionAsignacionId Int?                     @unique
@@ -411,7 +411,7 @@ model TareaAsignacion {
   submission_date  DateTime?
   puntos_obtenidos Int?
   created_at       DateTime     @default(now())
-  updated_at       DateTime
+  updated_at       DateTime     @updatedAt
   alumnoId         Int
   tareaMaestraId   Int
   Alumno           Alumno       @relation(fields: [alumnoId], references: [id])
@@ -429,7 +429,7 @@ model TareaMaestra {
   recursos        String[]          @default([])
   multimedia_path String?
   created_at      DateTime          @default(now())
-  updated_at      DateTime
+  updated_at      DateTime          @updatedAt
   catedraId       Int
   publicacionId   Int?              @unique
   Publicacion     Publicacion?
@@ -449,7 +449,7 @@ model UnidadPlan {
   mediosVerificacionEvaluacion String
   recursos                     String[]     @default([])
   created_at                   DateTime     @default(now())
-  updated_at                   DateTime
+  updated_at                   DateTime     @updatedAt
   PlanDeClases                 PlanDeClases @relation(fields: [planDeClasesId], references: [id])
 }
 
@@ -459,6 +459,7 @@ enum RoleType {
   CONDUCTOR
   ARRANGER
   PERFORMER
+  ENSEMBLE_ORCHESTRA
   STUDENT
 }
 

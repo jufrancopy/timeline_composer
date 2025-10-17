@@ -14,17 +14,18 @@ function DocenteEvaluationPage() {
 
   const fetchEvaluation = async () => {
     try {
-      const response = await api.getEvaluationById(evaluationId);
+      const response = await api.getDocenteEvaluationById(evaluationId);
+      console.log('Evaluación obtenida:', response.data);
       const formattedEvaluation = {
         title: response.data.titulo,
-        questions: response.data.preguntas.map(q => ({
+        questions: response.data.Pregunta.map(q => ({
           id: q.id,
           text: q.texto,
-          options: q.opciones.map(o => ({
+          options: q.Opcion.map(o => ({
             id: o.id,
             text: o.texto
           })),
-          correctAnswer: q.opciones.find(o => o.es_correcta)?.id || null,
+          correctAnswer: q.Opcion.find(o => o.es_correcta)?.id || null,
         })),
       };
       setEvaluationData(formattedEvaluation);
@@ -56,15 +57,15 @@ function DocenteEvaluationPage() {
       });
       toast.success(response.data.message || 'Evaluación generada exitosamente!');
       const formattedEvaluation = {
-        title: response.data.evaluation.titulo,
-        questions: response.data.evaluation.preguntas.map(q => ({
+        title: response.data.Evaluacion.titulo,
+        questions: response.data.Evaluacion.Pregunta.map(q => ({
           id: q.id,
           text: q.texto,
-          options: q.opciones.map(o => ({
+          options: q.Opcion.map(o => ({
             id: o.id,
             text: o.texto
           })),
-          correctAnswer: q.opciones.find(o => o.es_correcta)?.id || null,
+          correctAnswer: q.Opcion.find(o => o.es_correcta)?.id || null,
         })),
       };
       setEvaluationData(formattedEvaluation);
@@ -93,7 +94,7 @@ function DocenteEvaluationPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-8">
       <div className="max-w-4xl mx-auto">
-        <button onClick={() => navigate(`/docente/catedras/${catedraId}`)} className="mb-6 text-purple-400 hover:text-purple-300">
+        <button onClick={() => navigate(`/docente/catedra/${catedraId}`)} className="mb-6 text-purple-400 hover:text-purple-300">
           &larr; Volver a la Cátedra
         </button>
 
@@ -138,7 +139,7 @@ function DocenteEvaluationPage() {
               </div>
             ))}
              <div className="mt-8 text-center">
-                <button onClick={() => navigate(`/docente/catedras/${catedraId}`)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg">
+                <button onClick={() => navigate(`/docente/catedra/${catedraId}`)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg">
                     Volver a la Cátedra
                 </button>
             </div>

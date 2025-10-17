@@ -15,10 +15,20 @@ const CatedrasPage = () => {
 
   const fetchCatedras = async () => {
     try {
+      setLoading(true);
+      console.log('[Frontend CatedrasPage] Attempting to fetch catedras...');
       const response = await api.getCatedras();
-      setCatedras(response.data);
+      console.log('[Frontend CatedrasPage] API Response Data:', response.data);
+      if (response.data && Array.isArray(response.data)) {
+        setCatedras(response.data);
+        console.log(`[Frontend CatedrasPage] Successfully set ${response.data.length} catedras in state.`);
+      } else {
+        console.warn('[Frontend CatedrasPage] API response data is not an array or is empty:', response.data);
+        setCatedras([]);
+      }
     } catch (error) {
-      toast.error('No se pudieron cargar las cátedras.');
+      console.error('[Frontend CatedrasPage] Error fetching catedras:', error);
+      toast.error(error.response?.data?.error || 'No se pudieron cargar las cátedras. Revise la consola para más detalles.');
     } finally {
       setLoading(false);
     }
@@ -74,6 +84,19 @@ const CatedrasPage = () => {
   };
 
   if (loading) return <div className="text-center p-8">Cargando...</div>;
+
+  // Temporary debug display
+  // if (process.env.NODE_ENV === 'development') {
+  //   return (
+  //     <div className="text-white p-4">
+  //       <h3>Debug Info (CatedrasPage)</h3>
+  //       <p>Loading: {loading ? 'true' : 'false'}</p>
+  //       <p>Catedras in state: {catedras.length}</p>
+  //       <pre>{JSON.stringify(catedras, null, 2)}</pre>
+  //     </div>
+  //   );
+  // }
+
 
   return (
     <>
@@ -131,7 +154,7 @@ const CatedrasPage = () => {
                           'N/A'
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-300">{c.alumnos.length}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-300">{c.CatedraAlumno.length}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button onClick={() => navigate(`/admin/catedras/${c.id}`)} className="text-blue-400 hover:text-blue-500 mr-4">Ver</button>
                         <button onClick={() => openModal(c)} className="text-yellow-400 hover:text-yellow-500 mr-4">Editar</button>

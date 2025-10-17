@@ -87,7 +87,7 @@ function TaskTable({ title, tasks, getStatusColor, getTaskStatusDisplay, handleO
                             <button
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                onAssignTask(task.id);
+                                onAssignTask(task);
                               }}
                               className="text-blue-400 hover:text-blue-500 flex items-center gap-1"
                             >

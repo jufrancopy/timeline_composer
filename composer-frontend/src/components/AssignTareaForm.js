@@ -3,54 +3,24 @@ import api from '../api';
 import Swal from 'sweetalert2';
 import { Target, UserCheck, Send, Loader } from 'lucide-react';
 
-function AssignTareaForm({ catedraId, onTareaAssigned, onCancel, userType, initialTaskId = null }) {
-  const [tasks, setTasks] = useState([]);
+function AssignTareaForm({ catedraId, onTareaAssigned, onCancel, userType, initialTask = null }) {
   const [students, setStudents] = useState([]);
-  const [selectedTaskId, setSelectedTaskId] = useState(initialTaskId || '');
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
-  const [loadingTasks, setLoadingTasks] = useState(true);
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      // Fetch tasks only if not in initialTaskId mode
-      if (!initialTaskId) {
-        try {
-          setLoadingTasks(true);
-          const tasksResponse = await api.getDocenteTareasMaestras(catedraId);
-          setTasks(tasksResponse.data);
-        } catch (err) {
-          console.error("Error fetching tasks:", err);
-          setError("Error al cargar las tareas.");
-        } finally {
-          setLoadingTasks(false);
-        }
-      } else {
-        // If initialTaskId is provided, fetch only that specific task to display its title and pre-select students
-        const fetchSpecificTaskAndAssignments = async () => {
-          try {
-            setLoadingTasks(true);
-            const response = await api.getTareaMaestraById(catedraId, initialTaskId);
-            setTasks([response.data]); // Set only the specific task
-            const assignedStudentIds = (response.data.asignaciones || []).map(a => a.alumnoId);
-            setSelectedStudentIds(assignedStudentIds);
-          } catch (err) {
-            console.error("Error fetching specific task and assignments:", err);
-            setError("Error al cargar la tarea especificada y sus asignaciones.");
-          } finally {
-            setLoadingTasks(false);
-          }
-        };
-        fetchSpecificTaskAndAssignments();
+      if (initialTask) {
+        const assignedStudentIds = (initialTask.TareaAsignacion || []).map(a => a.alumnoId);
+        setSelectedStudentIds(assignedStudentIds);
       }
 
-      // Fetch students
       try {
         setLoadingStudents(true);
-        const studentsResponse = await api.getDocenteCatedra(catedraId);
-        setStudents(studentsResponse.data.alumnos || []);
+        const studentsResponse = await api.getDocenteCatedraDetalles(catedraId);
+        setStudents(studentsResponse.data.CatedraAlumno || []);
       } catch (err) {
         console.error("Error fetching students:", err);
         setError("Error al cargar los alumnos.");
@@ -60,7 +30,7 @@ function AssignTareaForm({ catedraId, onTareaAssigned, onCancel, userType, initi
     };
 
     fetchInitialData();
-  }, [catedraId]);
+  }, [catedraId, initialTask]);
 
   const handleStudentSelection = (studentId) => {
     setSelectedStudentIds(prev =>
@@ -71,10 +41,10 @@ function AssignTareaForm({ catedraId, onTareaAssigned, onCancel, userType, initi
   };
 
   const handleSelectAllStudents = () => {
-    if (selectedStudentIds.length === students.length) {
-      setSelectedStudentIds([]);
-    } else {
+    if (selectedStudentIds.length === students.length && students.length > 0) {
       setSelectedStudentIds(students.map(s => s.alumnoId));
+    } else {
+      setSelectedStudentIds([]);
     }
   };
 
@@ -83,14 +53,14 @@ function AssignTareaForm({ catedraId, onTareaAssigned, onCancel, userType, initi
     setError('');
     setIsSubmitting(true);
 
-    if (!selectedTaskId || selectedStudentIds.length === 0) {
+    if (!initialTask || selectedStudentIds.length === 0) {
       setError('Por favor, selecciona una tarea y al menos un alumno.');
       setIsSubmitting(false);
       return;
     }
 
     try {
-      await api.assignTareaToAlumnos(catedraId, selectedTaskId, { alumnoIds: selectedStudentIds });
+      await api.assignTareaToAlumnos(catedraId, initialTask.id, { alumnoIds: selectedStudentIds });
       Swal.fire(
         '¡Tarea Asignada!',
         'La tarea ha sido asignada a los alumnos seleccionados.',
@@ -110,7 +80,7 @@ function AssignTareaForm({ catedraId, onTareaAssigned, onCancel, userType, initi
     }
   };
 
-  const selectedTask = tasks.find(task => task.id === selectedTaskId);
+  const selectedTask = initialTask;
 
   return (
     <div className="bg-slate-800/50 backdrop-blur-lg p-6 rounded-lg shadow-xl border border-slate-700/50 text-white">
@@ -121,31 +91,14 @@ function AssignTareaForm({ catedraId, onTareaAssigned, onCancel, userType, initi
         <div>
           <label htmlFor="task" className="block text-sm font-medium text-slate-300 mb-2">
             <Target size={16} className="inline-block mr-2 text-purple-400" />
-            Seleccionar Tarea:
+            Tarea a asignar:
           </label>
-          {loadingTasks ? (
-            <div className="text-slate-400">Cargando tareas...</div>
-          ) : tasks.length === 0 ? (
-            <div className="text-slate-400">No hay tareas maestras disponibles para asignar. Crea una tarea primero.</div>
+          {initialTask ? (
+            <div className="w-full p-3 bg-slate-700/70 border border-slate-600 rounded-lg text-slate-100">
+              {initialTask.titulo}
+            </div>
           ) : (
-            <select
-              id="task"
-              className="w-full p-3 bg-slate-700/70 border border-slate-600 rounded-lg focus:ring-purple-500 focus:border-purple-500 text-slate-100"
-              value={selectedTaskId}
-              onChange={(e) => setSelectedTaskId(e.target.value)}
-              disabled={isSubmitting || initialTaskId !== null}
-            >
-              {initialTaskId ? (
-                <option value={selectedTask?.id}>{selectedTask?.titulo}</option>
-              ) : (
-                <option value="">-- Selecciona una tarea --</option>
-              )}
-              {!initialTaskId && tasks.map((task) => (
-                <option key={task.id} value={task.id}>
-                  {task.titulo}
-                </option>
-              ))}
-            </select>
+            <div className="text-slate-400">La tarea no se ha cargado correctamente.</div>
           )}
           {selectedTask && (
             <p className="text-slate-400 text-sm mt-2">Puntos posibles: {selectedTask.puntos_posibles || 'N/A'}</p>
@@ -178,10 +131,10 @@ function AssignTareaForm({ catedraId, onTareaAssigned, onCancel, userType, initi
               </div>
               <div className="space-y-2">
                 {students.map((inscripcion) => {
-                  const alumno = inscripcion.alumno || inscripcion.composer;
+                  const alumno = inscripcion.Alumno || inscripcion.Composer;
                   if (!alumno) return null; // Should not happen if data is consistent
                   const studentId = inscripcion.alumnoId;
-                  const studentName = `${alumno.nombre || alumno.first_name} ${alumno.apellido || alumno.last_name}`;
+                  const studentName = `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}`;
                   return (
                     <label key={studentId} className="inline-flex items-center text-slate-200 cursor-pointer w-full">
                       <input

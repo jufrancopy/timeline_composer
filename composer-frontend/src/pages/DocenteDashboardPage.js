@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const DocenteDashboardPage = () => {
   const [catedras, setCatedras] = useState([]);
@@ -9,24 +10,38 @@ const DocenteDashboardPage = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    console.log('DocenteDashboardPage: Ejecutando handleLogout...');
     localStorage.removeItem('docenteToken');
     navigate('/docente/login');
   };
 
   useEffect(() => {
+    const token = localStorage.getItem('docenteToken');
+    if (!token) {
+      // If token is missing, redirect to login
+      navigate('/docente/login');
+      return;
+    }
+
     const fetchCatedras = async () => {
       try {
         const response = await api.getDocenteCatedras();
         setCatedras(response.data);
       } catch (err) {
-        setError(err.response?.data?.message || 'Error al cargar las cátedras asignadas.');
+        console.error('Error loading assigned catedras:', err); // Log the error for debugging
+        // Check if the error is due to an expired/invalid token (401 Unauthorized)
+        if (err.response?.status === 401) {
+          localStorage.removeItem('docenteToken'); // Clear expired token
+          navigate('/docente/login'); // Redirect to login
+          toast.error('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        } else {
+          setError(err.response?.data?.message || 'Error al cargar las cátedras asignadas.');
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchCatedras();
-  }, []);
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -76,7 +91,7 @@ const DocenteDashboardPage = () => {
                 </div>
                 <div className="mt-4">
                   <Link
-                    to={`/docente/catedras/${catedra.id}`}
+                    to={`/docente/catedra/${catedra.id}`}
                     className="block bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 text-center"
                   >
                     Ver Detalles de Cátedra

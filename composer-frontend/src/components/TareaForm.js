@@ -86,10 +86,11 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
 
     try {
       if (isEditMode) {
-        await api.updateTareaForDocente(catedraId, initialData.id, tareaData);
+        await api.updateTareaForDocenteCatedra(catedraId, initialData.id, tareaData);
         toast.success('Tarea actualizada exitosamente!');
-        onTareaUpdated();
+        onTareaUpdated(initialData.id, tareaData);
       } else {
+        console.log('[TareaForm] Enviando datos de tarea al backend:', tareaData);
         const apiFunction = userType === 'docente' ? api.createTareaForDocenteCatedra : api.createTareaForCatedra;
         const response = await apiFunction(catedraId, tareaData);
 
@@ -120,7 +121,7 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
           theme="snow"
           value={descripcion}
           onChange={setDescripcion}
-          className="mt-1 bg-gray-700 border border-gray-600 rounded-md shadow-sm text-white focus-within:ring-purple-500 focus-within:border-purple-500"
+          className="mt-1 bg-gray-700 border border-gray-600 rounded-md shadow-sm text-white focus-within:ring-purple-500 focus-within:border-purple-500 min-h-[150px]"
         />
       </div>
       <div>

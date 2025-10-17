@@ -36,13 +36,15 @@ const DocenteGenerateEvaluationPage = () => {
         setIsGenerating(true);
         setErrorCatedra(''); // Clear previous errors
 
+        const data = {
+            topic,
+            subject: catedra?.nombre, // Use catedra name as subject for AI context
+            numberOfQuestions: parseInt(numberOfQuestions, 10),
+            numberOfOptions: parseInt(numberOfOptions, 10),
+        };
+
         try {
-            const data = {
-                topic,
-                subject: catedra?.nombre, // Use catedra name as subject for AI context
-                numberOfQuestions: parseInt(numberOfQuestions, 10),
-                numberOfOptions: parseInt(numberOfOptions, 10),
-            };
+            console.log('[FRONTEND] Sending generate evaluation request with data:', data);
             await api.generateDocenteEvaluation(catedraId, data);
             toast.success('Evaluación generada y guardada exitosamente!');
             navigate(`/docente/catedras/${catedraId}`); // Go back to catedra detail page after generation

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Mail, Shield } from 'lucide-react';
+import { Mail, Shield, AlertCircle, ArrowRight } from 'lucide-react';
 
 const DocenteLoginPage = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -45,88 +45,132 @@ const DocenteLoginPage = ({ onLogin }) => {
       setLoading(false);
     }
   };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950">
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md w-full">
-          <div className="relative overflow-hidden rounded-2xl bg-slate-900/50 backdrop-blur-xl border border-slate-700/50">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-pink-600/5 to-purple-600/10"></div>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-2xl"></div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-600 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+      </div>
 
-            <div className="relative z-10 p-8">
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center">
-                  <Shield className="text-white" size={28} />
+      <div className="relative z-10 w-full max-w-md px-6">
+        {/* Card container with glass effect */}
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+          {/* Header section */}
+          <div className="bg-gradient-to-r from-blue-500/20 to-indigo-500/20 p-8 pb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-105 transition-transform duration-300">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">
+              Acceso de Docente
+            </h2>
+            <p className="text-center text-gray-300 text-sm mt-2">
+              Ingresa con tu email para continuar
+            </p>
+          </div>
+
+          {/* Form section */}
+          <div className="p-8 pt-6">
+            <form onSubmit={otpSent ? handleVerifyOtp : handleRequestOtp} className="space-y-6">
+              <div>
+                <label htmlFor="email" className="block text-gray-200 text-sm font-medium mb-2">
+                  Email de Contacto
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                  <input
+                    type="email"
+                    id="email"
+                    placeholder="Tu Email de Docente"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={`w-full pl-12 pr-4 py-3 bg-white/5 border ${loading ? 'border-blue-400' : 'border-white/10'} rounded-xl focus:outline-none focus:border-blue-400 text-white placeholder-gray-400 transition-all duration-300 backdrop-blur-sm`}
+                    required
+                    readOnly={otpSent}
+                  />
+                  <div className={`absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-indigo-500/20 -z-10 blur-sm transition-opacity duration-300 ${loading ? 'opacity-100' : 'opacity-0'}`}></div>
                 </div>
-                <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400">
-                  Acceso Docente
-                </h2>
-                <p className="text-slate-400 mt-2">Ingresa con tu email para continuar</p>
               </div>
 
-              <form onSubmit={otpSent ? handleVerifyOtp : handleRequestOtp} className="space-y-6">
-                <div>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                      type="email"
-                      placeholder="Tu Email de Contacto"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-300"
-                      required
-                      readOnly={otpSent}
-                    />
-                  </div>
-                </div>
-
-                {otpSent && (
-                  <div className="animate-in slide-in-from-top-4 duration-300">
+              {otpSent && (
+                <div className="animate-in slide-in-from-top-4 duration-300">
+                  <div>
+                    <label htmlFor="otp" className="block text-gray-200 text-sm font-medium mb-2">
+                      Código OTP
+                    </label>
                     <div className="relative">
                       <Shield className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
                       <input
                         type="text"
-                        placeholder="Código OTP"
+                        id="otp"
+                        placeholder="Ingresa el código de 6 dígitos"
                         value={otp}
                         onChange={(e) => setOtp(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-300"
+                        className={`w-full pl-12 pr-4 py-3 bg-white/5 border ${loading ? 'border-blue-400' : 'border-white/10'} rounded-xl focus:outline-none focus:border-blue-400 text-white placeholder-gray-400 transition-all duration-300 backdrop-blur-sm`}
                         required
                       />
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-indigo-500/20 -z-10 blur-sm transition-opacity duration-300 "></div>
                     </div>
                   </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg shadow-purple-900/25 hover:shadow-xl hover:shadow-purple-900/40 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    {loading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white/20 rounded-full animate-spin border-t-white"></div>
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <Shield size={20} className="group-hover:rotate-12 transition-transform duration-300" />
-                        {otpSent ? 'Verificar y Acceder' : 'Solicitar Código'}
-                      </>
-                    )}
-                  </span>
-                </button>
-              </form>
-
-              {error && (
-                <div className="mt-4 p-3 bg-red-900/30 border border-red-500/30 rounded-lg">
-                  <p className="text-red-300 text-sm text-center">{error}</p>
                 </div>
               )}
-            </div>
+
+              {error && (
+                <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl p-3 animate-shake">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <span>{otpSent ? 'Verificar y Acceder' : 'Solicitar Código'}</span>
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+                  </>
+                )}
+              </button>
+            </form>
           </div>
         </div>
+
+        {/* Footer text */}
+        <p className="text-center text-gray-400 text-xs mt-6">
+          Acceso restringido solo para docentes autorizados
+        </p>
       </div>
+
+      <style jsx>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        .animate-shake {
+          animation: shake 0.3s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 };

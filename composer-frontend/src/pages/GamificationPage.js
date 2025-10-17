@@ -9,7 +9,7 @@ function GamificationPage() {
   useEffect(() => {
     const fetchRanking = async () => {
       try {
-        const response = await apiClient.get('/ranking');
+        const response = await apiClient.getRanking();
         setRanking(response.data);
       } catch (err) {
         console.error('Error fetching ranking:', err);

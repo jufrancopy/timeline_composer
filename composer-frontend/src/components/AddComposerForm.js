@@ -23,7 +23,7 @@ const AddComposerForm = ({ onComposerAdded }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const roles = ['COMPOSER', 'POET', 'CONDUCTOR', 'ARRANGER', 'PERFORMER'];
+  const roles = ['COMPOSER', 'POET', 'CONDUCTOR', 'ARRANGER', 'PERFORMER', 'ENSEMBLE_ORCHESTRA'];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -133,7 +133,15 @@ const AddComposerForm = ({ onComposerAdded }) => {
               {roles.map(role => (
                 <label key={role} className="flex items-center space-x-2">
                   <input type="checkbox" value={role} checked={formData.mainRole.includes(role)} onChange={handleRoleChange} className="form-checkbox h-5 w-5 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500" />
-                  <span>{role.charAt(0) + role.slice(1).toLowerCase()}</span>
+                  <span>{
+                    role === 'COMPOSER' ? 'Compositor' :
+                    role === 'POET' ? 'Poeta' :
+                    role === 'CONDUCTOR' ? 'Director' :
+                    role === 'ARRANGER' ? 'Arreglista' :
+                    role === 'PERFORMER' ? 'Intérprete' :
+                    role === 'ENSEMBLE_ORCHESTRA' ? 'Agrupación/Orquesta' :
+                    role
+                  }</span>
                 </label>
               ))}
             </div>
