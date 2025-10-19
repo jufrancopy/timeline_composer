@@ -48,8 +48,8 @@ const InscribirAlumnoModal = ({ catedraId, alumnosDisponibles, onInscribir, onCa
           />
         </div>
       )}
-      <select 
-        value={selectedAlumnoId} 
+      <select
+        value={selectedAlumnoId}
         onChange={(e) => setSelectedAlumnoId(e.target.value)}
         className="w-full p-2 bg-gray-700 rounded text-white"
       >
@@ -72,8 +72,7 @@ const CatedraDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [catedra, setCatedra] = useState(null);
-  const [allAlumnos, setAllAlumnos] = useState([]);
-  const [studentComposers, setStudentComposers] = useState([]);
+  const [enrollmentCandidates, setEnrollmentCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTareaModalOpen, setIsTareaModalOpen] = useState(false);
@@ -136,7 +135,7 @@ const CatedraDetailPage = () => {
       toast.error('Error al registrar la interacción.');
     }
   };
-  
+
   const handleCreatePublicacion = async (catedraId, data) => {
     setPublicationLoading(true);
     try {
@@ -150,7 +149,7 @@ const CatedraDetailPage = () => {
       setPublicationLoading(false);
     }
   };
-  
+
   const openPublicacionModal = (publicacion = null) => {
     setEditingPublicacion(publicacion);
     setIsPublicacionModalOpen(true);
@@ -200,30 +199,12 @@ const CatedraDetailPage = () => {
     }
   }, [id, navigate]);
 
-  const fetchAlumnos = useCallback(async () => {
+  const fetchEnrollmentCandidates = useCallback(async () => {
     try {
-      const response = await api.getAlumnos();
-      setAllAlumnos(response.data);
+      const response = await api.getEnrollmentCandidates();
+      setEnrollmentCandidates(response.data);
     } catch (error) {
-      toast.error('No se pudieron cargar los alumnos para la inscripción.');
-    }
-  }, []);
-
-  const fetchStudentComposers = useCallback(async () => {
-    try {
-      const response = await api.getComposers(); // Llama a getComposers
-      // Mapear los compositores a un formato similar al de alumnos
-      const mappedStudentComposers = response.data.data.map(contributingComposer => ({
-        id: `composer-${contributingComposer.id}`,
-        nombre: contributingComposer.first_name || '',
-        apellido: contributingComposer.last_name || '',
-        email: contributingComposer.email || `contribuyente-${contributingComposer.id}@example.com`,
-        isComposer: true,
-        composerId: contributingComposer.id
-      }));
-      setStudentComposers(mappedStudentComposers);
-    } catch (error) {
-      toast.error('No se pudieron cargar los compositores estudiantes.');
+      toast.error('No se pudieron cargar los candidatos para la inscripción.');
     }
   }, []);
 
@@ -287,11 +268,11 @@ const CatedraDetailPage = () => {
 
     const resumen = catedra.CatedraAlumno.map(inscripcion => {
       const alumnoId = inscripcion.alumnoId || inscripcion.composerId;
-      const alumnoNombre = inscripcion.Alumno 
+      const alumnoNombre = inscripcion.Alumno
         ? `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}`
-        : inscripcion.Composer 
-        ? `${inscripcion.Composer.student_first_name || inscripcion.Composer.first_name || ''} ${inscripcion.Composer.student_last_name || inscripcion.Composer.last_name || ''}`
-        : '';
+        : inscripcion.Composer
+          ? `${inscripcion.Composer.student_first_name || inscripcion.Composer.first_name || ''} ${inscripcion.Composer.student_last_name || inscripcion.Composer.last_name || ''}`
+          : '';
 
       let totalClasesProgramadas = 0;
       let clasesPresente = 0;
@@ -345,10 +326,9 @@ const CatedraDetailPage = () => {
 
   useEffect(() => {
     fetchCatedraDetails();
-    fetchAlumnos();
-    fetchStudentComposers();
+    fetchEnrollmentCandidates();
     fetchPublicaciones();
-  }, [fetchCatedraDetails, fetchAlumnos, fetchStudentComposers, fetchPublicaciones, id]);
+  }, [fetchCatedraDetails, fetchEnrollmentCandidates, fetchPublicaciones, id]);
 
   const handleInscribir = async (catedraId, alumnoId, isComposer = false, diaCobro = null) => {
     try {
@@ -447,18 +427,7 @@ const CatedraDetailPage = () => {
       if (inscripcion.composerId) idsInscritos.add(inscripcion.Composer?.id);
     });
 
-    const combinedStudents = [
-      ...allAlumnos,
-      ...studentComposers
-    ];
-
-    const uniqueStudents = combinedStudents.filter((student, index, self) =>
-      index === self.findIndex((s) => (
-        (s.id === student.id) || (s.email === student.email)
-      ))
-    );
-
-    return uniqueStudents.filter(s => {
+    return enrollmentCandidates.filter(s => {
       if (!s.isComposer && idsInscritos.has(s.id)) return false;
       if (s.isComposer && idsInscritos.has(s.composerId)) return false;
       return true;
@@ -475,7 +444,7 @@ const CatedraDetailPage = () => {
           <button onClick={() => navigate('/admin/catedras')} className="mb-6 text-purple-400 hover:text-purple-300">
             &larr; Volver a Cátedras
           </button>
-          
+
           <div className="bg-white/5 backdrop-blur-lg p-8 rounded-lg shadow-xl mb-10">
             <div className="flex justify-between items-center">
               <h2 className="text-4xl font-bold mb-2">{catedra.nombre}</h2>
@@ -777,7 +746,7 @@ const CatedraDetailPage = () => {
             ) : (
               <div className="space-y-6">
                 {publicaciones.map(publicacion => (
-                  (publicacion.visibleToStudents || userRole === 'admin') && 
+                  (publicacion.visibleToStudents || userRole === 'admin') &&
                   <PublicacionCard
                     key={publicacion.id}
                     publicacion={publicacion}
@@ -821,13 +790,13 @@ const CatedraDetailPage = () => {
                     const alumnoDisplay = inscripcion.Alumno
                       ? `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}`
                       : inscripcion.Composer
-                      ? `${inscripcion.Composer.first_name || ''} ${inscripcion.Composer.last_name || ''} (Contribuyente)`
-                      : '';
+                        ? `${inscripcion.Composer.student_first_name || ''} ${inscripcion.Composer.student_last_name || ''} (Contribuyente)`
+                        : '';
                     const alumnoEmail = inscripcion.Alumno
                       ? inscripcion.Alumno.email
                       : inscripcion.Composer
-                      ? inscripcion.Composer.email || `contribuyente-#${inscripcion.Composer.id}`
-                      : '';
+                        ? inscripcion.Composer.email || `contribuyente-#${inscripcion.Composer.id}`
+                        : '';
                     const alumnoIdForAttendance = inscripcion.alumnoId || inscripcion.composerId;
 
                     return (
@@ -865,7 +834,7 @@ const CatedraDetailPage = () => {
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Inscribir Alumno" showSubmitButton={false} cancelText="">
-        <InscribirAlumnoModal 
+        <InscribirAlumnoModal
           catedraId={id}
           alumnosDisponibles={getAlumnosDisponibles()}
           onInscribir={handleInscribir}
@@ -878,9 +847,8 @@ const CatedraDetailPage = () => {
       <Modal
         isOpen={isAttendanceModalOpen}
         onClose={() => setIsAttendanceModalOpen(false)}
-        title={`Asistencia para ${
-          selectedDiaClase ? format(parseISO(selectedDiaClase.fecha), 'dd/MM/yyyy', { locale: es }) : ''
-        }`}
+        title={`Asistencia para ${selectedDiaClase ? format(parseISO(selectedDiaClase.fecha), 'dd/MM/yyyy', { locale: es }) : ''
+          }`}
         showSubmitButton={false}
         cancelText="Cerrar"
       >
@@ -895,8 +863,8 @@ const CatedraDetailPage = () => {
                 const alumnoNombre = inscripcion.Alumno
                   ? `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}`
                   : inscripcion.Composer
-                  ? `${inscripcion.Composer.first_name || ''} ${inscripcion.Composer.last_name || ''}`
-                  : '';
+                    ? `${inscripcion.Composer.student_first_name || ''} ${inscripcion.Composer.last_name || ''}`
+                    : '';
                 const isPresente = attendanceData[selectedDiaClase?.id]?.[alumnoId] || false;
 
                 return (
@@ -904,9 +872,8 @@ const CatedraDetailPage = () => {
                     <span className="text-gray-200">{alumnoNombre}</span>
                     <button
                       onClick={() => handleToggleAttendance(selectedDiaClase.id, alumnoId, !isPresente)}
-                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        isPresente ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
-                      }`}
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${isPresente ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                        }`}
                     >
                       {isPresente ? 'Presente' : 'Ausente'}
                     </button>
@@ -1058,9 +1025,8 @@ const CatedraDetailPage = () => {
                     return (
                       <div
                         key={opcion.id}
-                        className={`flex items-center p-3 rounded-md transition-colors ${
-                          isCorrect ? 'bg-green-800/50 border-l-4 border-green-400' : 'bg-gray-800/50'
-                        }`}
+                        className={`flex items-center p-3 rounded-md transition-colors ${isCorrect ? 'bg-green-800/50 border-l-4 border-green-400' : 'bg-gray-800/50'
+                          }`}
                       >
                         <span
                           className={`ml-3 ${isCorrect ? 'text-white font-semibold' : 'text-gray-300'}`}

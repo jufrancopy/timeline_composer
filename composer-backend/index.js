@@ -408,12 +408,12 @@ app.get('/api/alumnos/me/contributions', requireUser(prisma), async (req, res) =
     });
 
     // Buscar sugerencias de edición realizadas por el alumno
-    const studentSuggestions = await prisma.editSuggestion.findMany({
+    const studentSuggestions = await prisma.EditSuggestion.findMany({
       where: {
         suggester_email: email,
       },
       include: {
-        composer: {
+        Composer: {
           select: {
             first_name: true,
             last_name: true,
@@ -780,10 +780,10 @@ app.delete('/api/admin/tareas/:tareaId', requireAdmin, async (req, res) => {
   }
 });
 
+app.use('/api', adminRouter);
 app.use('/api/composers', composerRouter);
 app.use('/api', docenteRouter);
 app.use('/api', evaluationRoutes);
-app.use('/api', adminRouter);
 app.use('/api', publicacionRouter);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api', alumnoRouter);

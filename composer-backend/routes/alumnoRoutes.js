@@ -435,5 +435,102 @@ module.exports = (prisma, transporter) => {
     }
   });
 
+
+  router.get('/alumnos/me/contributions', requireUser(prisma), async (req, res) => {
+    try {
+      const { email: userEmail, role } = req.user;
+
+      if (role.toLowerCase() !== 'alumno') {
+        return res.status(403).json({ error: 'Acceso denegado: Solo para alumnos.' });
+      }
+
+      const contributions = await prisma.composer.findMany({
+        where: {
+          is_student_contribution: true,
+          email: userEmail,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      res.json(contributions);
+    } catch (error) {
+      console.error('Error al obtener las contribuciones del alumno:', error);
+      res.status(500).json({ error: 'Error al obtener las contribuciones del alumno', details: error.message });
+    }
+  });
+
+  router.get('/alumnos/contributing', requireUser(prisma), async (req, res) => {
+    try {
+      // Obtener compositores que son contribuciones de estudiantes
+      const studentComposers = await prisma.composer.findMany({
+        where: {
+          is_student_contribution: true,
+          status: 'PUBLISHED', // Solo publicados para que sean elegibles
+        },
+        select: {
+          id: true,
+          student_first_name: true,
+          student_last_name: true,
+          email: true,
+        },
+      });
+
+      // Obtener sugerencias de edición de alumnos que han sido aprobadas
+      const approvedStudentSuggestions = await prisma.editSuggestion.findMany({
+        where: {
+          is_student_contribution: true,
+          status: 'APPLIED', // Solo sugerencias aplicadas
+        },
+        select: {
+          suggester_email: true,
+          student_first_name: true,
+          student_last_name: true,
+        },
+      });
+
+      const uniqueContributingStudents = new Map();
+
+      // Procesar compositores estudiantes
+      studentComposers.forEach(composer => {
+        if (composer.email) {
+          uniqueContributingStudents.set(composer.email, {
+            id: composer.id, // ID del compositor
+            nombre: composer.student_first_name,
+            apellido: composer.student_last_name,
+            email: composer.email,
+            isComposer: true,
+            tipoContribucion: 'COMPOSER',
+          });
+        }
+      });
+
+      // Procesar sugerencias de edición de estudiantes
+      approvedStudentSuggestions.forEach(suggestion => {
+        if (suggestion.suggester_email) {
+          // Si ya existe un registro con este email, lo actualizamos o mantenemos el más completo
+          // Para este caso, simplemente añadimos si no existe
+          if (!uniqueContributingStudents.has(suggestion.suggester_email)) {
+            uniqueContributingStudents.set(suggestion.suggester_email, {
+              // No hay un ID directo de alumno/compositor aquí, pero el email es clave
+              id: null, // Podríamos necesitar un id para el frontend, manejar con cautela
+              nombre: suggestion.student_first_name,
+              apellido: suggestion.student_last_name,
+              email: suggestion.suggester_email,
+              isComposer: true, // Indica que es un contribuyente
+              tipoContribucion: 'SUGGESTION',
+            });
+          }
+        }
+      });
+
+      res.status(200).json(Array.from(uniqueContributingStudents.values()));
+    } catch (error) {
+      console.error('Error al obtener alumnos contribuyentes:', error);
+      res.status(500).json({ error: 'Error al obtener la lista de alumnos contribuyentes.', details: error.message });
+    }
+  });
+
   return router;
 };

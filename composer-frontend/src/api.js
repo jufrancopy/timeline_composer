@@ -17,14 +17,34 @@ apiClient.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      console.log("401 Unauthorized received, clearing tokens.");
+      localStorage.removeItem('docenteToken');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('userToken');
+      localStorage.removeItem('token');
+      // Optionally, redirect to login page
+      // window.location.href = '/login'; 
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ==== Endpoints para Alumnos ====
 const api = {
   // ==== Endpoints para Alumnos ====
   getAlumnos: () => apiClient.get('/admin/alumnos'),
+  getEnrollmentCandidates: () => apiClient.get('/api/admin/enrollment-candidates'), //CRUSH
   getAlumno: (id) => apiClient.get(`/alumnos/${id}`),
   createAlumno: (data) => apiClient.post('/alumnos', data),
   updateAlumno: (id, data) => apiClient.put(`/alumnos/${id}`, data),
   deleteAlumno: (id) => apiClient.delete(`/alumnos/${id}`),
+  getContributingStudents: () => apiClient.get('/api/alumnos/contributing'),// CRUSH
+
 
   // ==== Endpoints para Compositores ====
   getComposers: (page = 1, limit = 10) => apiClient.get(`/composers?page=${page}&limit=${limit}`),

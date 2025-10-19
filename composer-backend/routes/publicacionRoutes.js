@@ -107,35 +107,39 @@ module.exports = (prisma, transporter) => {
 
     // Obtener todas las publicaciones de una cátedra
     router.get('/catedras/:catedraId/publicaciones', requireUser(prisma), async (req, res) => {
-        console.log(`[DEBUG - PublicacionRoutes] GET /catedras/${req.params.catedraId}/publicaciones route reached.`);
         const { catedraId } = req.params;
         const { role, alumnoId, docenteId } = req.user; // Desestructurar role, alumnoId y docenteId de req.user
-        console.log(`[DEBUG - PublicacionRoutes] User Role: ${role}, Alumno ID: ${alumnoId}, Docente ID: ${docenteId}, Catedra ID: ${catedraId}`);
+
+        let tareaMaestraIdsWithAlumnoAssignment = [];
+        let evaluacionMaestraIdsWithAlumnoAssignment = [];
+
+        if (role === 'alumno' && alumnoId) {
+            const assignedTareas = await prisma.TareaAsignacion.findMany({
+                where: { alumnoId: alumnoId },
+                select: { tareaMaestraId: true }
+            });
+            tareaMaestraIdsWithAlumnoAssignment = assignedTareas.map(ta => ta.tareaMaestraId);
+
+            const assignedEvaluaciones = await prisma.EvaluacionAsignacion.findMany({
+                where: { alumnoId: alumnoId },
+                select: { evaluacionId: true }
+            });
+            evaluacionMaestraIdsWithAlumnoAssignment = assignedEvaluaciones.map(ea => ea.evaluacionId);
+        }
         try {
-            const publicaciones = await prisma.publicacion.findMany({
+            const publicaciones = await prisma.Publicacion.findMany({
                 where: {
                     catedraId: parseInt(catedraId),
                     AND: [
                         {
                             OR: [
                                 { tipo: { not: 'TAREA' } },
-                                ...(role === 'alumno' ? [{
-                                    tipo: 'TAREA',
-                                    visibleToStudents: true,
-                                    TareaMaestra: {
-                                        TareaAsignacion: {
-                                            some: { alumnoId: alumnoId }
-                                        }
-                                    }
-                                }, {
-                                    tipo: 'EVALUACION',
-                                    visibleToStudents: true,
-                                    EvaluacionAsignacion: {
-                                        some: { alumnoId: alumnoId }
-                                    }
-                                }] : [
-                                    { tipo: 'TAREA' },
-                                    { tipo: 'EVALUACION' }
+                                ...(role === 'alumno' ? [
+                                    { tipo: 'TAREA', visibleToStudents: true, tareaMaestraId: { in: tareaMaestraIdsWithAlumnoAssignment } },
+                                    { tipo: 'EVALUACION', visibleToStudents: true, evaluacionMaestraId: { in: evaluacionMaestraIdsWithAlumnoAssignment } }
+                                ] : [
+                                    { tipo: 'TAREA', visibleToStudents: true },
+                                    { tipo: 'EVALUACION', visibleToStudents: true }
                                 ])
                             ]
                         }

@@ -63,7 +63,7 @@ function MyContributionsPage() {
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [taskToSubmit, setTaskToSubmit] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [activeTab, setActiveTab] = useState('tareas');
+  const [activeTab, setActiveTab] = useState(contributions.length > 0 ? 'aportes' : 'tablon');
   const [publicaciones, setPublicaciones] = useState([]);
   const [studentCatedras, setStudentCatedras] = useState([]);
   const [currentAlumnoId, setCurrentAlumnoId] = useState(null);
@@ -76,7 +76,8 @@ function MyContributionsPage() {
     totalTasks: 0,
     completedTasks: 0,
     pendingEvaluations: 0,
-    totalPublications: 0
+    totalPublications: 0,
+    totalContributions: 0
   });
 
   useEffect(() => {
@@ -144,7 +145,8 @@ function MyContributionsPage() {
         totalTasks: tasks.length,
         completedTasks,
         pendingEvaluations: pendingEvals,
-        totalPublications: allPublicaciones.length
+        totalPublications: allPublicaciones.length,
+        totalContributions: contributionsData.length
       });
 
       setContributions(contributionsData);
@@ -452,99 +454,7 @@ function MyContributionsPage() {
           </div>
         </div>
 
-        {/* Sección de Contribuciones */}
-        {contributions.length > 0 && (
-          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-600/20 rounded-lg">
-                  <Users className="text-purple-400" size={24} />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-white">Mis Aportes</h3>
-                  <p className="text-slate-400">{contributions.length} contribuciones registradas</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-slate-700/50">
-                      <th className="text-left py-4 px-4 text-slate-300 font-semibold">Compositor</th>
-                      <th className="text-left py-4 px-4 text-slate-300 font-semibold">Estado</th>
-                      <th className="text-left py-4 px-4 text-slate-300 font-semibold">Motivo/Sugerencia</th>
-                      <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {contributions.map((c) => (
-                      <tr key={c.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                              {c.first_name?.[0]}{c.last_name?.[0]}
-                            </div>
-                            <div>
-                              <div className="font-medium text-white">{c.first_name} {c.last_name}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border ${getStatusColor(c.status)}`}>
-                            {c.status === 'PENDING_REVIEW' && (
-                              <>
-                                <Clock size={14} />
-                                Pendiente de Revisión
-                              </>
-                            )}
-                            {c.status === 'PUBLISHED' && (
-                              <>
-                                <CheckCircle size={14} />
-                                Publicado
-                              </>
-                            )}
-                            {c.status === 'REJECTED' && (
-                              <>
-                                <AlertCircle size={14} />
-                                Rechazado
-                              </>
-                            )}
-                            {c.status === 'NEEDS_IMPROVEMENT' && (
-                              <>
-                                <Edit3 size={14} />
-                                Necesita Mejoras
-                              </>
-                            )}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="max-w-xs">
-                            <p className="text-slate-300 text-sm truncate">
-                              {c.rejection_reason || c.suggestion_reason || 'N/A'}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          {c.status === 'NEEDS_IMPROVEMENT' && (
-                            <button
-                              onClick={() => handleEditClick(c)}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-500/30"
-                            >
-                              <Edit3 size={16} />
-                              <span className="text-sm font-medium">Editar y Reenviar</span>
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {loading && (
           <div className="text-center py-12">
@@ -567,6 +477,22 @@ function MyContributionsPage() {
         <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
           <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 border-b border-slate-700/50">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab('aportes')}
+                className={`${
+                  activeTab === 'aportes'
+                    ? 'border-purple-400 text-purple-300 bg-purple-500/10'
+                    : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                } group flex items-center gap-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-lg transition-all duration-300 rounded-t-lg`}
+              >
+                <Users size={20} className="group-hover:scale-110 transition-transform duration-300" />
+                Mis Aportes
+                {stats.totalContributions > 0 && (
+                  <span className="ml-2 bg-purple-600/20 text-purple-300 px-2 py-1 rounded-full text-xs font-semibold border border-purple-500/30">
+                    {stats.totalContributions}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={() => setActiveTab('tablon')}
                 className={`${
@@ -620,6 +546,204 @@ function MyContributionsPage() {
 
           {/* Contenido de las Pestañas */}
           <div className="p-6">
+            {activeTab === 'aportes' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">Mis Aportes</h3>
+                  <p className="text-slate-400">Gestiona tus contribuciones de compositores</p>
+                </div>
+                {contributions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
+                      <Users className="text-slate-500" size={32} />
+                    </div>
+                    <p className="text-slate-400 text-lg font-medium">No tienes aportes de compositores</p>
+                    <p className="text-slate-500 text-sm mt-1">Crea tu primera contribución en la línea de tiempo</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="border-b border-slate-700/50">
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Compositor</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Estado</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Motivo/Sugerencia</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {contributions.map((c) => (
+                          <tr key={c.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                  {c.first_name?.[0]}{c.last_name?.[0]}
+                                </div>
+                                <div>
+                                  <div className="font-medium text-white">{c.first_name} {c.last_name}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border ${getStatusColor(c.status)}`}>
+                                {c.status === 'PENDING_REVIEW' && (
+                                  <>
+                                    <Clock size={14} />
+                                    Pendiente de Revisión
+                                  </>
+                                )}
+                                {c.status === 'PUBLISHED' && (
+                                  <>
+                                    <CheckCircle size={14} />
+                                    Publicado
+                                  </>
+                                )}
+                                {c.status === 'REJECTED' && (
+                                  <>
+                                    <AlertCircle size={14} />
+                                    Rechazado
+                                  </>
+                                )}
+                                {c.status === 'NEEDS_IMPROVEMENT' && (
+                                  <>
+                                    <Edit3 size={14} />
+                                    Necesita Mejoras
+                                  </>
+                                )}
+                              </span>
+                              <p className="text-slate-500 text-xs mt-1">
+                                {c.status === 'PENDING_REVIEW' && 'Tu aporte está siendo revisado por nuestro equipo.'}
+                                {c.status === 'PUBLISHED' && '¡Felicidades! Tu aporte ha sido publicado en la línea de tiempo.'}
+                                {c.status === 'REJECTED' && 'Tu aporte ha sido rechazado. Revisa el motivo para entender por qué.'}
+                                {c.status === 'NEEDS_IMPROVEMENT' && 'Tu aporte requiere algunos cambios antes de ser publicado. Haz clic en Editar y Reenviar para modificarlos.'}
+                              </p>
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="max-w-xs">
+                                <p className="text-slate-300 text-sm truncate">
+                                  {c.rejection_reason || c.suggestion_reason || 'N/A'}
+                                </p>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              {c.status === 'NEEDS_IMPROVEMENT' && (
+                                <button
+                                  onClick={() => handleEditClick(c)}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-500/30"
+                                >
+                                  <Edit3 size={16} />
+                                  <span className="text-sm font-medium">Editar y Reenviar</span>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* {activeTab === 'aportes' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">Mis Aportes</h3>
+                  <p className="text-slate-400">Gestiona tus contribuciones de compositores</p>
+                </div>
+                {contributions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
+                      <Users className="text-slate-500" size={32} />
+                    </div>
+                    <p className="text-slate-400 text-lg font-medium">No tienes aportes de compositores</p>
+                    <p className="text-slate-500 text-sm mt-1">Crea tu primera contribución en la línea de tiempo</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="border-b border-slate-700/50">
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Compositor</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Estado</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Motivo/Sugerencia</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {contributions.map((c) => (
+                          <tr key={c.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                  {c.first_name?.[0]}{c.last_name?.[0]}
+                                </div>
+                                <div>
+                                  <div className="font-medium text-white">{c.first_name} {c.last_name}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border ${getStatusColor(c.status)}`}>
+                                {c.status === 'PENDING_REVIEW' && (
+                                  <>
+                                    <Clock size={14} />
+                                    Pendiente de Revisión
+                                  </>
+                                )}
+                                {c.status === 'PUBLISHED' && (
+                                  <>
+                                    <CheckCircle size={14} />
+                                    Publicado
+                                  </>
+                                )}
+                                {c.status === 'REJECTED' && (
+                                  <>
+                                    <AlertCircle size={14} />
+                                    Rechazado
+                                  </>
+                                )}
+                                {c.status === 'NEEDS_IMPROVEMENT' && (
+                                  <>
+                                    <Edit3 size={14} />
+                                    Necesita Mejoras
+                                  </>
+                                )}
+                              </span>
+                              <p className="text-slate-500 text-xs mt-1">
+                                {c.status === 'PENDING_REVIEW' && 'Tu aporte está siendo revisado por nuestro equipo.'}
+                                {c.status === 'PUBLISHED' && '¡Felicidades! Tu aporte ha sido publicado en la línea de tiempo.'}
+                                {c.status === 'REJECTED' && 'Tu aporte ha sido rechazado. Revisa el motivo para entender por qué.'}
+                                {c.status === 'NEEDS_IMPROVEMENT' && 'Tu aporte requiere algunos cambios antes de ser publicado. Haz clic en Editar y Reenviar para modificarlos.'}
+                              </p>
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="max-w-xs">
+                                <p className="text-slate-300 text-sm truncate">
+                                  {c.rejection_reason || c.suggestion_reason || 'N/A'}
+                                </p>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              {c.status === 'NEEDS_IMPROVEMENT' && (
+                                <button
+                                  onClick={() => handleEditClick(c)}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-500/30"
+                                >
+                                  <Edit3 size={16} />
+                                  <span className="text-sm font-medium">Editar y Reenviar</span>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )} */}
+
             {activeTab === 'tablon' && (
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -757,8 +881,8 @@ function MyContributionsPage() {
               <BookOpen className="text-slate-500" size={36} />
             </div>
             <h3 className="text-2xl font-bold text-white mb-2">¡Bienvenido a tu panel!</h3>
-            <p className="text-slate-400 text-lg">Aún no tienes actividades asignadas.</p>
-            <p className="text-slate-500 mt-2">Cuando tengas tareas, evaluaciones o publicaciones, aparecerán aquí.</p>
+            <p className="text-slate-400 text-lg">Aún no tienes actividades asignadas o contribuciones.</p>
+            <p className="text-slate-500 mt-2">Cuando tengas tareas, evaluaciones, publicaciones o aportes, aparecerán aquí.</p>
           </div>
         )}
       </div>

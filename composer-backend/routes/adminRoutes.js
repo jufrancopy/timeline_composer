@@ -363,7 +363,7 @@ module.exports = (prisma, transporter) => {
       res.status(200).json(updatedCatedra);
     } catch (error) {
       console.error('Error al actualizar modalidad de pago de cátedra:', error);
-      res.status(500).json({ error: 'Error al actualizar la modalidad de pago.', details: error.message });
+      res.status(500).json({ error: 'Error al actualizar la modalidad de pago.' });
     }
   });
 
@@ -387,7 +387,7 @@ module.exports = (prisma, transporter) => {
       res.status(200).json(updatedCatedraAlumno);
     } catch (error) {
       console.error('Error al actualizar día de cobro de CatedraAlumno:', error);
-      res.status(500).json({ error: 'Error al actualizar el día de cobro.', details: error.message });
+      res.status(500).json({ error: 'Error al actualizar el día de cobro.' });
     }
   });
 
@@ -419,7 +419,7 @@ module.exports = (prisma, transporter) => {
       });
     } catch (error) {
       console.error('Error al obtener información de pago de CatedraAlumno:', error);
-      res.status(500).json({ error: 'Error al obtener la información de pago.', details: error.message });
+      res.status(500).json({ error: 'Error al obtener la información de pago.' });
     }
   });
 
@@ -455,7 +455,7 @@ module.exports = (prisma, transporter) => {
       res.status(200).json(upsertedCosto);
     } catch (error) {
       console.error('Error al definir/actualizar costos de cátedra:', error);
-      res.status(500).json({ error: 'Error al definir o actualizar los costos de la cátedra.', details: error.message });
+      res.status(500).json({ error: 'Error al definir o actualizar los costos de la cátedra.' });
     }
   });
 
@@ -474,7 +474,7 @@ module.exports = (prisma, transporter) => {
       res.status(200).json(costos);
     } catch (error) {
       console.error('Error al obtener costos de cátedra:', error);
-      res.status(500).json({ error: 'Error al obtener los costos de la cátedra.', details: error.message });
+      res.status(500).json({ error: 'Error al obtener los costos de la cátedra.' });
     }
   });
 
@@ -607,7 +607,7 @@ module.exports = (prisma, transporter) => {
       res.status(200).json(estadoPago);
     } catch (error) {
       console.error('Error al obtener el estado de pago del alumno:', error);
-      res.status(500).json({ error: 'Error al obtener el estado de pago.', details: error.message });
+      res.status(500).json({ error: 'Error al obtener el estado de pago.' });
     }
   });
 
@@ -699,7 +699,7 @@ module.exports = (prisma, transporter) => {
       res.status(201).json(newCatedra);
     } catch (error) {
       console.error('Error al crear cátedra:', error);
-      res.status(500).json({ error: 'Error al crear la cátedra.', details: error.message });
+      res.status(500).json({ error: 'Error al crear la cátedra.' });
     }
   });
 
@@ -744,7 +744,7 @@ module.exports = (prisma, transporter) => {
       res.status(200).json(updatedCatedra);
     } catch (error) {
       console.error('Error al actualizar cátedra:', error);
-      res.status(500).json({ error: 'Error al actualizar la cátedra.', details: error.message });
+      res.status(500).json({ error: 'Error al actualizar la cátedra.' });
     }
   });
 
@@ -894,7 +894,7 @@ module.exports = (prisma, transporter) => {
       res.status(204).send();
     } catch (error) {
       console.error('Error al eliminar cátedra y sus relaciones:', error);
-      res.status(500).json({ error: 'Error al eliminar la cátedra y sus datos relacionados.', details: error.message });
+      res.status(500).json({ error: 'Error al eliminar la cátedra y sus datos relacionados.' });
     }
   });
 
@@ -912,6 +912,45 @@ module.exports = (prisma, transporter) => {
     } catch (error) {
       console.error('Error fetching alumnos:', error);
       res.status(500).json({ error: 'Error al obtener la lista de alumnos.' });
+    }
+  });
+
+  // Admin: Get all potential students for enrollment (Alumnos and Composers)
+  router.get('/enrollment-candidates', requireAdmin, async (req, res) => {
+    console.log('[ADMIN] Fetching all enrollment candidates');
+    try {
+      const alumnos = await prisma.Alumno.findMany({
+        orderBy: { apellido: 'asc' },
+      });
+
+      const composers = await prisma.Composer.findMany({
+        where: {
+          student_first_name: {
+            not: null,
+          },
+          student_last_name: {
+            not: null,
+          },
+        },
+        orderBy: {
+          student_last_name: 'asc',
+        },
+      });
+
+      const composerAlumnos = composers.map(composer => ({
+        id: `composer-${composer.id}`,
+        nombre: composer.student_first_name,
+        apellido: composer.student_last_name,
+        email: `composer-${composer.id}@composer.com`, // Placeholder email
+        isComposer: true,
+      }));
+
+      const allCandidates = [...alumnos, ...composerAlumnos];
+
+      res.status(200).json(allCandidates);
+    } catch (error) {
+      console.error('Error fetching enrollment candidates:', error);
+      res.status(500).json({ error: 'Error al obtener la lista de candidatos a inscripción.' });
     }
   });
 
@@ -955,7 +994,7 @@ module.exports = (prisma, transporter) => {
         return res.status(409).json({ error: 'El correo electrónico ya está en uso.' });
       }
       console.error('Error creating alumno:', error);
-      res.status(500).json({ error: 'Error al crear alumno.', details: error.message });
+      res.status(500).json({ error: 'Error al crear alumno.' });
     }
   });
 
@@ -1018,7 +1057,7 @@ module.exports = (prisma, transporter) => {
       res.status(200).json(updatedAlumno);
     } catch (error) {
       console.error('Error updating alumno:', error);
-      res.status(500).json({ error: 'Error al actualizar alumno.', details: error.message });
+      res.status(500).json({ error: 'Error al actualizar alumno.' });
     }
   });
 
@@ -1033,102 +1072,6 @@ module.exports = (prisma, transporter) => {
     } catch (error) {
       console.error('Error deleting alumno:', error);
       res.status(500).json({ error: 'Error al eliminar alumno.' });
-    }
-  });
-
-  // Admin: Get all composers
-  router.get('/composers', requireAdmin, async (req, res) => {
-    try {
-      const composers = await prisma.Composer.findMany({
-        orderBy: {
-          last_name: 'asc',
-        },
-      });
-      res.status(200).json(composers);
-    } catch (error) {
-      console.error('Error fetching composers:', error);
-      res.status(500).json({ error: 'Error al obtener los compositores.' });
-    }
-  });
-
-  // Admin: Get pending composers
-  router.get('/composers/pending', requireAdmin, async (req, res) => {
-    try {
-      const pendingComposers = await prisma.Composer.findMany({
-        where: { status: 'PENDING_REVIEW' },
-        orderBy: {
-          created_at: 'asc',
-        },
-      });
-      res.status(200).json(pendingComposers);
-    } catch (error) {
-      console.error('Error fetching pending composers:', error);
-      res.status(500).json({ error: 'Error al obtener los compositores pendientes.' });
-    }
-  });
-
-  // Obtener sugerencias pendientes
-  router.get('/composers/admin/suggestions', requireAdmin, async (req, res) => {
-    try {
-      const suggestions = await prisma.EditSuggestion.findMany({
-        where: { status: 'PENDING_REVIEW' },
-        include: { Composer: true },
-      });
-      res.status(200).json(suggestions);
-    } catch (error) {
-      console.error('Error fetching pending suggestions:', error);
-      res.status(500).json({ error: 'Error al obtener sugerencias pendientes.' });
-    }
-  });
-
-  // Aprobar sugerencia
-  router.post('/composers/admin/suggestions/:id/approve', requireAdmin, async (req, res) => {
-    const { id } = req.params;
-    try {
-      const updated = await prisma.EditSuggestion.update({
-        where: { id: parseInt(id) },
-        data: { status: 'APPROVED' },
-      });
-      res.status(200).json(updated);
-    } catch (error) {
-      console.error('Error approving suggestion:', error);
-      res.status(500).json({ error: 'Error al aprobar la sugerencia.' });
-    }
-  });
-
-  // Rechazar sugerencia
-  router.post('/composers/admin/suggestions/:id/reject', requireAdmin, async (req, res) => {
-    const { id } = req.params;
-    try {
-      const updated = await prisma.EditSuggestion.update({
-        where: { id: parseInt(id) },
-        data: { status: 'REJECTED' },
-      });
-      res.status(200).json(updated);
-    } catch (error) {
-      console.error('Error rejecting suggestion:', error);
-      res.status(500).json({ error: 'Error al rechazar la sugerencia.' });
-    }
-  });
-
-  // Enviar sugerencia de edición (para cualquier usuario)
-  router.post('/composers/:id/suggest-edit', async (req, res) => {
-    const { id } = req.params;
-    const { field, suggestedValue, userId } = req.body;
-    try {
-      const suggestion = await prisma.EditSuggestion.create({
-        data: {
-          composerId: parseInt(id),
-          field,
-          suggestedValue,
-          userId,
-          status: 'PENDING_REVIEW',
-        },
-      });
-      res.status(201).json(suggestion);
-    } catch (error) {
-      console.error('Error submitting edit suggestion:', error);
-      res.status(500).json({ error: 'Error al enviar la sugerencia de edición.' });
     }
   });
 
