@@ -17,6 +17,7 @@ import DocenteLoginPage from './pages/DocenteLoginPage';
 import AlumnoLoginPage from './pages/AlumnoLoginPage';
 import DocenteDashboardPage from './pages/DocenteDashboardPage';
 import AlumnoDashboardPage from './pages/AlumnoDashboardPage';
+import AlumnoCatedraDetailPage from './pages/AlumnoCatedraDetailPage';
 import DocenteCatedraDetailPage from './pages/DocenteCatedraDetailPage';
 import DocenteAlumnoTareasPage from './pages/DocenteAlumnoTareasPage';
 import DocenteTareaPage from './pages/DocenteTareaPage';
@@ -191,6 +192,14 @@ function AppContent() {
             element={
               <PrivateRoute>
                 <RealizarEvaluacionPage />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/alumno/catedra/:id" 
+            element={
+              <PrivateRoute>
+                <AlumnoCatedraDetailPage />
               </PrivateRoute>
             } 
           />

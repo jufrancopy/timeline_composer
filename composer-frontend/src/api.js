@@ -55,17 +55,17 @@ const api = {
   searchComposers: (query) => apiClient.get(`/composers/search?query=${query}`),
   getRandomComposer: () => apiClient.get('/composers/random'),
   getComposerBySlug: (slug) => apiClient.get(`/composers/slug/${slug}`),
-  addComposerAsAdmin: (data) => apiClient.post('/admin/composers', data),
-  updateComposerStatus: (id, data) => apiClient.put(`/admin/composers/${id}/status`, data),
+  addComposerAsAdmin: (data) => apiClient.post('/composers/admin-create', data),
+  updateComposerStatus: (id, data) => apiClient.put(`/composers/${id}/status`, data),
   reviewComposer: (id, data) => apiClient.post(`/admin/composers/${id}/review`, data),
   getPendingComposers: () => apiClient.get('/composers/pending'),
   resubmitContribution: (id, data) => apiClient.put(`/composers/resubmit/${id}`, data),
 
   // ==== Endpoints para Sugerencias de Edición ====
-  submitEditSuggestion: (id, data) => apiClient.post(`/composers/${id}/suggest-edit`, data),
+  submitEditSuggestion: (id, data) => apiClient.post(`/composers/${id}/suggestions`, data),
   getPendingSuggestions: () => apiClient.get('/composers/admin/suggestions'),
   approveSuggestion: (id) => apiClient.post(`/composers/admin/suggestions/${id}/approve`),
-  rejectSuggestion: (id) => apiClient.post(`/composers/admin/suggestions/${id}/reject`),
+  rejectSuggestion: (id, data) => apiClient.post(`/composers/admin/suggestions/${id}/reject`, data),
 
   // ==== Endpoints para Ranking ====
   getRanking: () => apiClient.get('/ranking'),

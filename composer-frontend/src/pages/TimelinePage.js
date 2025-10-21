@@ -155,11 +155,6 @@ const TimelinePage = () => {
     setIsEditFormVisible(true);
   };
 
-  const handleSuggestionSent = () => {
-    setIsEditFormVisible(false);
-    setEditingComposer(null);
-  };
-
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedPeriod('ALL');
@@ -310,17 +305,18 @@ const TimelinePage = () => {
       />
 
       {/* Modal para sugerir edición */}
-      {isEditFormVisible && editingComposer && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="relative bg-gray-900 p-2 rounded-lg shadow-xl w-full max-w-2xl my-8">
-            <EditSuggestionForm
-              composer={editingComposer}
-              onSuggestionSent={handleSuggestionSent}
-              onCancel={() => setIsEditFormVisible(false)}
-            />
-          </div>
-        </div>
-      )}
+      <EditSuggestionForm
+        composer={editingComposer}
+        isOpen={isEditFormVisible}
+        onClose={() => {
+          setIsEditFormVisible(false);
+          setEditingComposer(null);
+        }}
+        onSuggestionAdded={(suggestion) => {
+          console.log('Sugerencia añadida:', suggestion);
+          // Opcional: mostrar notificación de éxito
+        }}
+      />
     </div>
   );
 };

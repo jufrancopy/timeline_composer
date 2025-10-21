@@ -2,6 +2,7 @@
 const jwt = require('jsonwebtoken');
 
 const requireAdmin = (req, res, next) => {
+  console.log(`[requireAdmin] Verificando acceso para ${req.method} ${req.originalUrl}`);
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Acceso denegado: No se proporcionó token' });

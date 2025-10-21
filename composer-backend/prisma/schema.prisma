@@ -249,6 +249,7 @@ model EditSuggestion {
   period                  String?
   references              String?
   youtube_link            String?
+  photo_url               String?
   mainRole                RoleType[]
   reason                  String
   status                  String     @default("PENDING_REVIEW")

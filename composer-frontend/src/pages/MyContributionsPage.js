@@ -610,12 +610,19 @@ function MyContributionsPage() {
                                     Necesita Mejoras
                                   </>
                                 )}
+                                {c.status === 'APPLIED' && (
+                                  <>
+                                    <CheckCircle size={14} />
+                                    Aporte Aprobado
+                                  </>
+                                )}
                               </span>
                               <p className="text-slate-500 text-xs mt-1">
                                 {c.status === 'PENDING_REVIEW' && 'Tu aporte está siendo revisado por nuestro equipo.'}
                                 {c.status === 'PUBLISHED' && '¡Felicidades! Tu aporte ha sido publicado en la línea de tiempo.'}
                                 {c.status === 'REJECTED' && 'Tu aporte ha sido rechazado. Revisa el motivo para entender por qué.'}
                                 {c.status === 'NEEDS_IMPROVEMENT' && 'Tu aporte requiere algunos cambios antes de ser publicado. Haz clic en Editar y Reenviar para modificarlos.'}
+                                {c.status === 'APPLIED' && 'Tu aporte ha sido aprobado y está listo para ser publicado.'}
                               </p>
                             </td>
                             <td className="py-4 px-4">

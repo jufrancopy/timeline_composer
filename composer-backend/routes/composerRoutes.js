@@ -8,6 +8,10 @@ const requireDocenteOrAdmin = require('../middlewares/requireDocenteOrAdmin');
 module.exports = (prisma, transporter) => {
     console.log('[ComposerRoutes] Inicializando ComposerRouter...');
     const router = express.Router();
+    router.use((req, res, next) => {
+        console.log(`[ComposerRouter] Recibida solicitud: ${req.method} ${req.originalUrl}`);
+        next();
+    });
 
     // --- Endpoints de Admin para Sugerencias (movidas al principio para prioridad de enrutamiento) ---
 
@@ -15,7 +19,7 @@ module.exports = (prisma, transporter) => {
     router.get('/admin/suggestions', requireAdmin, async (req, res) => {
         try {
             const suggestions = await prisma.EditSuggestion.findMany({
-                where: { status: 'PENDING' },
+                where: { status: 'PENDING_REVIEW' },
                 include: { Composer: true },
                 orderBy: { created_at: 'desc' },
             });
@@ -79,7 +83,7 @@ module.exports = (prisma, transporter) => {
             if (suggestion.is_student_contribution && suggestion.suggester_email) { // Usar is_student_contribution del suggestion
                 const alumno = await prisma.Alumno.findUnique({
                     where: { email: suggestion.suggester_email },
-                    select: { id: true, catedras: { select: { catedraId: true } } }
+                    select: { id: true, CatedraAlumno: { select: { catedraId: true } } }
                 });
 
                 if (alumno) {
@@ -87,7 +91,7 @@ module.exports = (prisma, transporter) => {
                     await prisma.Puntuacion.create({
                         data: {
                             alumnoId: alumno.id,
-                            catedraId: alumno.catedras[0]?.catedraId || null, // Asignar a la primera cátedra del alumno o null
+                            catedraId: alumno.CatedraAlumno[0]?.catedraId || null, // Asignar a la primera cátedra del alumno o null
                             puntos: points,
                             motivo: `Sugerencia de edición aprobada para: ${updatedComposer.first_name} ${updatedComposer.last_name}`,
                             tipo: 'APORTE', // Cambiar tipo a APORTE
@@ -617,9 +621,133 @@ module.exports = (prisma, transporter) => {
 
 
     // --- Endpoints para Sugerencias de Edición (autenticados) ---
+    
+    // Añadir sugerencia de edición (permite anónimo; usa email del token si existe)
+    // IMPORTANTE: Usar optionalAuthenticateJWT en lugar de authenticateJWT
+    router.post('/:composerId/suggestions', optionalAuthenticateJWT, async (req, res) => {
+        try {
+            console.log('SUGGESTION ENDPOINT HIT - DEBUGGING');
+            console.log('Body recibido:', req.body);
+            console.log('Params:', req.params);
 
-    // Añadir sugerencia de edición
-    router.post('/:composerId/suggestions', requireUser, async (req, res) => {
+            const { composerId } = req.params;
+            const parsedComposerId = parseInt(composerId);
+            if (isNaN(parsedComposerId)) {
+                return res.status(400).json({ error: 'ID de compositor inválido.' });
+            }
+
+            const {
+                reason,
+                suggester_email,
+                is_student_contribution,
+                student_first_name,
+                student_last_name,
+                first_name,
+                last_name,
+                birth_year,
+                birth_month,
+                birth_day,
+                death_year,
+                death_month,
+                death_day,
+                bio,
+                notable_works,
+                period,
+                mainRole,
+                youtube_link,
+                references,
+                photo_url
+            } = req.body;
+
+            const suggester_ip = req.ip || req.connection.remoteAddress;
+            const effectiveEmail = (suggester_email && String(suggester_email).trim()) || (req.user && req.user.email) || null;
+
+            if (!reason || !effectiveEmail) {
+                return res.status(400).json({
+                    error: 'El motivo de la sugerencia y el email del sugerente son requeridos.',
+                    received: { reason: !!reason, email: !!effectiveEmail }
+                });
+            }
+
+            console.log(`[POST /:composerId/suggestions] Recibida sugerencia para compositor ID: ${parsedComposerId}`);
+
+            const suggestionData = {
+                composerId: parsedComposerId,
+                reason,
+                suggester_email: effectiveEmail,
+                suggester_ip,
+                status: 'PENDING_REVIEW',
+                is_student_contribution: is_student_contribution || false,
+                student_first_name: student_first_name || null,
+                student_last_name: student_last_name || null,
+                first_name: first_name || null,
+                last_name: last_name || null,
+                birth_year: birth_year ? parseInt(birth_year, 10) : null,
+                birth_month: birth_month ? parseInt(birth_month, 10) : null,
+                birth_day: birth_day ? parseInt(birth_day, 10) : null,
+                death_year: death_year ? parseInt(death_year, 10) : null,
+                death_month: death_month ? parseInt(death_month, 10) : null,
+                death_day: death_day ? parseInt(death_day, 10) : null,
+                bio: bio || null,
+                notable_works: notable_works || null,
+                period: period || null,
+                mainRole: mainRole || null,
+                youtube_link: youtube_link || null,
+                references: references || null,
+                photo_url: photo_url || null,
+                photo_url: photo_url || null,
+            };
+
+            console.log('Datos a guardar:', suggestionData);
+
+            const newSuggestion = await prisma.EditSuggestion.create({
+                data: suggestionData,
+            });
+
+            console.log('Sugerencia creada exitosamente:', newSuggestion.id);
+
+            // Enviar correo electrónico al sugerente
+            if (effectiveEmail) {
+                const mailOptions = {
+                    from: `"HMPY (Historia de la Música PY - Academia)" <${process.env.EMAIL_USER}>`,
+                    to: effectiveEmail,
+                    subject: 'Tu sugerencia de edición ha sido recibida y está en revisión',
+                    html: `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #ffffff; background-color: #1a202c; padding: 20px;">
+                  <div style="max-width: 600px; margin: 0 auto; background-color: #2d3748; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);">
+                    <h2 style="color: #9f7aea; text-align: center;">Hola ${student_first_name || 'Aportante'},</h2>
+                    <p style="color: #e2e8f0;">Hemos recibido tu sugerencia de edición para el compositor <strong>${first_name || '[Compositor]'} ${last_name || ''}</strong>.</p>
+                    <p style="color: #e2e8f0;">Tu sugerencia ha sido marcada como <strong>PENDIENTE DE REVISIÓN</strong> por nuestro equipo editorial.</p>
+                    <p style="color: #e2e8f0;">Te notificaremos una vez que haya sido revisada.</p>
+                    <p style="color: #e2e8f0;">¡Gracias por tu valiosa contribución a HMPY!</p>
+                    <p style="color: #cbd5e0; font-size: 0.9em; text-align: center; margin-top: 20px;">Atentamente, El Equipo de HMPY</p>
+                  </div>
+                </div>
+              `,
+                };
+
+                try {
+                    await transporter.sendMail(mailOptions);
+                    console.log(`Correo de notificación de sugerencia enviado a ${effectiveEmail}.`);
+                } catch (emailError) {
+                    console.error(`Error al enviar correo de notificación de sugerencia a ${effectiveEmail}:`, emailError);
+                    // No fallar la petición si el email falla
+                }
+            }
+
+            res.status(201).json(newSuggestion);
+        } catch (error) {
+            console.error('Error al añadir sugerencia de edición:', error);
+            res.status(500).json({
+                error: 'Error al añadir sugerencia de edición',
+                details: error.message,
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            });
+        }
+    });
+
+    // Obtener sugerencias de edición para un compositor (Público)
+    router.get('/:composerId/suggestions', async (req, res) => {
         try {
             const { composerId } = req.params;
             const parsedComposerId = parseInt(composerId);
@@ -627,61 +755,43 @@ module.exports = (prisma, transporter) => {
                 return res.status(400).json({ error: 'ID de compositor inválido.' });
             }
 
-            // Extraer todos los campos del body, incluyendo los del compositor y la razón/email
-            const { reason, suggester_email, is_student_contribution, student_first_name, student_last_name, email, ...composerFields } = req.body;
-            const suggester_ip = req.ip; // Obtener la IP del sugerente
-
-            if (!reason || !suggester_email) {
-                return res.status(400).json({ error: 'El motivo de la sugerencia y el email del sugerente son requeridos.' });
-            }
-
-            const newSuggestion = await prisma.EditSuggestion.create({
-                data: {
-                    composerId: parsedComposerId,
-                    ...composerFields, // Incluir todos los campos del compositor directamente
-                    reason,
-                    suggester_email,
-                    suggester_ip, // Guardar la IP
-                    status: 'PENDING_REVIEW',
-                    is_student_contribution,
-                    student_first_name,
-                    student_last_name,
+            const suggestions = await prisma.EditSuggestion.findMany({
+                where: { composerId: parsedComposerId },
+                include: {
+                    composer: {
+                        select: {
+                            first_name: true,
+                            last_name: true,
+                        },
+                    },
                 },
+                orderBy: { created_at: 'desc' },
             });
-
-            // Enviar correo electrónico al sugerente
-            if (suggester_email) {
-                const mailOptions = {
-                    from: `"HMPY (Historia de la Música PY - Academia)" <${process.env.EMAIL_USER}>`,
-                    to: suggester_email,
-                    subject: 'Tu sugerencia de edición ha sido recibida y está en revisión',
-                    html: `
-                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #ffffff; background-color: #1a202c; padding: 20px;">
-                      <div style="max-width: 600px; margin: 0 auto; background-color: #2d3748; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);">
-                        <h2 style="color: #9f7aea; text-align: center;">Hola ${student_first_name || 'Aportante'},</h2>
-                        <p style="color: #e2e8f0;">Hemos recibido tu sugerencia de edición para el compositor <strong>${composerFields.first_name || '[Compositor Desconocido]'} ${composerFields.last_name || ''}</strong>.</p>
-                        <p style="color: #e2e8f0;">Tu sugerencia ha sido marcada como <strong>PENDIENTE DE REVISIÓN</strong> por nuestro equipo editorial.</p>
-                        <p style="color: #e2e8f0;">Te notificaremos una vez que haya sido revisada.</p>
-                        <p style="color: #e2e8f0;">¡Gracias por tu valiosa contribución a HMPY!</p>
-                        <p style="color: #cbd5e0; font-size: 0.9em; text-align: center; margin-top: 20px;">Atentamente, El Equipo de HMPY</p>
-                      </div>
-                    </div>
-                  `,
-                };
-
-                try {
-                    await transporter.sendMail(mailOptions);
-                    console.log(`Correo de notificación de sugerencia enviado a ${suggester_email}.`);
-                } catch (emailError) {
-                    console.error(`Error al enviar correo de notificación de sugerencia a ${suggester_email}:`, emailError);
-                }
-            }
-            res.status(201).json(newSuggestion);
+            res.json(suggestions);
         } catch (error) {
-            console.error('Error al añadir sugerencia de edición:', error);
-            res.status(500).json({ error: 'Error al añadir sugerencia de edición', details: error.message });
+            console.error('Error al obtener sugerencias de edición:', error);
+            res.status(500).json({ error: 'Error al obtener sugerencias de edición', details: error.message });
         }
     });
+
+    // Middleware de autenticación opcional (agregar al inicio del archivo)
+    function optionalAuthenticateJWT(req, res, next) {
+        const authHeader = req.headers.authorization;
+
+        if (authHeader) {
+            const token = authHeader.split(' ')[1];
+            jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+                if (!err) {
+                    req.user = user;
+                }
+                // Continuar incluso si el token es inválido
+                next();
+            });
+        } else {
+            // No hay token, continuar sin usuario
+            next();
+        }
+    }
 
     // Obtener sugerencias de edición para un compositor (Público)
     router.get('/:composerId/suggestions', async (req, res) => {
@@ -795,15 +905,15 @@ module.exports = (prisma, transporter) => {
             if (updatedComposer.status === 'PUBLISHED' && updatedComposer.is_student_contribution && updatedComposer.email) {
                 const alumno = await prisma.Alumno.findUnique({
                     where: { email: updatedComposer.email },
-                    select: { id: true, catedras: { select: { catedraId: true } } }
+                    select: { id: true, Catedra: { select: { catedraId: true } } }
                 });
 
                 if (alumno) {
                     const points = calculatePointsFromComposer(updatedComposer);
-                    await prisma.puntuacion.create({
+                    await prisma.Puntuacion.create({
                         data: {
                             alumnoId: alumno.id,
-                            catedraId: alumno.catedras[0]?.catedraId || null, // Asignar a la primera cátedra del alumno o null
+                            catedraId: alumno.Catedra[0]?.catedraId || null, // Asignar a la primera cátedra del alumno o null
                             puntos: points,
                             motivo: `Contribución de compositor aprobada: ${updatedComposer.first_name} ${updatedComposer.last_name}`,
                             tipo: 'CONTRIBUCION',

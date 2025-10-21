@@ -123,12 +123,16 @@ const SuggestionsManager = () => {
   const [error, setError] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [isRejectModalOpenForSuggestion, setIsRejectModalOpenForSuggestion] = useState(false);
+  const [currentSuggestionToReject, setCurrentSuggestionToReject] = useState(null);
+  const [rejectionReasonForSuggestion, setRejectionReasonForSuggestion] = useState('');
 
   const loadSuggestions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await api.getPendingSuggestions();
+      console.log("Sugerencias pendientes recibidas:", response.data);
       setSuggestions(response.data);
     } catch (err) {
       setError('No se pudieron cargar las sugerencias.');
@@ -153,16 +157,28 @@ const SuggestionsManager = () => {
     }
   }, []);
 
-  const handleReject = useCallback(async (id) => {
+  const openRejectSuggestionModal = useCallback((suggestion) => {
+    setCurrentSuggestionToReject(suggestion);
+    setIsRejectModalOpenForSuggestion(true);
+  }, []);
+
+  const handleRejectSuggestionSubmit = useCallback(async () => {
+    if (!rejectionReasonForSuggestion.trim()) {
+      toast.error('Por favor, ingrese un motivo para rechazar la sugerencia.');
+      return;
+    }
     try {
-      await api.rejectSuggestion(id);
-      toast.success('Sugerencia rechazada.');
-      setSuggestions(prev => prev.filter(s => s.id !== id));
+      await api.rejectSuggestion(currentSuggestionToReject.id, { reason: rejectionReasonForSuggestion });
+      toast.success('Sugerencia rechazada exitosamente!');
+      setSuggestions(prev => prev.filter(s => s.id !== currentSuggestionToReject.id));
+      setIsRejectModalOpenForSuggestion(false);
+      setRejectionReasonForSuggestion('');
+      setCurrentSuggestionToReject(null);
     } catch (error) {
       toast.error('Error al rechazar la sugerencia');
       console.error('Error rejecting suggestion:', error);
     }
-  }, []);
+  }, [currentSuggestionToReject, rejectionReasonForSuggestion]);
 
   const openDetailModal = useCallback((suggestion) => {
     setSelectedSuggestion(suggestion);
@@ -172,23 +188,27 @@ const SuggestionsManager = () => {
   const getChangedFields = useMemo(() => {
     if (!selectedSuggestion) return [];
     
-    const { composer, ...suggestionData } = selectedSuggestion;
+    const { Composer, ...suggestionData } = selectedSuggestion;
     const changed = [];
 
-    for (const key in suggestionData) {
-      if (composer.hasOwnProperty(key) && suggestionData[key] !== null && suggestionData[key] !== undefined) {
-        const originalValue = Array.isArray(composer[key]) ? composer[key].join(', ') : composer[key];
-        const suggestedValue = Array.isArray(suggestionData[key]) ? suggestionData[key].join(', ') : suggestionData[key];
+    ALL_FIELDS.forEach(field => {
+      const key = field.key;
+      const originalValue = Composer[key];
+      const suggestedValue = suggestionData[key];
 
-        if (String(originalValue) !== String(suggestedValue)) {
-          changed.push({
-            field: FIELD_LABELS[key] || key,
-            original: originalValue || 'No especificado',
-            suggested: suggestedValue,
-          });
-        }
+      const isOriginalEmpty = originalValue === null || originalValue === undefined || (Array.isArray(originalValue) && originalValue.length === 0) || originalValue === '';
+      const isSuggestedPresent = suggestedValue !== null && suggestedValue !== undefined && (!(Array.isArray(suggestedValue)) || suggestedValue.length > 0) && suggestedValue !== '';
+      
+      // Compare if suggestedValue is present and different from originalValue (or if originalValue was empty)
+      if (isSuggestedPresent && (isOriginalEmpty || String(originalValue) !== String(suggestedValue))) {
+        changed.push({
+          field: FIELD_LABELS[key] || key,
+          original: isOriginalEmpty ? 'No especificado' : (Array.isArray(originalValue) ? originalValue.join(', ') : originalValue),
+          suggested: Array.isArray(suggestedValue) ? suggestedValue.join(', ') : suggestedValue,
+          isPhoto: key === 'photo_url',
+        });
       }
-    }
+    });
     return changed;
   }, [selectedSuggestion]);
 
@@ -216,10 +236,16 @@ const SuggestionsManager = () => {
                 {suggestions.map(suggestion => (
                   <tr key={suggestion.id} className="hover:bg-gray-700/30 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">
-                      {suggestion.composer.first_name} {suggestion.composer.last_name}
+                      {suggestion.Composer.first_name} {suggestion.Composer.last_name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      {suggestion.suggester_email}
+                      {suggestion.is_student_contribution ? (
+                        <span className="font-bold text-green-400">
+                          Alumno: {suggestion.student_first_name} {suggestion.student_last_name}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">{suggestion.suggester_email}</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-300 max-w-xs">
                       <div className="truncate" title={suggestion.reason}>
@@ -240,7 +266,7 @@ const SuggestionsManager = () => {
                         Aprobar
                       </button>
                       <button 
-                        onClick={() => handleReject(suggestion.id)} 
+                        onClick={() => openRejectSuggestionModal(suggestion)} 
                         className="text-red-400 hover:text-red-500 transition-colors"
                       >
                         Rechazar
@@ -258,7 +284,7 @@ const SuggestionsManager = () => {
         <Modal 
           isOpen={isDetailModalOpen} 
           onClose={() => setIsDetailModalOpen(false)} 
-          title={`Sugerencia para ${selectedSuggestion.composer.first_name} ${selectedSuggestion.composer.last_name}`}
+          title={`Sugerencia para ${selectedSuggestion.Composer.first_name} ${selectedSuggestion.Composer.last_name}`}
           showSubmitButton={false}
           cancelText="Cerrar"
         >
@@ -281,11 +307,32 @@ const SuggestionsManager = () => {
                   <tbody className="divide-y divide-gray-700">
                     {getChangedFields.map((change, index) => (
                       <tr key={index} className="bg-gray-800/50">
-                        <td className="px-4 py-3 font-semibold text-purple-300">{change.field}</td>
-                        <td className="px-4 py-3 text-red-400">
-                          <span className="line-through">{change.original}</span>
-                        </td>
-                        <td className="px-4 py-3 text-green-400 font-medium">{change.suggested}</td>
+                        <td className="px-4 py-3 font-semibold text-purple-300 align-top">{change.field}</td>
+                        {change.isPhoto ? (
+                          <>
+                            <td className="px-4 py-3 text-red-400">
+                              {change.original !== 'No especificado' ? (
+                                <img src={change.original} alt="Original" className="h-24 w-24 object-cover rounded-md shadow-md"/>
+                              ) : (
+                                <span className="italic">{change.original}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-green-400">
+                              {change.suggested ? (
+                                <img src={change.suggested} alt="Sugerida" className="h-24 w-24 object-cover rounded-md shadow-md"/>
+                              ) : (
+                                <span className="italic">No sugerida</span>
+                              )}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-4 py-3 text-red-400">
+                              <span className="line-through">{change.original}</span>
+                            </td>
+                            <td className="px-4 py-3 text-green-400 font-medium">{change.suggested}</td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -294,6 +341,37 @@ const SuggestionsManager = () => {
             ) : (
               <p className="text-gray-400 text-center py-4">No se detectaron cambios específicos.</p>
             )}
+          </div>
+        </Modal>
+      )}
+
+      {/* Reject Suggestion Modal */}
+      {isRejectModalOpenForSuggestion && currentSuggestionToReject && (
+        <Modal
+          isOpen={isRejectModalOpenForSuggestion}
+          onClose={() => {
+            setIsRejectModalOpenForSuggestion(false);
+            setRejectionReasonForSuggestion('');
+            setCurrentSuggestionToReject(null);
+          }}
+          onSubmit={handleRejectSuggestionSubmit}
+          title={`Rechazar Sugerencia para ${currentSuggestionToReject.Composer.first_name} ${currentSuggestionToReject.Composer.last_name}`}
+          submitText="Confirmar Rechazo"
+          cancelText="Cancelar"
+          showSubmitButton={true}
+        >
+          <div className="space-y-4">
+            <p className="text-gray-300">
+              Especifique el motivo por el cual esta sugerencia de edición será rechazada.
+            </p>
+            <textarea
+              value={rejectionReasonForSuggestion}
+              onChange={(e) => setRejectionReasonForSuggestion(e.target.value)}
+              placeholder="Ejemplo: Información incorrecta, no se proporcionan fuentes, duplicado, etc."
+              className="w-full p-3 border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              rows="4"
+              required
+            />
           </div>
         </Modal>
       )}

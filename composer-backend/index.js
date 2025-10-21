@@ -38,8 +38,6 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 console.log('GoogleGenerativeAI inicializado correctamente.');
 
-
-
 const requireAdmin = require('./middlewares/requireAdmin');
 const { requireUser } = require('./middlewares/requireUser'); // Importar solo la función de fábrica
 const { router: evaluationRoutes, setTransporter, setPrismaClient } = require('./routes/evaluationRoutes');
@@ -520,7 +518,6 @@ app.get('/api/tareas/:tareaAsignacionId', requireUser(prisma), async (req, res) 
   }
 });
 
-
 // Subir entrega de tarea
 app.post('/api/tareas/:tareaAsignacionId/submit', requireUser(prisma), upload.single('file'), async (req, res) => {
   try {
@@ -780,8 +777,8 @@ app.delete('/api/admin/tareas/:tareaId', requireAdmin, async (req, res) => {
   }
 });
 
-app.use('/api', adminRouter);
 app.use('/api/composers', composerRouter);
+app.use('/api', adminRouter);
 app.use('/api', docenteRouter);
 app.use('/api', evaluationRoutes);
 app.use('/api', publicacionRouter);

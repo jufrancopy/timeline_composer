@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, CheckCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import composerAPI from '../api'; // Importar el API
 
 const AddComposerForm = ({ onComposerAdded, isOpen, onClose }) => {
@@ -68,39 +69,39 @@ const AddComposerForm = ({ onComposerAdded, isOpen, onClose }) => {
 
     // Validaciones
     if (!formData.first_name.trim() || !formData.last_name.trim()) {
-      setError('Los nombres y apellidos del compositor son obligatorios.');
+      toast.error('Los nombres y apellidos del compositor son obligatorios.');
       return;
     }
 
     if (formData.is_student_contribution) {
       if (!formData.student_first_name.trim() || !formData.student_last_name.trim()) {
-        setError('Como alumno, debes proporcionar tu nombre y apellido.');
+        toast.error('Como alumno, debes proporcionar tu nombre y apellido.');
         return;
       }
     }
 
     if (!formData.birth_year) {
-      setError('El año de nacimiento es obligatorio.');
+      toast.error('El año de nacimiento es obligatorio.');
       return;
     }
 
     if (formData.mainRole.length === 0) {
-      setError('Debes seleccionar al menos un rol principal.');
+      toast.error('Debes seleccionar al menos un rol principal.');
       return;
     }
 
     if (!formData.email.trim()) {
-      setError('El email es obligatorio.');
+      toast.error('El email es obligatorio.');
       return;
     }
 
     if (!formData.bio.trim()) {
-      setError('La biografía es obligatoria.');
+      toast.error('La biografía es obligatoria.');
       return;
     }
 
     if (!formData.notable_works.trim()) {
-      setError('Las obras notables son obligatorias.');
+      toast.error('Las obras notables son obligatorias.');
       return;
     }
 
@@ -133,7 +134,7 @@ const AddComposerForm = ({ onComposerAdded, isOpen, onClose }) => {
       // Usar la función del API centralizado
       const response = await composerAPI.addComposer(dataToSend);
       
-      setSuccess('¡Compositor agregado con éxito! Hemos enviado un correo a tu dirección para el seguimiento de tu contribución. Gracias.');
+      toast.success('¡Compositor agregado con éxito! Revisa tu correo para el seguimiento.');
       onComposerAdded(response.data);
       
       // Esperar 2 segundos antes de cerrar
@@ -146,7 +147,7 @@ const AddComposerForm = ({ onComposerAdded, isOpen, onClose }) => {
                           err.response?.data?.message ||
                           'Ocurrió un error al agregar el compositor. Revisa la consola para más detalles.';
       console.error('Full error object:', err);
-      setError(errorMessage);
+      toast.error(errorMessage);
       console.error('Error al agregar compositor:', err);
     } finally {
       setLoading(false);
@@ -492,19 +493,17 @@ const AddComposerForm = ({ onComposerAdded, isOpen, onClose }) => {
 
         {/* Messages */}
         {error && (
-          <div className="px-6 py-3 bg-red-900 bg-opacity-50 border-t border-red-700 flex items-center gap-2">
-            <AlertCircle size={20} className="text-red-400 flex-shrink-0" />
-            <p className="text-red-200 text-sm">{error}</p>
+          <div className="flex items-center p-4 bg-red-800 text-white rounded-lg mb-4">
+            <AlertCircle className="mr-2" />
+            <span>{error}</span>
           </div>
         )}
-
         {success && (
-          <div className="px-6 py-3 bg-green-900 bg-opacity-50 border-t border-green-700 flex items-center gap-2">
-            <CheckCircle size={20} className="text-green-400 flex-shrink-0" />
-            <p className="text-green-200 text-sm">{success}</p>
+          <div className="flex items-center p-4 bg-green-800 text-white rounded-lg mb-4">
+            <CheckCircle className="mr-2" />
+            <span>{success}</span>
           </div>
         )}
-
         {/* Footer */}
         <div className="p-6 border-t border-gray-700 bg-gray-800 flex justify-end gap-3">
           <button
