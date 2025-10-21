@@ -56,7 +56,7 @@ const InscribirAlumnoModal = ({ catedraId, alumnosDisponibles, onInscribir, onCa
         <option value="">-- Seleccionar Alumno --</option>
         {alumnosDisponibles.map(alumno => (
           <option key={alumno.id} value={alumno.id}>
-            {`${alumno.nombre} ${alumno.apellido} ${alumno.isComposer ? '(Contribuyente)' : ''}`}
+            {`${alumno.nombre} ${alumno.apellido} ${alumno.isComposer ? '(Contribuyente)' : '(Alumno)'}`}
           </option>
         ))}
       </select>

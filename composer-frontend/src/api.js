@@ -38,7 +38,7 @@ apiClient.interceptors.response.use(
 const api = {
   // ==== Endpoints para Alumnos ====
   getAlumnos: () => apiClient.get('/admin/alumnos'),
-  getEnrollmentCandidates: () => apiClient.get('/api/admin/enrollment-candidates'), //CRUSH
+  getEnrollmentCandidates: () => apiClient.get('/admin/enrollment-candidates'), //CRUSH
   getAlumno: (id) => apiClient.get(`/alumnos/${id}`),
   createAlumno: (data) => apiClient.post('/alumnos', data),
   updateAlumno: (id, data) => apiClient.put(`/alumnos/${id}`, data),
@@ -117,6 +117,15 @@ const api = {
   createCatedra: (data) => apiClient.post('/admin/catedras', data),
   updateCatedra: (id, data) => apiClient.put(`/admin/catedras/${id}`, data),
   deleteCatedra: (id) => apiClient.delete(`/admin/catedras/${id}`),
+  // Nueva función para desinscribir alumno
+  desinscribirAlumno: (catedraId, alumnoId, composerId) => {
+    if (alumnoId) {
+      return apiClient.delete(`/admin/catedras/${catedraId}/alumnos/${alumnoId}/desinscribir`);
+    } else if (composerId) {
+      return apiClient.delete(`/admin/catedras/${catedraId}/composers/${composerId}/desinscribir`);
+    }
+    return Promise.reject(new Error('Se requiere alumnoId o composerId para desinscribir.'));
+  },
 
   // ==== Endpoints para Docentes (Cátedras) ====
   getDocenteCatedras: () => apiClient.get('/docente/me/catedras'),

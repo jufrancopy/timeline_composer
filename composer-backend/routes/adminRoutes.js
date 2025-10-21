@@ -916,6 +916,45 @@ module.exports = (prisma, transporter) => {
   });
 
   // Admin: Get all potential students for enrollment (Alumnos and Composers)
+
+  // Admin: Desinscribir Alumno de Cátedra
+  router.delete('/catedras/:catedraId/alumnos/:alumnoId/desinscribir', requireAdmin, async (req, res) => {
+    const { catedraId, alumnoId } = req.params;
+    try {
+      await prisma.CatedraAlumno.delete({
+        where: {
+          catedraId_alumnoId: {
+            catedraId: parseInt(catedraId),
+            alumnoId: parseInt(alumnoId),
+          },
+        },
+      });
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error al desinscribir alumno:', error);
+      res.status(500).json({ error: 'Error al desinscribir al alumno.' });
+    }
+  });
+
+  // Admin: Desinscribir Composer de Cátedra
+  router.delete('/catedras/:catedraId/composers/:composerId/desinscribir', requireAdmin, async (req, res) => {
+    const { catedraId, composerId } = req.params;
+    try {
+      await prisma.CatedraAlumno.delete({
+        where: {
+          catedraId_composerId: {
+            catedraId: parseInt(catedraId),
+            composerId: parseInt(composerId),
+          },
+        },
+      });
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error al desinscribir composer:', error);
+      res.status(500).json({ error: 'Error al desinscribir al compositor.' });
+    }
+  });
+
   router.get('/enrollment-candidates', requireAdmin, async (req, res) => {
     console.log('[ADMIN] Fetching all enrollment candidates');
     try {
@@ -938,15 +977,15 @@ module.exports = (prisma, transporter) => {
       });
 
       const composerAlumnos = composers.map(composer => ({
-        id: `composer-${composer.id}`,
+        id: composer.id, // Usar el ID numérico del composer como ID principal
         nombre: composer.student_first_name,
         apellido: composer.student_last_name,
         email: `composer-${composer.id}@composer.com`, // Placeholder email
         isComposer: true,
+        composerId: composer.id, // Mantener composerId para referencia en el frontend
       }));
 
       const allCandidates = [...alumnos, ...composerAlumnos];
-
       res.status(200).json(allCandidates);
     } catch (error) {
       console.error('Error fetching enrollment candidates:', error);

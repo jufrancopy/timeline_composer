@@ -105,7 +105,7 @@ const PublicacionForm = ({ catedraId: propCatedraId, onSubmit, initialData = {},
           >
             <option value="">Selecciona una cátedra</option>
             {availableCatedras.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.nombre} ({cat.anio})</option>
+              <option key={cat.Catedra.id} value={cat.Catedra.id}>{cat.Catedra.nombre} ({cat.Catedra.anio})</option>
             ))}
           </select>
         </div>
