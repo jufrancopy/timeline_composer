@@ -14,7 +14,8 @@ import PlanDeClasesForm from '../components/PlanDeClasesForm';
 import PlanDeClasesTable from '../components/PlanDeClasesTable';
 import Swal from 'sweetalert2';
 import TaskTable from '../components/TaskTable';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Toaster, toast } from 'react-hot-toast'; // Importar Toaster y toast
 import AssignTareaForm from '../components/AssignTareaForm'; // Import the new component
 import AssignEvaluationForm from '../components/AssignEvaluationForm'; // Import the new component
@@ -40,7 +41,8 @@ import {
   FileText,
   Brain,
   UserMinus,
-  Target
+  Target,
+  ClipboardCheck
 } from 'lucide-react';
 
 const DocenteCatedraDetailPage = () => {
@@ -70,6 +72,8 @@ const DocenteCatedraDetailPage = () => {
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [selectedDiaClaseForAttendance, setSelectedDiaClaseForAttendance] = useState(null);
   const [studentPaymentStatuses, setStudentPaymentStatuses] = useState({});
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [annualAttendanceData, setAnnualAttendanceData] = useState([]);
 
   // State for Publicaciones (Tablón)
   const [publicaciones, setPublicaciones] = useState([]);
@@ -132,6 +136,16 @@ const DocenteCatedraDetailPage = () => {
     }
   }, [id]);
 
+  const fetchAnnualAttendance = useCallback(async () => {
+    try {
+      const response = await api.getAnnualAttendance(id, currentYear);
+      setAnnualAttendanceData(response.data);
+    } catch (err) {
+      console.error("Error al cargar la asistencia anual:", err);
+      toast.error("Error al cargar la asistencia anual.");
+    }
+  }, [id, currentYear]);
+
   const fetchStudentPaymentStatuses = useCallback(async (alumnos, currentCatedraId) => {
     console.log("[DOCENTE CATEDRA FRONTEND] Invocando fetchStudentPaymentStatuses.");
     const statuses = {};
@@ -178,8 +192,15 @@ const DocenteCatedraDetailPage = () => {
   }, [id]);
 
   // Helper functions for TaskTable
-  const getStatusColor = (estado) => {
-    switch (estado) {
+  const getStatusColor = (taskOrEstado) => {
+    if (typeof taskOrEstado === 'object' && taskOrEstado !== null) {
+      // This is a TareaMaestra object, not a TareaAsignacion status
+      // For master tasks, we might want a generic color or derive from overall assignment status
+      // For now, let's return a default for master tasks
+      return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'; // A distinct color for master tasks
+    }
+    // If it's a string, it's a TareaAsignacion status
+    switch (taskOrEstado) {
       case 'ASIGNADA': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
       case 'ENTREGADA': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
       case 'CALIFICADA': return 'bg-green-500/20 text-green-300 border-green-500/30';
@@ -188,13 +209,24 @@ const DocenteCatedraDetailPage = () => {
     }
   };
 
-  const getTaskStatusDisplay = (estado) => {
-    switch (estado) {
+  const getTaskStatusDisplay = (taskOrEstado) => {
+    if (typeof taskOrEstado === 'object' && taskOrEstado !== null) {
+      // This is a TareaMaestra object
+      // We can display a generic status or check if it has any assignments
+      if (taskOrEstado.TareaAsignacion && taskOrEstado.TareaAsignacion.length > 0) {
+        // If there are assignments, we could summarize, but for simplicity, let's say 'Maestra con Asignaciones'
+        return 'Maestra (Asignada)'; 
+      } else {
+        return 'Maestra (Sin Asignar)';
+      }
+    }
+    // If it's a string, it's a TareaAsignacion status
+    switch (taskOrEstado) {
       case 'ASIGNADA': return 'Asignada';
       case 'ENTREGADA': return 'Entregada';
       case 'CALIFICADA': return 'Calificada';
       case 'VENCIDA': return 'Vencida';
-      default: return estado;
+      default: return taskOrEstado;
     }
   };
 
@@ -206,22 +238,25 @@ const DocenteCatedraDetailPage = () => {
   }, [id, fetchCatedra, fetchDiasClase, fetchPublicaciones, fetchPlanesDeClase]);
 
   useEffect(() => {
+    fetchAnnualAttendance();
+  }, [fetchAnnualAttendance]);
+
+  useEffect(() => {
     if (catedra?.TareaMaestra) {
-      const processed = catedra.TareaMaestra.map(tarea => ({
-        ...tarea,
-        tareaMaestra: tarea, // Self-reference to fit TaskCard's expectation
-      }));
+      const processed = catedra.TareaMaestra.map(tarea => ({ ...tarea }));
       setProcessedTareasMaestras(processed);
     }
   }, [catedra]);
 
   const handleDiaClaseCreated = () => {
     fetchDiasClase();
+    fetchAnnualAttendance();
     setIsDiaClaseModalOpen(false);
   };
 
   const handleDiaClaseUpdated = () => {
     fetchDiasClase();
+    fetchAnnualAttendance();
     setIsDiaClaseModalOpen(false);
     setEditingDiaClase(null);
   };
@@ -239,9 +274,10 @@ const DocenteCatedraDetailPage = () => {
     });
     if (result.isConfirmed) {
       try {
-        await api.deleteDiaClase(diaClaseId);
+        await api.deleteDiaClase(catedra.id, diaClaseId);
         Swal.fire('¡Eliminado!', 'El día de clase ha sido eliminado.', 'success');
         fetchDiasClase();
+        fetchAnnualAttendance();
       } catch (error) {
         Swal.fire('Error', error.response?.data?.error || 'Error al eliminar el día de clase.', 'error');
       }
@@ -259,6 +295,8 @@ const DocenteCatedraDetailPage = () => {
   };
 
   const handleSaveAttendance = () => {
+    fetchDiasClase();
+    fetchAnnualAttendance();
     setIsAttendanceModalOpen(false);
     setSelectedDiaClaseForAttendance(null);
   };
@@ -291,7 +329,7 @@ const DocenteCatedraDetailPage = () => {
     fetchCatedra();
     setIsTareaModalOpen(false);
     toast.success(`Tarea '${createdTarea.titulo}' creada exitosamente. Asígnala para publicarla en el tablón.`);
-    // fetchPublicaciones(); // No se publica automáticamente hasta ser asignada
+    fetchPublicaciones(); // Actualizar el tablón de publicaciones después de crear una tarea
   };
 
   const handleAssignTarea = (tarea) => {
@@ -376,7 +414,7 @@ const DocenteCatedraDetailPage = () => {
       });
       setIsEvaluationModalOpen(false);
       fetchCatedra();
-      // fetchPublicaciones(); // No se publica automáticamente hasta ser asignada
+      fetchPublicaciones(); // Actualizar el tablón de publicaciones después de crear una evaluación
     } catch (error) {
       let errorMessage = error.response?.data?.error || 'No se pudo generar la evaluación.';
       if (errorMessage.includes('The model is overloaded')) {
@@ -494,13 +532,16 @@ const DocenteCatedraDetailPage = () => {
   const handleInteractToggle = async (publicacionId, hasUserInteracted) => {
     try {
       if (hasUserInteracted) {
-        await api.uninteractWithPublicacion(publicacionId);
+        await api.removeInteraction(publicacionId);
+        toast.info('Interacción eliminada.');
       } else {
-        await api.interactWithPublicacion(publicacionId);
+        await api.addInteraction(publicacionId);
+        toast.success('¡Has interactuado con la publicación!');
       }
       fetchPublicaciones(); // Refrescar publicaciones para actualizar conteo y estado
     } catch (error) {
       console.error("Error al interactuar con la publicación:", error);
+      toast.error('Error al interactuar con la publicación.');
     }
   };
 
@@ -1001,7 +1042,10 @@ const DocenteCatedraDetailPage = () => {
                                 <Edit3 size={16} />
                               </button>
                               <button
-                                onClick={() => handleDeleteDiaClase(diaClase.id)}
+                                onClick={() => {
+                                  console.log('DiaClase ID to delete:', diaClase.id);
+                                  handleDeleteDiaClase(diaClase.id);
+                                }}
                                 className="p-2 bg-red-600/20 text-red-300 hover:bg-red-600/30 hover:text-red-200 rounded-lg transition-all duration-200 border border-red-500/30"
                                 title="Eliminar Día de Clase"
                               >
@@ -1020,6 +1064,73 @@ const DocenteCatedraDetailPage = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sección de Asistencia Anual */}
+          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-600/20 rounded-lg">
+                    <ClipboardCheck className="text-indigo-400" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-white">Asistencia Anual</h3>
+                    <p className="text-slate-400">Visualiza la asistencia por año</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="yearSelect" className="text-slate-400 text-sm">Año:</label>
+                  <select
+                    id="yearSelect"
+                    value={currentYear}
+                    onChange={(e) => setCurrentYear(parseInt(e.target.value))}
+                    className="bg-slate-700 border border-slate-600 text-white rounded-md px-3 py-1 text-sm focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    {[...Array(5)].map((_, i) => {
+                      const yearOption = new Date().getFullYear() - 2 + i;
+                      return <option key={yearOption} value={yearOption}>{yearOption}</option>;
+                    })}
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {annualAttendanceData.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
+                    <ClipboardCheck className="text-slate-500" size={32} />
+                  </div>
+                  <p className="text-slate-400 text-lg font-medium">No hay datos de asistencia para {currentYear}</p>
+                  <p className="text-slate-500 text-sm mt-1">Registra días de clase y asistencias para ver el historial</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {annualAttendanceData.map(dia => (
+                    <div key={dia.id} className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
+                      <h4 className="text-lg font-semibold text-white mb-2">
+                        {format(parseISO(dia.fecha), 'EEEE, dd MMMM yyyy', { locale: es })}
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {dia.asistencias.length === 0 ? (
+                          <span className="text-slate-400 text-sm">No hay asistencias registradas para este día.</span>
+                        ) : (
+                          dia.asistencias.map(asistencia => (
+                            <span 
+                              key={`${dia.id}-${asistencia.alumnoId || asistencia.composerId}`} 
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${asistencia.presente ? 'bg-green-600/20 text-green-300 border border-green-500/30' : 'bg-red-600/20 text-red-300 border border-red-500/30'}`}
+                            >
+                              {asistencia.nombreCompleto} {asistencia.presente ? '(P)' : '(A)'}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -1263,6 +1374,7 @@ const DocenteCatedraDetailPage = () => {
                         onDeletePublication={handleDeletePublicacion}
                         onDeleteComment={handleDeleteComment}
                         onEditPublication={() => openPublicacionModal(publicacion)}
+                        onInteractToggle={handleInteractToggle}
                         onToggleVisibility={(publicacionId) => handleToggleVisibility(publicacionId, catedra.id)} // Nueva prop
                         userType="docente"
                         userId={currentDocenteId}

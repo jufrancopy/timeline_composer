@@ -347,7 +347,7 @@ const AlumnoDashboardPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {catedras.map((inscripcion) => {
                     const cat = inscripcion.catedra || inscripcion.Catedra;
-                    if (!cat) return null;
+                    if (!cat || cat.id === undefined || cat.id === null) return null;
                     
                     return (
                       <Link
@@ -381,70 +381,7 @@ const AlumnoDashboardPage = () => {
               )}
             </div>
 
-            {/* Actividad Reciente */}
-            {(tareasPendientes.length > 0 || evaluacionesPendientes.length > 0 || publicaciones.length > 0) && (
-              <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6 sm:p-8">
-                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                  <TrendingUp className="text-purple-400" />
-                  Actividad Reciente
-                </h2>
-                <div className="space-y-3">
-                  {tareasPendientes.length > 0 && (
-                    <Link
-                      to="/my-contributions"
-                      className="flex items-center justify-between p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl hover:bg-blue-900/30 transition-colors group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="text-blue-400" size={24} />
-                        <div>
-                          <p className="text-white font-medium">Tareas Pendientes</p>
-                          <p className="text-slate-400 text-sm">
-                            Tienes {tareasPendientes.length} {tareasPendientes.length === 1 ? 'tarea' : 'tareas'} por entregar
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className="text-blue-400 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                  )}
-                  
-                  {evaluacionesPendientes.length > 0 && (
-                    <Link
-                      to="/my-contributions"
-                      className="flex items-center justify-between p-4 bg-yellow-900/20 border border-yellow-500/30 rounded-xl hover:bg-yellow-900/30 transition-colors group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <CalendarCheck className="text-yellow-400" size={24} />
-                        <div>
-                          <p className="text-white font-medium">Evaluaciones Pendientes</p>
-                          <p className="text-slate-400 text-sm">
-                            Tienes {evaluacionesPendientes.length} {evaluacionesPendientes.length === 1 ? 'evaluación' : 'evaluaciones'} por completar
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className="text-yellow-400 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                  )}
 
-                  {publicaciones.length > 0 && (
-                    <Link
-                      to="/my-contributions"
-                      className="flex items-center justify-between p-4 bg-purple-900/20 border border-purple-500/30 rounded-xl hover:bg-purple-900/30 transition-colors group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <MessageSquare className="text-purple-400" size={24} />
-                        <div>
-                          <p className="text-white font-medium">Publicaciones Recientes</p>
-                          <p className="text-slate-400 text-sm">
-                            {publicaciones.length} {publicaciones.length === 1 ? 'publicación nueva' : 'publicaciones nuevas'} en tus cátedras
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className="text-purple-400 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                  )}
-                </div>
-              </div>
-            )}
           </>
         )}
 

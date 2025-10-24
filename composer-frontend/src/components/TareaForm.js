@@ -94,7 +94,7 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
         const apiFunction = userType === 'docente' ? api.createTareaForDocenteCatedra : api.createTareaForCatedra;
         const response = await apiFunction(catedraId, tareaData);
 
-        onTareaCreated(response.data);
+        onTareaCreated(response.data.tareaMaestra);
       }
       
     } catch (error) {

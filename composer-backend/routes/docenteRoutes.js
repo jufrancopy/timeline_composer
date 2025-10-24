@@ -7,7 +7,6 @@ const upload = require('../utils/multerConfig'); // Import multer configuration
 const path = require('path');
 
 module.exports = (prisma, transporter) => {
-  console.log('[DOCENTE ROUTES] Cargando rutas de docente...');
   const router = express.Router();
 
   // Route for multimedia file upload
@@ -203,6 +202,364 @@ module.exports = (prisma, transporter) => {
     }
   });
 
+  // GET /docente/me/catedra/:catedraId/planes - Obtener todos los planes de clases de una cátedra
+  router.get('/docente/me/catedra/:catedraId/planes', requireDocente, async (req, res) => {
+    const { catedraId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      const catedra = await prisma.catedra.findFirst({
+        where: {
+          id: parseInt(catedraId),
+          docenteId: docenteId,
+        },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      const planesDeClases = await prisma.planDeClases.findMany({
+        where: {
+          catedraId: parseInt(catedraId),
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      res.status(200).json(planesDeClases);
+    } catch (error) {
+      console.error('Error al obtener planes de clases para docente:', error);
+      res.status(500).json({ error: 'Error al obtener los planes de clases.', details: error.message });
+    }
+  });
+
+  // Rutas para la gestión de días de clase
+  router.post('/docente/catedra/:catedraId/diasclase', requireDocente, async (req, res) => {
+    const { catedraId } = req.params;
+    const { fecha } = req.body;
+    console.log('Fecha recibida en POST para DiaClase:', fecha); // <--- LOG TEMPORAL
+    const docenteId = req.docente.docenteId;
+
+    if (!fecha) {
+      return res.status(400).json({ error: 'Fecha es obligatoria.' });
+    }
+
+    // Calcular dia_semana a partir de la fecha
+    const dateObj = new Date(fecha);
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const dia_semana = days[dateObj.getDay()];
+
+    if (!dia_semana) {
+        return res.status(400).json({ error: 'Día de la semana no válido para la fecha proporcionada.' });
+    }
+
+    try {
+      const catedra = await prisma.catedra.findFirst({
+        where: {
+          id: parseInt(catedraId),
+          docenteId: docenteId,
+        },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      const newDiaClase = await prisma.diaClase.create({
+        data: {
+          catedraId: parseInt(catedraId),
+          fecha: new Date(fecha),
+          dia_semana,
+        },
+      });
+      res.status(201).json(newDiaClase);
+    } catch (error) {
+      console.error('Error al crear día de clase para docente:', error);
+      res.status(500).json({ error: 'Error al guardar el día de clase.', details: error.message });
+    }
+  });
+
+  router.get('/docente/catedra/:catedraId/diasclase', requireDocente, async (req, res) => {
+    const { catedraId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      const catedra = await prisma.catedra.findFirst({
+        where: {
+          id: parseInt(catedraId),
+          docenteId: docenteId,
+        },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      const diasClase = await prisma.diaClase.findMany({
+        where: {
+          catedraId: parseInt(catedraId),
+        },
+        include: {
+          Asistencia: true, // Incluir asistencias para poder pre-cargar el estado
+        },
+        orderBy: { fecha: 'asc' },
+      });
+
+      res.status(200).json(diasClase);
+    } catch (error) {
+      console.error('Error al obtener días de clase para docente:', error);
+      res.status(500).json({ error: 'Error al obtener los días de clase.', details: error.message });
+    }
+  });
+
+  // PUT /docente/diasclase/:diaClaseId - Actualizar un día de clase
+  router.put('/docente/catedra/:catedraId/diasclase/:diaClaseId', requireDocente, async (req, res) => {
+    const { catedraId, diaClaseId } = req.params;
+    const { fecha } = req.body;
+    console.log('Fecha recibida en PUT para DiaClase:', fecha); // <--- LOG TEMPORAL
+    const docenteId = req.docente.docenteId;
+
+    if (!fecha) {
+      return res.status(400).json({ error: 'Fecha es obligatoria.' });
+    }
+
+    // Calcular dia_semana a partir de la fecha
+    const dateObj = new Date(fecha);
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const dia_semana = days[dateObj.getDay()];
+
+    if (!dia_semana) {
+        return res.status(400).json({ error: 'Día de la semana no válido para la fecha proporcionada.' });
+    }
+
+    try {
+      const existingDiaClase = await prisma.diaClase.findFirst({
+        where: { id: parseInt(diaClaseId), catedraId: parseInt(catedraId)  },
+        include: { Catedra: true },
+      });
+
+      if (!existingDiaClase) {
+        return res.status(404).json({ error: 'Día de clase no encontrado.' });
+      }
+
+      if (existingDiaClase.Catedra.docenteId !== docenteId) {
+        return res.status(403).json({ error: 'No tiene permiso para editar este día de clase.' });
+      }
+
+      const updatedDiaClase = await prisma.diaClase.update({
+        where: { id: parseInt(diaClaseId) },
+        data: {
+          fecha: new Date(fecha),
+          dia_semana,
+        },
+      });
+      res.status(200).json(updatedDiaClase);
+    } catch (error) {
+      console.error('Error al actualizar día de clase para docente:', error);
+      res.status(500).json({ error: 'Error al actualizar el día de clase.', details: error.message });
+    }
+  });
+
+  // DELETE /docente/diasclase/:diaClaseId - Eliminar un día de clase
+  router.delete('/docente/catedra/:catedraId/diasclase/:diaClaseId', requireDocente, async (req, res) => {
+    const { catedraId, diaClaseId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    if (isNaN(parseInt(diaClaseId))) {
+      return res.status(400).json({ error: 'ID de día de clase no válido.' });
+    }
+
+    try {
+      const deleteResult = await prisma.diaClase.deleteMany({
+        where: {
+          id: parseInt(diaClaseId),
+          catedraId: parseInt(catedraId),
+          Catedra: {
+            docenteId: docenteId,
+          },
+        },
+      });
+
+      if (deleteResult.count === 0) {
+        return res.status(404).json({ error: 'Día de clase no encontrado o no tiene permiso para eliminarlo.' });
+      }
+
+      res.status(200).json({ message: 'Día de clase eliminado con éxito.' });
+
+      // Eliminar asistencias asociadas primero
+      await prisma.Asistencia.deleteMany({
+        where: { diaClaseId: parseInt(diaClaseId) },
+      });
+
+      await prisma.DiaClase.delete({
+        where: { id: parseInt(diaClaseId) },
+      });
+
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error al eliminar día de clase para docente:', error);
+      res.status(500).json({ error: 'Error al eliminar el día de clase.', details: error.message });
+    }
+  });
+
+    // GET /docente/catedra/:catedraId/diasclase/:diaClaseId/asistencias - Obtener asistencias para un día de clase
+  router.get('/docente/catedra/:catedraId/diasclase/:diaClaseId/asistencias', requireDocente, async (req, res) => {
+    const { catedraId, diaClaseId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      // Verificar que el día de clase y la cátedra pertenecen al docente
+      const diaClase = await prisma.DiaClase.findFirst({
+        where: {
+          id: parseInt(diaClaseId),
+          catedraId: parseInt(catedraId),
+          Catedra: {
+            docenteId: docenteId,
+          },
+        },
+        include: {
+          Asistencia: true, // Incluir asistencias existentes
+        },
+      });
+
+      if (!diaClase) {
+        return res.status(404).json({ error: 'Día de clase no encontrado en esta cátedra o acceso denegado.' });
+      }
+
+      res.status(200).json(diaClase.Asistencia);
+    } catch (error) {
+      console.error('Error al obtener asistencias para docente:', error);
+      res.status(500).json({ error: 'Error al obtener las asistencias.', details: error.message });
+    }
+  });
+
+    // GET /docente/catedra/:catedraId/asistencias/anual/:year - Obtener asistencias de un año para una cátedra
+  router.get('/docente/catedra/:catedraId/asistencias/anual/:year', requireDocente, async (req, res) => {
+    console.log(`[BACKEND] Ruta /docente/catedra/:catedraId/asistencias/anual/:year fue alcanzada para catedraId: ${req.params.catedraId}, year: ${req.params.year}`);
+    const { catedraId, year } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      const parsedCatedraId = parseInt(catedraId);
+      const parsedYear = parseInt(year);
+
+      if (isNaN(parsedCatedraId) || isNaN(parsedYear)) {
+        return res.status(400).json({ error: 'ID de cátedra y año deben ser números válidos.' });
+      }
+
+      // Verificar que la cátedra pertenece al docente
+      const catedra = await prisma.catedra.findFirst({
+        where: {
+          id: parsedCatedraId,
+          docenteId: docenteId,
+        },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      // Obtener todos los días de clase para la cátedra en el año especificado
+      const diasClase = await prisma.diaClase.findMany({
+        where: {
+          catedraId: parsedCatedraId,
+          fecha: {
+            gte: new Date(`${parsedYear}-01-01T00:00:00.000Z`),
+            lt: new Date(`${parsedYear + 1}-01-01T00:00:00.000Z`),
+          },
+        },
+        include: {
+          Asistencia: {
+            include: {
+              Alumno: {
+                select: { id: true, nombre: true, apellido: true }
+              },
+
+            }
+          },
+        },
+        orderBy: {
+          fecha: 'asc',
+        },
+      });
+
+      // Formatear los datos para el frontend
+      const formattedAttendance = diasClase.map(dia => ({
+        id: dia.id,
+        fecha: dia.fecha,
+        dia_semana: dia.dia_semana,
+        asistencias: dia.Asistencia.map(asistencia => ({
+          alumnoId: asistencia.alumnoId,
+          composerId: asistencia.composerId,
+          nombreCompleto: `${asistencia.Alumno.nombre} ${asistencia.Alumno.apellido}`,
+          presente: asistencia.presente,
+        })),
+      }));
+
+      res.status(200).json(formattedAttendance);
+    } catch (error) {
+      console.error('Error al obtener asistencias anuales para docente:', error);
+      res.status(500).json({ error: 'Error al obtener las asistencias anuales.', details: error.message });
+    }
+  });
+
+  // POST /docente/catedra/:catedraId/diasclase/:diaClaseId/toggle-asistencia - Marcar/desmarcar asistencia
+  router.post('/docente/catedra/:catedraId/diasclase/:diaClaseId/toggle-asistencia', requireDocente, async (req, res) => {
+    const { catedraId, diaClaseId } = req.params;
+    const { alumnoId, presente } = req.body; // `presente` será true o false
+    const docenteId = req.docente.docenteId;
+
+    if (!alumnoId || typeof presente !== 'boolean') {
+      return res.status(400).json({ error: 'ID de alumno y estado de asistencia son obligatorios.' });
+    }
+
+    try {
+      // Verificar que el día de clase y la cátedra pertenecen al docente
+      const catedra = await prisma.Catedra.findFirst({
+        where: {
+          id: parseInt(catedraId),
+          docenteId: docenteId,
+        },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      const diaClase = await prisma.DiaClase.findFirst({
+        where: {
+          id: parseInt(diaClaseId),
+          catedraId: parseInt(catedraId),
+        },
+      });
+
+      if (!diaClase) {
+        return res.status(404).json({ error: 'Día de clase no encontrado en esta cátedra.' });
+      }
+
+      // Upsert la asistencia (crear si no existe, actualizar si existe)
+      const asistencia = await prisma.Asistencia.upsert({
+        where: {
+          alumnoId_diaClaseId: {
+            alumnoId: parseInt(alumnoId),
+            diaClaseId: parseInt(diaClaseId),
+          },
+        },
+        update: { presente },
+        create: {
+          alumnoId: parseInt(alumnoId),
+          diaClaseId: parseInt(diaClaseId),
+          presente,
+        },
+      });
+
+      res.status(200).json(asistencia);
+    } catch (error) {
+      console.error('Error al actualizar asistencia para docente:', error);
+      res.status(500).json({ error: 'Error al actualizar la asistencia.', details: error.message });
+    }
+  });
+
   // GET /docentes/catedras/:catedraId/tareas-maestras - Obtener todas las tareas maestras de una cátedra
   router.get('/docente/catedra/:catedraId/tareas-maestras', requireDocente, async (req, res) => {
     const { catedraId } = req.params;
@@ -284,6 +641,8 @@ module.exports = (prisma, transporter) => {
     const { catedraId } = req.params;
     const { titulo, descripcion, puntos_posibles, fecha_entrega, recursos, multimedia_path } = req.body;
     const docenteId = req.docente.docenteId;
+    console.log('[DOCENTE TAREAS] Contenido de req.body:', req.body);
+    console.log('[DOCENTE TAREAS] Título extraído de req.body:', titulo);
 
     try {
       // Verify the catedra belongs to the docente
@@ -339,7 +698,7 @@ module.exports = (prisma, transporter) => {
         data: { publicacionId: newPublicacion.id },
       });
 
-      res.status(201).json({ message: 'Tarea maestra creada exitosamente. Ahora puedes asignarla a los alumnos.', tareaMaestra: newTareaMaestra });
+      res.status(201).json({ message: `Tarea maestra \'${newTareaMaestra.titulo}\' creada exitosamente. Ahora puedes asignarla a los alumnos.`, tareaMaestra: newTareaMaestra });
 
     } catch (error) {
       console.error('Error creating master task for docente:', error);
@@ -442,15 +801,6 @@ module.exports = (prisma, transporter) => {
         }
       }
 
-      // Después de asignar la tarea a al menos un alumno, hacer visible la publicación asociada
-      if (tareaMaestra.publicacionId && assignedTasks.length > 0) {
-        const updatedPublicacion = await prisma.publicacion.update({
-          where: { id: tareaMaestra.publicacionId },
-          data: { visibleToStudents: true },
-        });
-        console.log('[DEBUG] Publicación actualizada a visible:', updatedPublicacion);
-      }
-
       res.status(201).json({ message: `Tarea maestra asignada a ${assignedTasks.length} estudiantes.`, asignaciones: assignedTasks });
 
     } catch (error) {
@@ -528,262 +878,6 @@ module.exports = (prisma, transporter) => {
       res.status(500).json({ error: 'Failed to update master task.' });
     }
   });
-
-
-  // Create a new master task for a catedra
-//   router.post('/docente/catedra/:catedraId/tareas', requireDocente, async (req, res) => {
-//     console.log('[DOCENTE TAREAS] Solicitud de creación de tarea recibida.');
-//     const { catedraId } = req.params;
-//     const { titulo, descripcion, puntos_posibles, fecha_entrega, recursos, multimedia_path } = req.body;
-//     const docenteId = req.docente.docenteId;
-//     console.log('[DOCENTE TAREAS] Datos recibidos:', { catedraId, titulo, puntos_posibles, fecha_entrega, recursos, multimedia_path });
-
-//     try {
-//       // Verify the catedra belongs to the docente
-//       const catedra = await prisma.catedra.findFirst({
-//         where: {
-//           id: parseInt(catedraId),
-//           docenteId: docenteId,
-//         }
-//       });
-
-//       if (!catedra) {
-//         return res.status(404).json({ error: 'Cátedra not found or access denied.' });
-//       }
-
-//       // Create the master task
-//       const newTareaMaestra = await prisma.tareaMaestra.create({
-//         data: {
-//           titulo,
-//           descripcion,
-//           puntos_posibles: parseInt(puntos_posibles),
-//           fecha_entrega: fecha_entrega ? new Date(fecha_entrega) : null,
-//           recursos,
-//           multimedia_path,
-//           catedraId: parseInt(catedraId),
-//         },
-//       });
-
-//       // Create a publicacion for the new master task in the catedra's board
-//       const publicacionTitle = `Nueva Tarea: ${titulo}`;
-//       const formattedFechaEntrega = fecha_entrega ? new Date(fecha_entrega).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No definida';
-
-//       const publicacionContent = `
-// <p>Se ha creado una nueva tarea: <strong>${titulo}</strong>.</p>
-// <p><strong>Descripción:</strong> ${descripcion || 'Sin descripción'}.</p>
-// <p><strong>Fecha de Entrega:</strong> ${formattedFechaEntrega}.</p>
-//     `;
-
-//       const newPublicacion = await prisma.publicacion.create({
-//         data: {
-//           titulo: publicacionTitle,
-//           contenido: publicacionContent,
-//           tipo: 'TAREA',
-//           catedraId: parseInt(catedraId),
-//           autorDocenteId: docenteId,
-//           visibleToStudents: false,
-//           tareaMaestraId: newTareaMaestra.id,
-//         },
-//       });
-
-//       // Update the TareaMaestra with the publicacionId for the back-reference
-//       await prisma.tareaMaestra.update({
-//         where: { id: newTareaMaestra.id },
-//         data: { publicacionId: newPublicacion.id },
-//       });
-
-//       res.status(201).json({ message: 'Tarea maestra creada exitosamente. Ahora puedes asignarla a los alumnos.', tareaMaestra: newTareaMaestra });
-
-//     } catch (error) {
-//       console.error('[DOCENTE TAREAS] Error creando tarea maestra para docente:', error);
-//       res.status(500).json({ error: 'Failed to create master task.', details: error.message });
-//     }
-//   });
-
-  // New route to assign a master task to students
-  // router.post('/docente/catedra/:catedraId/tareas-maestras/:tareaMaestraId/assign', requireDocente, async (req, res) => {
-  //   const { catedraId, tareaMaestraId } = req.params;
-  //   const { alumnoIds } = req.body; // Array of alumno IDs
-  //   const docenteId = req.docente.docenteId;
-
-  //   if (!Array.isArray(alumnoIds) || alumnoIds.length === 0) {
-  //     return res.status(400).json({ error: 'Se requiere una lista de IDs de alumnos para asignar la tarea.' });
-  //   }
-
-  //   try {
-  //     const tareaMaestra = await prisma.tareaMaestra.findUnique({
-  //       where: { id: parseInt(tareaMaestraId) },
-  //       include: {
-  //         Catedra: true,
-  //         Publicacion: true,
-  //       },
-  //     });
-
-  //     if (!tareaMaestra) {
-  //       return res.status(404).json({ error: 'Tarea maestra no encontrada.' });
-  //     }
-
-  //     if (tareaMaestra.Catedra.docenteId !== docenteId) {
-  //       return res.status(403).json({ error: 'No tiene permiso para asignar esta tarea maestra.' });
-  //     }
-
-  //     const assignedTasks = [];
-  //     for (const alumnoId of alumnoIds) {
-  //       const alumnoIdInt = parseInt(alumnoId);
-
-  //       const alumno = await prisma.alumno.findUnique({ where: { id: alumnoIdInt } });
-  //       if (!alumno) {
-  //         console.warn(`Alumno con ID ${alumnoId} no encontrado. Saltando asignación.`);
-  //         continue;
-  //       }
-
-  //       // Check if the student is actually enrolled in the catedra
-  //       const enrollment = await prisma.catedraAlumno.findFirst({
-  //         where: {
-  //           catedraId: tareaMaestra.catedraId,
-  //           alumnoId: alumnoIdInt,
-  //         },
-  //       });
-
-  //       if (!enrollment) {
-  //         console.warn(`Alumno ${alumnoId} no está inscrito en la cátedra ${tareaMaestra.catedraId}. Saltando asignación.`);
-  //         continue;
-  //       }
-
-  //       const asignacion = await prisma.tareaAsignacion.upsert({
-  //         where: {
-  //           alumnoId_tareaMaestraId: {
-  //             alumnoId: alumnoIdInt,
-  //             tareaMaestraId: parseInt(tareaMaestraId),
-  //           },
-  //         },
-  //         update: {},
-  //         create: {
-  //           alumnoId: alumnoIdInt,
-  //           tareaMaestraId: parseInt(tareaMaestraId),
-  //           estado: 'ASIGNADA',
-  //         },
-  //       });
-  //       assignedTasks.push(asignacion);
-
-  //       // Send email notification to student
-  //       if (alumno.email) {
-  //         const mailOptions = {
-  //           from: `"HMPY (Historia de la Música PY - Academia)" <${process.env.EMAIL_USER}>`,
-  //           to: alumno.email,
-  //           subject: `¡Nueva Tarea Asignada en ${tareaMaestra.Catedra.nombre}!`,
-  //           html: `
-  //           <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #ffffff; background-color: #1a202c; padding: 20px;">
-  //             <div style="max-width: 600px; margin: 0 auto; background-color: #2d3748; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);">
-  //               <h2 style="color: #9f7aea; text-align: center;">¡Hola ${alumno.nombre}!</h2>
-  //               <p style="color: #e2e8f0;">Tu docente ha asignado una nueva tarea para la cátedra de <strong>${tareaMaestra.Catedra.nombre}</strong>.</p>
-  //               <p style="color: #e2e8f0;"><strong>Título de la Tarea:</strong> ${tareaMaestra.titulo}</p>
-  //               <p style="color: #e2e8f0;"><strong>Descripción:</strong> ${tareaMaestra.descripcion}</p>
-  //               <p style="color: #e2e8f0;"><strong>Fecha de Entrega:</strong> ${tareaMaestra.fecha_entrega ? new Date(tareaMaestra.fecha_entrega).toLocaleDateString() : 'N/A'}</p>
-  //               <p style="color: #e2e8f0;">Puedes ver los detalles y realizar tu entrega en la plataforma.</p>
-  //               <p style="color: #cbd5e0; font-size: 0.9em; text-align: center; margin-top: 20px;">Atentamente, El Equipo de HMPY</p>
-  //             </div>
-  //           </div>
-  //         `,
-  //         };
-  //         try {
-  //           await transporter.sendMail(mailOptions);
-  //           console.log(`Task assignment notification email sent to ${alumno.email}.`);
-  //         } catch (emailError) {
-  //           console.error(`Error sending task assignment email to ${alumno.email}:`, emailError);
-  //         }
-  //       }
-  //     }
-
-  //     // Después de asignar la tarea a al menos un alumno, hacer visible la publicación asociada
-  //     if (tareaMaestra.publicacionId && assignedTasks.length > 0) {
-  //       const updatedPublicacion = await prisma.publicacion.update({
-  //         where: { id: tareaMaestra.publicacionId },
-  //         data: { visibleToStudents: true },
-  //       });
-  //       console.log('[DEBUG] Publicación actualizada a visible:', updatedPublicacion);
-  //     }
-
-  //     res.status(201).json({ message: `Tarea maestra asignada a ${assignedTasks.length} estudiantes.`, asignaciones: assignedTasks });
-
-  //   } catch (error) {
-  //     console.error('Error assigning master task to students:', error);
-  //     res.status(500).json({ error: 'Failed to assign master task.', details: error.message });
-  //   }
-  // });
-
-  // // Update a master task for a catedra (Docente only)
-  // router.put('/docente/catedra/:catedraId/tareas/:tareaMaestraId', requireDocente, async (req, res) => {
-  //   console.log('[DOCENTE TAREAS] Solicitud de actualización de tarea recibida.');
-  //   const { catedraId, tareaMaestraId } = req.params;
-  //   const { titulo, descripcion, puntos_posibles, fecha_entrega, recursos, multimedia_path } = req.body;
-  //   const docenteId = req.docente.docenteId;
-  //   console.log('[DOCENTE TAREAS] Datos recibidos para actualizar:', { catedraId, tareaMaestraId, titulo, puntos_posibles, fecha_entrega, recursos, multimedia_path });
-
-  //   try {
-  //     // Verify the catedra belongs to the docente
-  //     const catedra = await prisma.catedra.findFirst({
-  //       where: {
-  //         id: parseInt(catedraId),
-  //         docenteId: docenteId,
-  //       },
-  //     });
-
-  //     if (!catedra) {
-  //       return res.status(404).json({ error: 'Cátedra not found or access denied.' });
-  //     }
-
-  //     // Verify the master task belongs to the catedra and exists
-  //     const existingTareaMaestra = await prisma.tareaMaestra.findFirst({
-  //       where: {
-  //         id: parseInt(tareaMaestraId),
-  //         catedraId: parseInt(catedraId),
-  //       },
-  //     });
-
-  //     if (!existingTareaMaestra) {
-  //       return res.status(404).json({ error: 'Tarea maestra no encontrada o no pertenece a esta cátedra.' });
-  //     }
-
-  //     const updatedTareaMaestra = await prisma.tareaMaestra.update({
-  //       where: { id: parseInt(tareaMaestraId) },
-  //       data: {
-  //         titulo: titulo !== undefined ? titulo : existingTareaMaestra.titulo,
-  //         descripcion: descripcion !== undefined ? descripcion : existingTareaMaestra.descripcion,
-  //         puntos_posibles: puntos_posibles !== undefined ? parseInt(puntos_posibles) : existingTareaMaestra.puntos_posibles,
-  //         fecha_entrega: fecha_entrega !== undefined ? new Date(fecha_entrega) : existingTareaMaestra.fecha_entrega,
-  //         recursos: recursos !== undefined ? recursos : existingTareaMaestra.recursos,
-  //         multimedia_path: multimedia_path !== undefined ? multimedia_path : existingTareaMaestra.multimedia_path,
-  //       },
-  //     });
-
-  //     // Opcional: Actualizar la publicación si está asociada
-  //     if (updatedTareaMaestra.publicacionId) {
-  //       const publicacionTitle = updatedTareaMaestra.titulo && updatedTareaMaestra.titulo.trim() !== '' ? `Nueva Tarea: ${updatedTareaMaestra.titulo}` : 'Nueva Tarea Asignada';
-  //       const formattedFechaEntrega = updatedTareaMaestra.fecha_entrega ? new Date(updatedTareaMaestra.fecha_entrega).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No definida';
-
-  //       const publicacionContent = `
-  //       Se ha actualizado la tarea: **${updatedTareaMaestra.titulo && updatedTareaMaestra.titulo.trim() !== '' ? updatedTareaMaestra.titulo : 'Sin título'}**.\n
-  //       Descripción: ${updatedTareaMaestra.descripcion && updatedTareaMaestra.descripcion.trim() !== '' ? updatedTareaMaestra.descripcion : 'Sin descripción'}.\n
-  //       Fecha de Entrega: ${formattedFechaEntrega}.\n
-  //     `;
-
-  //       await prisma.publicacion.update({
-  //         where: { id: updatedTareaMaestra.publicacionId },
-  //         data: {
-  //           titulo: publicacionTitle,
-  //           contenido: publicacionContent,
-  //         },
-  //       });
-  //     }
-
-  //     res.status(200).json(updatedTareaMaestra);
-  //   } catch (error) {
-  //     console.error('[DOCENTE TAREAS] Error actualizando tarea maestra para docente:', error);
-  //     res.status(500).json({ error: 'Failed to update master task.' });
-  //   }
-  // });
-
 
   // Generate evaluation for a catedra
   router.post('/docente/catedra/:catedraId/generate-evaluation', requireDocente, async (req, res) => {
@@ -1058,15 +1152,6 @@ module.exports = (prisma, transporter) => {
         }
       }
 
-      // 4. Actualizar la Publicacion asociada para que sea visible a los estudiantes
-      if (evaluacionMaestra.publicacionId && assignedEvaluations.length > 0) {
-        await prisma.Publicion.update({
-          where: { id: evaluacionMaestra.publicacionId },
-          data: { visibleToStudents: true },
-        });
-        console.log(`[DEBUG] Publicación de evaluación maestra ${evaluacionMaestra.publicacionId} actualizada a visible.`);
-      }
-
       res.status(201).json({ message: `Evaluación asignada a ${assignedEvaluations.length} estudiantes.`, asignaciones: assignedEvaluations });
 
     } catch (error) {
@@ -1171,83 +1256,7 @@ module.exports = (prisma, transporter) => {
       res.status(500).json({ error: 'Failed to delete evaluation.', details: error.message });
     }
   });
-
-  // --- Rutas para la gestión de Planes de Clases ---
-
-  // POST /docentes/catedras/:catedraId/planes - Crear un nuevo plan de clases
-  router.post('/docente/me/catedra/:catedraId/planes', requireDocente, async (req, res) => {
-    const { catedraId } = req.params;
-    const { titulo, tipoOrganizacion } = req.body;
-    const docenteId = req.docente.docenteId;
-
-    if (!titulo || !tipoOrganizacion) {
-      return res.status(400).json({ error: 'Título y tipo de organización son obligatorios.' });
-    }
-
-    try {
-      const catedra = await prisma.catedra.findFirst({
-        where: {
-          id: parseInt(catedraId),
-          docenteId: docenteId,
-        },
-      });
-
-      if (!catedra) {
-        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
-      }
-
-      const newPlanDeClases = await prisma.planDeClases.create({
-        data: {
-          titulo,
-          tipoOrganizacion,
-          docenteId: docenteId,
-          catedraId: parseInt(catedraId),
-        },
-      });
-
-      res.status(201).json(newPlanDeClases);
-    } catch (error) {
-      console.error('Error al crear plan de clases:', error);
-      res.status(500).json({ error: 'Error al crear el plan de clases.', details: error.message });
-    }
-  });
-
-  // GET /docentes/catedras/:catedraId/planes - Obtener todos los planes de clases de una cátedra
-  router.get('/docente/me/catedra/:catedraId/planes', requireDocente, async (req, res) => {
-    const { catedraId } = req.params;
-    const docenteId = req.docente.docenteId;
-
-    try {
-      const catedra = await prisma.catedra.findFirst({
-        where: {
-          id: parseInt(catedraId),
-          docenteId: docenteId,
-        },
-      });
-
-      if (!catedra) {
-        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
-      }
-
-      const planesDeClase = await prisma.planDeClases.findMany({
-        where: {
-          catedraId: parseInt(catedraId),
-        },
-        include: {
-          UnidadPlan: true, // Incluir unidades para la visualización en el frontend
-        },
-        orderBy: {
-          created_at: 'asc',
-        },
-      });
-
-      res.status(200).json(planesDeClase);
-    } catch (error) {
-      console.error('Error al obtener planes de clases:', error);
-      res.status(500).json({ error: 'Error al obtener los planes de clases.', details: error.message });
-    }
-  });
-
+  
   // GET /docentes/planes/:planId - Obtener un plan de clases específico
   router.get('/docente/me/planes/:planId', requireDocente, async (req, res) => {
     const { planId } = req.params;
@@ -1778,17 +1787,17 @@ module.exports = (prisma, transporter) => {
       // 3. Format the results
       const resultado = asignacionesDelAlumno.map(asignacion => ({
         id: asignacion.id, // ID de la asignación
-        titulo: asignacion.tareaMaestra.titulo,
-        descripcion: asignacion.tareaMaestra.descripcion,
-        fecha_entrega: asignacion.tareaMaestra.fecha_entrega,
-        puntos_posibles: asignacion.tareaMaestra.puntos_posibles,
-        recursos: asignacion.tareaMaestra.recursos,
-        multimedia_path: asignacion.tareaMaestra.multimedia_path,
+        titulo: asignacion.TareaMaestra.titulo,
+        descripcion: asignacion.TareaMaestra.descripcion,
+        fecha_entrega: asignacion.TareaMaestra.fecha_entrega,
+        puntos_posibles: asignacion.TareaMaestra.puntos_posibles,
+        recursos: asignacion.TareaMaestra.recursos,
+        multimedia_path: asignacion.TareaMaestra.multimedia_path,
         estado: asignacion.estado,
         submission_path: asignacion.submission_path,
         submission_date: asignacion.submission_date,
         puntos_obtenidos: asignacion.puntos_obtenidos,
-        catedraId: asignacion.tareaMaestra.catedraId,
+        catedraId: asignacion.TareaMaestra.catedraId,
         alumnoId: asignacion.alumnoId,
         tareaMaestraId: asignacion.tareaMaestraId,
       }));
@@ -1818,12 +1827,12 @@ module.exports = (prisma, transporter) => {
 
     try {
       // 1. Find the task assignment and include related data for validation
-      const asignacion = await prisma.tareaAsignacion.findUnique({
+      const asignacion = await prisma.TareaAsignacion.findUnique({
         where: { id: parseInt(tareaAsignacionId) },
         include: {
-          tareaMaestra: {
+          TareaMaestra: {
             include: {
-              catedra: true,
+              Catedra: true,
             },
           },
         },
@@ -1834,16 +1843,16 @@ module.exports = (prisma, transporter) => {
       }
 
       // 2. Verify the docente owns the catedra this task belongs to
-      if (asignacion.tareaMaestra.catedra.docenteId !== docenteId) {
+      if (asignacion.TareaMaestra.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para calificar esta asignación de tarea.' });
       }
 
-      if (puntos > asignacion.tareaMaestra.puntos_posibles) {
-        return res.status(400).json({ error: `La calificación no puede exceder los ${asignacion.tareaMaestra.puntos_posibles} puntos posibles.` });
+      if (puntos > asignacion.TareaMaestra.puntos_posibles) {
+        return res.status(400).json({ error: `La calificación no puede exceder los ${asignacion.TareaMaestra.puntos_posibles} puntos posibles.` });
       }
 
       // 3. Update the task assignment with the grade and set status to CALIFICADA
-      const asignacionCalificada = await prisma.tareaAsignacion.update({
+      const asignacionCalificada = await prisma.TareaAsignacion.update({
         where: { id: parseInt(tareaAsignacionId) },
         data: {
           puntos_obtenidos: puntos,
@@ -1853,30 +1862,30 @@ module.exports = (prisma, transporter) => {
       });
 
       // 4. Create or update the Puntuacion record
-      const motivo = `Calificación de tarea: ${asignacion.tareaMaestra.titulo}`;
+      const motivo = `Calificación de tarea: ${asignacion.TareaMaestra.titulo}`;
 
-      const puntuacionExistente = await prisma.puntuacion.findFirst({
+      const puntuacionExistente = await prisma.Puntuacion.findFirst({
         where: {
           alumnoId: asignacion.alumnoId,
-          catedraId: asignacion.tareaMaestra.catedraId,
+          catedraId: asignacion.TareaMaestra.catedraId,
           motivo: motivo,
           tipo: 'TAREA',
         }
       });
 
       if (puntuacionExistente) {
-        await prisma.puntuacion.update({
+        await prisma.Puntuacion.update({
           where: { id: puntuacionExistente.id },
           data: { puntos: puntos },
         });
       } else {
-        await prisma.puntuacion.create({
+        await prisma.Puntuacion.create({
           data: {
             puntos: puntos,
             motivo: motivo,
             tipo: 'TAREA',
-            alumno: { connect: { id: asignacion.alumnoId } },
-            catedra: { connect: { id: asignacion.tareaMaestra.catedraId } },
+            Alumno: { connect: { id: asignacion.alumnoId } },
+            Catedra: { connect: { id: asignacion.TareaMaestra.catedraId } },
           },
         });
       }
@@ -1990,7 +1999,7 @@ module.exports = (prisma, transporter) => {
               // No matricula cost, so it's considered paid regarding matricula.
               estadoActual = 'AL DÍA';
             }
-            
+
             console.log(`[DOCENTE PAGOS] Cátedra ${catedraId} - Estado de matrícula: ${estadoActual}`);
 
             if (estadoActual === 'AL DÍA') {
@@ -2408,7 +2417,7 @@ module.exports = (prisma, transporter) => {
     const docenteId = req.docente.docenteId;
 
     if (!Array.isArray(asistencias) || asistencias.length === 0) {
-      return res.status(400).json({ error: 'Se requiere una lista de asistencias.' });
+      return res.status(400).json({ error: 'Se requiere una lista de asistencias válida.' });
     }
 
     try {
@@ -2455,7 +2464,7 @@ module.exports = (prisma, transporter) => {
       res.status(201).json(results);
     } catch (error) {
       console.error('Error al registrar asistencias:', error);
-      res.status(500).json({ error: 'Error al registrar la asistencia.', details: error.message });
+      res.status(500).json({ error: `Error al registrar la asistencia: ${error.message}` });
     }
   });
 
@@ -2519,7 +2528,7 @@ module.exports = (prisma, transporter) => {
       res.status(200).json(alumnosConEstadoAsistencia);
     } catch (error) {
       console.error('Error al obtener asistencias para día de clase:', error);
-      res.status(500).json({ error: 'Error al obtener las asistencias.', details: error.message });
+      res.status(500).json({ error: `Error al obtener las asistencias: ${error.message}` });
     }
   });
 

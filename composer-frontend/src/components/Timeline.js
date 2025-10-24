@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Music, Palette, Camera, Pen, Award, Calendar, Star, Clock, ExternalLink, Edit, ChevronDown, ChevronUp } from 'lucide-react';
 import Rating from './Rating';
 import Comments from './Comments';
 
-const Timeline = ({ composers = [], loading = false, newComposer = null, onNewComposerHandled = null, onSuggestEdit }) => {
+const Timeline = ({ composers = [], loading = false, newComposer = null, onNewComposerHandled = null, onSuggestEdit, selectedComposerId }) => {
+  const itemRefs = useRef(new Map());
   // Estados del componente
   const [selectedItem, setSelectedItem] = useState(null);
   const [visibleItems, setVisibleItems] = useState([]);
@@ -77,12 +78,23 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
   const sortComposersByBirthYear = useCallback((list) => [...list].sort((a, b) => (a.birth_year || 0) - (b.birth_year || 0)), []);
 
   const PERIOD_ORDER = useMemo(() => [
-    'COLONIAL', 'INDEPENDENCIA', 'POSGUERRA', 'MODERNO', 'CONTEMPORANEO'
+    'COLONIAL',
+    'INDEPENDENCIA_Y_GUERRA_GRANDE',
+    'POSGUERRA',
+    'GUERRA_DEL_CHACO_Y_GUARANIA',
+    'DICTADURA',
+    'TRANSICION',
+    'ACTUALIDAD',
+    'INDETERMINADO',
+    'UNKNOWN'
   ], []);
 
   useEffect(() => {
     const dataToUse = composers.length > 0 ? composers : demoData;
     setInternalComposers(sortComposersByBirthYear(dataToUse));
+    if (selectedComposerId) {
+      setSelectedItem(selectedComposerId);
+    }
   }, [composers, sortComposersByBirthYear]);
 
   useEffect(() => {
@@ -94,6 +106,16 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
       onNewComposerHandled?.();
     }
   }, [newComposer, onNewComposerHandled, sortComposersByBirthYear]);
+
+  useEffect(() => {
+    if (selectedComposerId) {
+      setSelectedItem(selectedComposerId);
+      const targetElement = itemRefs.current.get(selectedComposerId);
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [selectedComposerId]);
   
   // --- MAPEO Y HELPERS ---
 
@@ -171,10 +193,14 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
   const getPeriodColor = (period) => {
     const colors = {
       'COLONIAL': 'bg-amber-100 text-amber-800 border-amber-200',
-      'INDEPENDENCIA': 'bg-blue-100 text-blue-800 border-blue-200',
+      'INDEPENDENCIA_Y_GUERRA_GRANDE': 'bg-blue-100 text-blue-800 border-blue-200',
       'POSGUERRA': 'bg-green-100 text-green-800 border-green-200',
-      'MODERNO': 'bg-purple-100 text-purple-800 border-purple-200',
-      'CONTEMPORANEO': 'bg-pink-100 text-pink-800 border-pink-200'
+      'GUERRA_DEL_CHACO_Y_GUARANIA': 'bg-red-100 text-red-800 border-red-200',
+      'DICTADURA': 'bg-purple-100 text-purple-800 border-purple-200',
+      'TRANSICION': 'bg-pink-100 text-pink-800 border-pink-200',
+      'ACTUALIDAD': 'bg-teal-100 text-teal-800 border-teal-200',
+      'INDETERMINADO': 'bg-gray-100 text-gray-800 border-gray-200',
+      'UNKNOWN': 'bg-gray-100 text-gray-800 border-gray-200',
     };
     return colors[period] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
@@ -261,13 +287,11 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
                   <button 
                     onClick={() => togglePeriodExpansion(period)}
                     className={`flex items-center gap-2 text-2xl sm:text-3xl font-extrabold px-6 py-3 rounded-full transition-all duration-300 transform
-                      ${expandedPeriods[period] ? 'bg-purple-600/30 hover:bg-purple-600/50' : 'bg-gray-700/30 hover:bg-gray-600/50'}
+                      ${expandedPeriods[period] ? 'bg-purple-700 hover:bg-purple-600' : 'bg-gray-800 hover:bg-gray-700'}
                       border border-white/10
                     `}
                   >
-                    <span className={`bg-clip-text text-transparent ${getPeriodColor(period).split(' ')[1].replace('text-','text-').replace('-800','').replace('text-gray-800','text-gray-300')}`}
-                      style={{ backgroundImage: `linear-gradient(to right, ${getPeriodColor(period).split(' ')[0].replace('bg-','').replace('-100','').replace('bg-gray-100','#a78bfa')}, ${getPeriodColor(period).split(' ')[1].replace('text-','').replace('-800','').replace('text-gray-800','#d8b4fe')})` }}
-                    >
+                    <span className="text-white">
                       {period.replace(/_/g, ' ').toUpperCase()}
                     </span>
                     {expandedPeriods[period] ? <ChevronUp className="w-6 h-6 text-white" /> : <ChevronDown className="w-6 h-6 text-white" />}
@@ -281,6 +305,13 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
               return (
                 <div
                   key={item.id}
+                  ref={node => {
+                    if (node) {
+                      itemRefs.current.set(item.id, node);
+                    } else {
+                      itemRefs.current.delete(item.id);
+                    }
+                  }}
                   className={`flex items-center ${
                     // En móvil siempre columna, en desktop alternado
                     'flex-col sm:flex-row'

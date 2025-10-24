@@ -5,15 +5,15 @@ const TaskCard = ({ task, getStatusColor, getTaskStatusDisplay, handleOpenSubmit
   return (
     <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-xl mb-4 border border-gray-700">
       <div className="flex justify-between items-start mb-2">
-        <h3 className="text-lg font-bold text-purple-300">{task.tareaMaestra.titulo}</h3>
+        <h3 className="text-lg font-bold text-purple-300">{docenteView ? task.titulo : task.TareaMaestra.titulo}</h3>
         <span className={`px-2 py-1 text-xs leading-5 font-semibold rounded-full ${getStatusColor(task.estado)}`}>
-          {getTaskStatusDisplay(task.estado)}
+          {getTaskStatusDisplay(task)}
         </span>
       </div>
       {/* <p className="text-sm text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: task.descripcion.substring(0, 100) + '...' }}></p> */}
-      <p className="text-sm text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: task.tareaMaestra.descripcion }}></p>
-      <p className="text-sm text-gray-400"><strong>Puntos Posibles:</strong> {task.tareaMaestra.puntos_posibles}</p>
-      <p className="text-sm text-gray-400"><strong>Vence:</strong> {task.tareaMaestra.fecha_entrega ? format(new Date(task.tareaMaestra.fecha_entrega), 'dd/MM/yyyy') : 'N/A'}</p>
+      <p className="text-sm text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: docenteView ? task.descripcion : task.TareaMaestra.descripcion }}></p>
+      <p className="text-sm text-gray-400"><strong>Puntos Posibles:</strong> {docenteView ? task.puntos_posibles : task.TareaMaestra.puntos_posibles}</p>
+      <p className="text-sm text-gray-400"><strong>Vence:</strong> {(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega) ? format(new Date(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega), 'dd/MM/yyyy') : 'N/A'}</p>
       {showPoints && task.puntos_obtenidos !== null && (
         <p className="text-sm font-bold text-green-400 mt-1"><strong>Mis Puntos:</strong> {task.puntos_obtenidos}</p>
       )}
@@ -48,14 +48,14 @@ const TaskCard = ({ task, getStatusColor, getTaskStatusDisplay, handleOpenSubmit
                 Eliminar
               </button>
               <button
-                onClick={() => onAssignTask(task.id)}
+                onClick={() => onAssignTask(task)}
                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded"
               >
                 Asignar
               </button>
               {task.publicacionId && (
                 <button
-                  onClick={() => onToggleVisibility(task.publicacionId)}
+                  onClick={() => onToggleVisibility(task.publicacionId, task.catedraId)}
                   className={`${task.visibleToStudents ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white text-xs font-bold py-2 px-3 rounded`}
                 >
                   {task.visibleToStudents ? 'Ocultar en Tablón' : 'Publicar en Tablón'}

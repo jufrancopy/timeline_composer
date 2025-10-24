@@ -40,23 +40,23 @@ function TaskTable({ title, tasks, getStatusColor, getTaskStatusDisplay, handleO
               <tbody className="divide-y divide-gray-800">
                 {tasks.map((task) => (
                   <tr key={task.id} ref={el => taskRefs.current[task.id] = el} className={`hover:bg-gray-700/50 ${highlightedTaskId === task.id ? 'bg-yellow-800/50 border-l-4 border-yellow-400' : ''}`}>
-                    {!docenteView && <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">{task.tareaMaestra.catedra?.nombre} ({task.tareaMaestra.catedra?.anio})</td>}
+                    {!docenteView && <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">{task.TareaMaestra.Catedra?.nombre} ({task.TareaMaestra.Catedra?.anio})</td>}
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">
                       {docenteView ? (
                         <button onClick={(e) => { e.stopPropagation(); onViewTask(task); }} className="text-blue-400 hover:text-blue-300 font-semibold text-left">
                           {task.titulo}
                         </button>
                       ) : (
-                        task.tareaMaestra.titulo
+                        task.TareaMaestra.titulo
                       )}
                     </td>
                                         <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate"
-                      dangerouslySetInnerHTML={{ __html: docenteView ? task.descripcion : task.tareaMaestra.descripcion }}></td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{docenteView ? task.puntos_posibles : task.tareaMaestra.puntos_posibles}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{(docenteView ? task.fecha_entrega : task.tareaMaestra.fecha_entrega) ? new Date(docenteView ? task.fecha_entrega : task.tareaMaestra.fecha_entrega).toLocaleDateString() : 'N/A'}</td>
+                      dangerouslySetInnerHTML={{ __html: docenteView ? task.descripcion : task.TareaMaestra.descripcion }}></td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{docenteView ? task.puntos_posibles : task.TareaMaestra.puntos_posibles}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega) ? new Date(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega).toLocaleDateString() : 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task.estado)}`}>
-                        {getTaskStatusDisplay(task.estado)}
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task)}`}>
+                        {getTaskStatusDisplay(task)}
                       </span>
                     </td>
                     {showPoints && <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-400">{task.puntos_obtenidos !== null ? task.puntos_obtenidos : 'N/A'}</td>}
@@ -107,16 +107,7 @@ function TaskTable({ title, tasks, getStatusColor, getTaskStatusDisplay, handleO
           {/* Vista de tarjetas para pantallas pequeñas */}
           <div className="block md:hidden space-y-4">
             {tasks.map((task) => {
-                const taskCardProps = {
-                  ...task,
-                  tareaMaestra: docenteView ? {
-                    titulo: task.titulo,
-                    descripcion: task.descripcion,
-                    puntos_posibles: task.puntos_posibles,
-                    fecha_entrega: task.fecha_entrega,
-                    catedra: task.catedra, 
-                  } : task.tareaMaestra,
-                };
+                const taskCardProps = docenteView ? task : { ...task, TareaMaestra: task.TareaMaestra };
 
                 return (
                   <div key={task.id} ref={el => taskRefs.current[task.id] = el} className={`${highlightedTaskId === task.id ? 'bg-yellow-800/50 border-l-4 border-yellow-400' : ''}`}>

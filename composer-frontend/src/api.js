@@ -90,19 +90,20 @@ const api = {
   // ==== Endpoints para Evaluaciones de Alumnos ====
   getMyEvaluations: () => apiClient.get('/alumnos/me/evaluaciones'),
   getEvaluationForStudent: (evaluationId) => apiClient.get(`/alumnos/me/evaluaciones/${evaluationId}`),
-  submitEvaluation: (evaluationId, responses) => apiClient.post(`/alumnos/me/evaluaciones/${evaluationId}/submit`, { responses }),
+  submitEvaluation: (evaluationId, data) => apiClient.post(`/alumnos/me/evaluaciones/${evaluationId}/submit`, data),
   getEvaluationResultsForStudent: (evaluationId) => apiClient.get(`/alumnos/me/evaluaciones/${evaluationId}/results`),
 
   // ==== Endpoints para Publicaciones (Tablón) ====
-  getPublicaciones: (catedraId) => apiClient.get(`/catedras/${catedraId}/publicaciones`),
+  getPublicaciones: (catedraId) => apiClient.get(`/publicaciones/catedra/${catedraId}`),
+  getMyPublicaciones: () => apiClient.get('/alumnos/me/publicaciones'),
   createPublicacion: (catedraId, data) => apiClient.post(`/catedras/${catedraId}/publicaciones`, data),
   updatePublicacion: (catedraId, publicacionId, data) => apiClient.put(`/catedras/${catedraId}/publicaciones/${publicacionId}`, data),
   deletePublicacion: (catedraId, publicacionId) => apiClient.delete(`/catedras/${catedraId}/publicaciones/${publicacionId}`),
   togglePublicacionVisibility: (publicacionId, catedraId) => apiClient.put(`/publicaciones/${publicacionId}/toggle-visibility`, { catedraId }),
   createComentario: (publicacionId, data) => apiClient.post(`/publicaciones/${publicacionId}/comentarios`, data),
   deleteComentario: (publicacionId, comentarioId) => apiClient.delete(`/publicaciones/${publicacionId}/comentarios/${comentarioId}`),
-  interactWithPublicacion: (publicacionId, tipo) => apiClient.post(`/publicaciones/${publicacionId}/interacciones`, { tipo }),
-  uninteractWithPublicacion: (publicacionId, tipo) => apiClient.delete(`/publicaciones/${publicacionId}/interacciones`, { data: { tipo } }),
+  addInteraction: (publicacionId) => apiClient.post(`/publicaciones/${publicacionId}/interacciones`), 
+  removeInteraction: (publicacionId) => apiClient.delete(`/publicaciones/${publicacionId}/interacciones`),
 
   // ==== Endpoints para Admin (Tareas) ====
   getSubmittedTasks: () => apiClient.get('/admin/tareas/entregadas'),
@@ -111,12 +112,16 @@ const api = {
   // ==== Endpoints para Admin (Dashboard Counts) ====
   getAdminDashboardCounts: () => apiClient.get('/admin/dashboard-counts'),
 
+  // ==== Endpoints para Admin (Docentes) ====
+  getDocentes: () => apiClient.get('/admin/docentes'),
+
   // ==== Endpoints para Admin (Cátedras) ====
   getCatedras: () => apiClient.get('/admin/catedras'),
   getCatedra: (id) => apiClient.get(`/admin/catedras/${id}`),
   createCatedra: (data) => apiClient.post('/admin/catedras', data),
   updateCatedra: (id, data) => apiClient.put(`/admin/catedras/${id}`, data),
   deleteCatedra: (id) => apiClient.delete(`/admin/catedras/${id}`),
+  inscribirAlumno: (catedraId, alumnoId, composerId, diaCobro) => apiClient.post(`/admin/catedras/${catedraId}/inscribir`, { alumnoId, composerId, diaCobro }),
   // Nueva función para desinscribir alumno
   desinscribirAlumno: (catedraId, alumnoId, composerId) => {
     if (alumnoId) {
@@ -126,12 +131,17 @@ const api = {
     }
     return Promise.reject(new Error('Se requiere alumnoId o composerId para desinscribir.'));
   },
+  updateCatedraAlumno: (catedraAlumnoId, data) => apiClient.put(`/admin/catedraalumnos/${catedraAlumnoId}`, data),
 
   // ==== Endpoints para Docentes (Cátedras) ====
   getDocenteCatedras: () => apiClient.get('/docente/me/catedras'),
-  getDocenteDiasClase: (catedraId) => apiClient.get(`/docente/me/catedra/${catedraId}/diasclase`),
   getDocentePlanesDeClaseForCatedra: (catedraId) => apiClient.get(`/docente/me/catedra/${catedraId}/planes`),
   getDocenteCatedraDetalles: (catedraId) => apiClient.get(`/docente/me/catedra/${catedraId}`),
+  createDiaClase: (catedraId, data) => apiClient.post(`/docente/catedra/${catedraId}/diasclase`, data),
+  getDocenteDiasClase: (catedraId) => apiClient.get(`/docente/catedra/${catedraId}/diasclase`),
+  updateDiaClase: (catedraId, diaClaseId, data) => apiClient.put(`/docente/catedra/${catedraId}/diasclase/${Number(diaClaseId)}`, data),
+  deleteDiaClase: (catedraId, diaClaseId) => apiClient.delete(`/docente/catedra/${catedraId}/diasclase/${Number(diaClaseId)}`),
+  toggleAsistencia: (catedraId, diaClaseId, alumnoId, presente) => apiClient.post(`/docente/catedra/${catedraId}/diasclase/${diaClaseId}/toggle-asistencia`, { alumnoId, presente }),
 
   // ==== Endpoints para Docentes (Evaluaciones) ====
   getDocenteEvaluacionesMaestras: (catedraId) => apiClient.get(`/docente/catedra/${catedraId}/evaluaciones-maestras`),
@@ -145,6 +155,8 @@ const api = {
 
   // ==== Endpoints para Docentes (Alumnos) ====
   getDocenteAlumnoPagos: (alumnoId) => apiClient.get(`/docente/alumnos/${alumnoId}/pagos`),
+  getAttendanceByDiaClase: (catedraId, diaClaseId) => apiClient.get(`/docente/catedra/${catedraId}/diasclase/${diaClaseId}/asistencias`),
+  getAnnualAttendance: (catedraId, year) => apiClient.get(`/docente/catedra/${catedraId}/asistencias/anual/${year}`),
   // ==== Endpoints para Docentes (Asignacion de Tarea Maestra) ====
   assignTareaToAlumnos: (catedraId, tareaMaestraId, data) => apiClient.post(`/docente/catedra/${catedraId}/tareas-maestras/${tareaMaestraId}/assign`, data),
 

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Award } from 'lucide-react';
 
-const ComposerOfTheDay = ({ composers }) => {
+const ComposerOfTheDay = ({ composers, onComposerClick }) => {
   const composer = useMemo(() => {
     if (!composers || composers.length === 0) return null;
     
@@ -28,7 +28,9 @@ const ComposerOfTheDay = ({ composers }) => {
   return (
     <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10">
       <h2 className="text-2xl font-bold text-white mb-4">Compositor del Día</h2>
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4 cursor-pointer hover:bg-white/10 p-2 rounded-lg transition-colors"
+        onClick={() => onComposerClick(composer.id)}
+      >
         {(composer.photo_url && composer.photo_url.startsWith('http')) ? (
           <img src={composer.photo_url} alt={composer.first_name} className="w-20 h-20 rounded-full object-cover" />
         ) : (

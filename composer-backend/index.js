@@ -127,7 +127,6 @@ const docenteRouter = docenteRoutes(prisma, transporter);
 const adminRouter = adminRoutes(prisma, transporter);
 const publicacionRouter = publicacionRoutes(prisma, transporter);
 const composerRouter = composerRoutes(prisma, transporter);
-console.log('[DEBUG] composerRouter inicializado.');
 const alumnoRouter = alumnoRoutes(prisma, transporter); 
 
 app.use((err, req, res, next) => {
@@ -782,6 +781,7 @@ app.use('/api', adminRouter);
 app.use('/api', docenteRouter);
 app.use('/api', evaluationRoutes);
 app.use('/api', publicacionRouter);
+
 app.use('/api/ratings', ratingRoutes);
 app.use('/api', alumnoRouter);
 

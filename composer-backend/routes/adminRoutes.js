@@ -899,6 +899,57 @@ module.exports = (prisma, transporter) => {
   });
 
   // Admin: Get all students (Alumnos)
+  router.post('/catedras/:catedraId/inscribir', requireAdmin, async (req, res) => {
+    const { catedraId } = req.params;
+    const { alumnoId, composerId, diaCobro } = req.body;
+
+    if (!alumnoId && !composerId) {
+      return res.status(400).json({ error: 'Se requiere alumnoId o composerId.' });
+    }
+
+    if (diaCobro && (diaCobro < 1 || diaCobro > 31)) {
+      return res.status(400).json({ error: 'El día de cobro debe ser entre 1 y 31, o null.' });
+    }
+
+    try {
+      const catedra = await prisma.catedra.findUnique({
+        where: { id: parseInt(catedraId) },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada.' });
+      }
+
+      // Prevenir doble inscripción
+      const existingEnrollment = await prisma.catedraAlumno.findFirst({
+        where: {
+          catedraId: parseInt(catedraId),
+          ...(alumnoId && { alumnoId: parseInt(alumnoId) }),
+          ...(composerId && { composerId: parseInt(composerId) }),
+        },
+      });
+
+      if (existingEnrollment) {
+        return res.status(409).json({ error: 'El alumno ya está inscrito en esta cátedra.' });
+      }
+
+      const newEnrollment = await prisma.catedraAlumno.create({
+        data: {
+          catedraId: parseInt(catedraId),
+          alumnoId: alumnoId ? parseInt(alumnoId) : null,
+          composerId: composerId ? parseInt(composerId) : null,
+          dia_cobro: diaCobro ? parseInt(diaCobro) : null,
+          assignedBy: 'ADMIN_SYSTEM', // Asignado por el sistema de administración
+        },
+      });
+
+      res.status(201).json(newEnrollment);
+    } catch (error) {
+      console.error('Error al inscribir alumno/compositor:', error);
+      res.status(500).json({ error: 'No se pudo inscribir al alumno.', details: error.message });
+    }
+  });
+
   router.get('/alumnos', requireAdmin, async (req, res) => {
     console.log('[ADMIN] Fetching all alumnos');
     try {
@@ -1111,6 +1162,27 @@ module.exports = (prisma, transporter) => {
     } catch (error) {
       console.error('Error deleting alumno:', error);
       res.status(500).json({ error: 'Error al eliminar alumno.' });
+    }
+  });
+
+  // Nueva ruta para actualizar CatedraAlumno
+  router.put('/catedraalumnos/:id', requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { dia_cobro } = req.body;
+
+    if (dia_cobro !== null && (dia_cobro < 1 || dia_cobro > 31)) {
+      return res.status(400).json({ error: 'El día de cobro debe ser entre 1 y 31, o null.' });
+    }
+
+    try {
+      const updatedCatedraAlumno = await prisma.CatedraAlumno.update({
+        where: { id: parseInt(id) },
+        data: { dia_cobro: dia_cobro ? parseInt(dia_cobro) : null },
+      });
+      res.status(200).json(updatedCatedraAlumno);
+    } catch (error) {
+      console.error('Error al actualizar CatedraAlumno:', error);
+      res.status(500).json({ error: 'Error al actualizar la inscripción del alumno.' });
     }
   });
 

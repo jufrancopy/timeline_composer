@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { 
-  ArrowLeft, BookOpen, FileText, Brain, MessageSquare, 
+import {
+  ArrowLeft, BookOpen, FileText, Brain, MessageSquare,
   CheckCircle, Clock, AlertCircle, Calendar, User,
   Plus, Edit3, Trash2, TrendingUp, Award, Target
 } from 'lucide-react';
@@ -14,35 +14,41 @@ import EvaluationTable from '../components/EvaluationTable';
 import Modal from '../components/Modal';
 
 const AlumnoCatedraDetailPage = () => {
-  const { id: catedraId } = useParams();
+  const { catedraId } = useParams();
   const navigate = useNavigate();
-  
+
   const [loading, setLoading] = useState(true);
   const [catedra, setCatedra] = useState(null);
   const [activeTab, setActiveTab] = useState('tablon');
   const [currentAlumnoId, setCurrentAlumnoId] = useState(null);
-  
+  const location = useLocation();
+
   // Estados para Tablón
   const [publicaciones, setPublicaciones] = useState([]);
   const [isPublicacionModalOpen, setIsPublicacionModalOpen] = useState(false);
   const [editingPublicacion, setEditingPublicacion] = useState(null);
   const [publicationLoading, setPublicationLoading] = useState(false);
-  
+
   // Estados para Tareas
   const [tareas, setTareas] = useState([]);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [taskToSubmit, setTaskToSubmit] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  
+
   // Estados para Evaluaciones
   const [evaluaciones, setEvaluaciones] = useState([]);
-  
+
+  const handleGoToTaskTab = (catedraId, taskId) => {
+    handleGoToTab('tareas', taskId);
+  };
+
   // Stats
   const [stats, setStats] = useState({
     totalPublicaciones: 0,
     totalTareas: 0,
     tareasPendientes: 0,
     tareasCompletadas: 0,
+    totalEvaluaciones: 0,
     evaluacionesPendientes: 0,
     evaluacionesCompletadas: 0
   });
@@ -57,45 +63,139 @@ const AlumnoCatedraDetailPage = () => {
         console.error('Error decoding token:', err);
       }
     }
-    
+
+    // Check for state from navigation
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+
     fetchCatedraData();
-  }, [catedraId]);
+  }, [catedraId, location.state]);
+
+  // Handlers para Tareas
+  const handleOpenSubmitModal = (task) => {
+    setTaskToSubmit(task);
+    setIsSubmitModalOpen(true);
+  };
+
+  const handleFileChange = (event) => {
+    setSelectedFile(event.target.files[0]);
+  };
+
+  // Handlers para Publicaciones
+  const handleInteractToggle = async (publicacionId, alumnoId) => {
+    console.log(`Interactuando con publicación ${publicacionId} por alumno ${alumnoId}`);
+    // Implementar lógica de interacción (like/unlike, etc.)
+  };
+
+  const handleGoToTab = (tabName, idToHighlight = null) => {
+    setActiveTab(tabName);
+    if (idToHighlight) {
+      navigate(location.pathname, { replace: true, state: { ...location.state, highlightId: idToHighlight, activeTab: tabName } });
+    } else {
+      // If no ID to highlight, ensure previous highlight is cleared from state
+      navigate(location.pathname, { replace: true, state: { ...location.state, highlightId: undefined, activeTab: tabName } });
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && catedra && location.state?.highlightId && location.state?.activeTab === 'tareas') {
+      const taskToHighlightId = location.state.highlightId;
+      const task = tareas.find(t => t.id === taskToHighlightId);
+      if (task) {
+        handleOpenSubmitModal(task);
+      }
+      navigate(location.pathname, { replace: true, state: { ...location.state, highlightId: undefined } });
+    } else if (!loading && catedra && location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+      // Clear activeTab from state after setting it to prevent re-triggering on subsequent renders
+      navigate(location.pathname, { replace: true, state: { ...location.state, activeTab: undefined } });
+    }
+  }, [loading, catedra, tareas, location.state?.highlightTask]);
 
   const fetchCatedraData = async () => {
+    // Validación mejorada del catedraId
+    const parsedCatedraId = parseInt(catedraId);
+
+    console.log('Raw catedraId from params:', catedraId);
+    console.log('Parsed catedraId:', parsedCatedraId);
+
+    if (!catedraId || isNaN(parsedCatedraId) || parsedCatedraId <= 0) {
+      console.error('Invalid catedraId:', catedraId);
+      toast.error('ID de cátedra inválido.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      
+      console.log('Fetching data for catedraId:', parsedCatedraId);
+
       // Fetch info de la cátedra
       const studentCatedrasResponse = await api.getStudentCatedras();
       const studentCatedras = studentCatedrasResponse.data;
-      const foundCatedraRaw = studentCatedras.find(c => c.catedraId === parseInt(catedraId));
+
+      console.log('Student catedras:', studentCatedras);
+
+      // Buscar la cátedra usando catedraId
+      const foundCatedraRaw = studentCatedras.find(c => {
+        // Intentar con ambos campos por si acaso
+        return c.catedraId === parsedCatedraId || c.id === parsedCatedraId;
+      });
+
       if (foundCatedraRaw) {
-        setCatedra({ ...foundCatedraRaw, id: foundCatedraRaw.catedraId });
+        // Normalizar la estructura
+        setCatedra({
+          ...foundCatedraRaw,
+          id: foundCatedraRaw.catedraId || foundCatedraRaw.id
+        });
+        console.log('Catedra found:', foundCatedraRaw);
       } else {
-        setCatedra(null); // Or handle the not found case appropriately
+        setCatedra(null);
+        console.log('Catedra not found for ID:', parsedCatedraId);
+        toast.error('Cátedra no encontrada');
+        setLoading(false);
+        return;
       }
-      
+
       // Fetch publicaciones de esta cátedra
-      const pubResponse = await api.getPublicaciones(catedraId);
-      const pubs = pubResponse.data.sort((a, b) => 
+      const pubResponse = await api.getPublicaciones(parsedCatedraId);
+      const pubs = pubResponse.data.sort((a, b) =>
         new Date(b.created_at) - new Date(a.created_at)
       );
       setPublicaciones(pubs);
-      
-      // Fetch tareas del alumno (filtrar por esta cátedra)
+      console.log('Publicaciones fetched:', pubs);
+
+      // Fetch tareas del alumno
       const tareasResponse = await api.getAlumnoTareas();
       const tareasCatedra = tareasResponse.data.filter(
-        t => t.catedraId === parseInt(catedraId)
+        t => t.TareaMaestra?.Catedra?.id === parsedCatedraId
       );
       setTareas(tareasCatedra);
-      
-      // Fetch evaluaciones del alumno (filtrar por esta cátedra)
+      console.log('Tareas fetched and filtered:', tareasCatedra);
+
+      // Fetch evaluaciones del alumno
       const evalsResponse = await api.getMyEvaluations();
-      const evalsCatedra = evalsResponse.data.filter(
-        e => e.catedraId === parseInt(catedraId)
+      const allEvals = evalsResponse.data;
+      const evalsCatedra = allEvals.filter(
+        e => e.Catedra?.id === parsedCatedraId
       );
       setEvaluaciones(evalsCatedra);
-      
+      console.log('Evaluaciones fetched:', evalsCatedra);
+      console.log('First evaluation in evalsCatedra:', evalsCatedra[0]);
+
+      // Enriquecer publicaciones con el estado de la asignación de evaluación si es de tipo EVALUACION
+      const enrichedPubs = pubs.map(pub => {
+        if (pub.tipo === 'EVALUACION' && pub.evaluacionAsignacionId) {
+          const assignedEval = allEvals.find(e => e.id === pub.evaluacionAsignacionId);
+          if (assignedEval) {
+            return { ...pub, evaluacionAsignacionEstado: assignedEval.estado };
+          }
+        }
+        return pub;
+      });
+      setPublicaciones(enrichedPubs);
+
       // Calcular stats
       const tareasPendientes = tareasCatedra.filter(
         t => t.estado === 'ASIGNADA' || (t.estado === 'VENCIDA' && !t.submission_path)
@@ -103,22 +203,36 @@ const AlumnoCatedraDetailPage = () => {
       const tareasCompletadas = tareasCatedra.filter(
         t => t.estado === 'CALIFICADA'
       ).length;
+      const getEstadoForStats = (evaluacion) => {
+        if (evaluacion.EvaluacionAsignacion && evaluacion.EvaluacionAsignacion.length > 0) {
+          return evaluacion.EvaluacionAsignacion[0].estado;
+        }
+        return evaluacion.estado || 'PENDIENTE';
+      };
+
       const evaluacionesPendientes = evalsCatedra.filter(
-        e => !e.realizada
+        e => {
+          const estado = getEstadoForStats(e);
+          return estado === 'PENDIENTE' || estado === 'VENCIDA';
+        }
       ).length;
       const evaluacionesCompletadas = evalsCatedra.filter(
-        e => e.realizada
+        e => {
+          const estado = getEstadoForStats(e);
+          return estado === 'REALIZADA' || estado === 'CALIFICADA';
+        }
       ).length;
-      
+
       setStats({
         totalPublicaciones: pubs.length,
         totalTareas: tareasCatedra.length,
         tareasPendientes,
         tareasCompletadas,
+        totalEvaluaciones: evalsCatedra.length,
         evaluacionesPendientes,
         evaluacionesCompletadas
       });
-      
+
     } catch (err) {
       console.error('Error fetching cátedra data:', err);
       toast.error('Error al cargar los datos de la cátedra');
@@ -130,7 +244,7 @@ const AlumnoCatedraDetailPage = () => {
   const handleCreatePublicacion = async (publicacionData) => {
     try {
       setPublicationLoading(true);
-      await api.createPublicacion({ ...publicacionData, catedraId: parseInt(catedraId) });
+      await api.createPublicacion(parseInt(catedraId), publicacionData);
       toast.success('Publicación creada exitosamente');
       setIsPublicacionModalOpen(false);
       fetchCatedraData();
@@ -160,7 +274,7 @@ const AlumnoCatedraDetailPage = () => {
 
   const handleDeletePublicacion = async (publicacionId) => {
     if (!window.confirm('¿Estás seguro de eliminar esta publicación?')) return;
-    
+
     try {
       await api.deletePublicacion(publicacionId);
       toast.success('Publicación eliminada');
@@ -193,16 +307,6 @@ const AlumnoCatedraDetailPage = () => {
     }
   };
 
-  const handleOpenSubmitModal = (task) => {
-    setTaskToSubmit(task);
-    setSelectedFile(null);
-    setIsSubmitModalOpen(true);
-  };
-
-  const handleFileChange = (e) => {
-    setSelectedFile(e.target.files[0]);
-  };
-
   const handleSubmitDelivery = async () => {
     if (!selectedFile || !taskToSubmit) {
       toast.error('Por favor selecciona un archivo');
@@ -214,7 +318,7 @@ const AlumnoCatedraDetailPage = () => {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      await api.submitTask(taskToSubmit.id, formData);
+      await api.submitTaskDelivery(taskToSubmit.id, selectedFile);
       toast.success('Entrega subida exitosamente');
       setIsSubmitModalOpen(false);
       setSelectedFile(null);
@@ -242,11 +346,12 @@ const AlumnoCatedraDetailPage = () => {
   };
 
   const getTaskStatusDisplay = (task) => {
+    console.log('getTaskStatusDisplay received task.estado:', task.estado);
     if (task.estado === 'CALIFICADA') return 'Calificada';
     if (task.estado === 'ENTREGADA') return 'Entregada';
     if (task.estado === 'VENCIDA') return task.submission_path ? 'Vencida (Entregada)' : 'Vencida';
     if (task.estado === 'ASIGNADA') return 'Asignada';
-    return task.estado;
+    return task.estado || 'Desconocido'; // Añadir un valor por defecto
   };
 
   if (loading) {
@@ -268,7 +373,8 @@ const AlumnoCatedraDetailPage = () => {
         <div className="text-center bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-8">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">Cátedra no encontrada</h2>
-          <button 
+          <p className="text-slate-400 mb-4">No se pudo cargar la información de la cátedra.</p>
+          <button
             onClick={() => navigate('/alumnos/dashboard')}
             className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
           >
@@ -282,7 +388,7 @@ const AlumnoCatedraDetailPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        
+
         {/* Header con info de la cátedra */}
         <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6 sm:p-8">
           <button
@@ -292,21 +398,23 @@ const AlumnoCatedraDetailPage = () => {
             <ArrowLeft size={20} />
             Volver al Dashboard
           </button>
-          
+
           <div className="flex items-start gap-6">
             <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center flex-shrink-0">
               <BookOpen className="text-white" size={36} />
             </div>
             <div className="flex-1">
-              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Cátedra: {catedra.Catedra.nombre}</h1>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
+                Cátedra: {catedra.Catedra?.nombre || 'Nombre no disponible'}
+              </h1>
               <div className="flex flex-wrap gap-4 text-slate-400">
                 <div className="flex items-center gap-2">
                   <Calendar size={18} />
-                  <span>Año {catedra.Catedra.anio}</span>
+                  <span>Año {catedra.Catedra?.anio || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <User size={18} />
-                  <span>{catedra.Catedra.institucion || 'Institución no especificada'}</span>
+                  <span>{catedra.Catedra?.institucion || 'Institución no especificada'}</span>
                 </div>
               </div>
             </div>
@@ -353,11 +461,10 @@ const AlumnoCatedraDetailPage = () => {
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab('tablon')}
-                className={`${
-                  activeTab === 'tablon'
+                className={`${activeTab === 'tablon'
                     ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500'
-                } group flex items-center gap-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-lg transition-all duration-300 rounded-t-lg`}
+                  } group flex items-center gap-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-lg transition-all duration-300 rounded-t-lg`}
               >
                 <MessageSquare size={20} />
                 Tablón de Anuncios
@@ -367,37 +474,35 @@ const AlumnoCatedraDetailPage = () => {
                   </span>
                 )}
               </button>
-              
+
               <button
                 onClick={() => setActiveTab('tareas')}
-                className={`${
-                  activeTab === 'tareas'
+                className={`${activeTab === 'tareas'
                     ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500'
-                } group flex items-center gap-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-lg transition-all duration-300 rounded-t-lg`}
+                  } group flex items-center gap-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-lg transition-all duration-300 rounded-t-lg`}
               >
                 <FileText size={20} />
                 Tareas
-                {stats.tareasPendientes > 0 && (
+                {stats.totalTareas > 0 && (
                   <span className="ml-2 bg-yellow-600/20 text-yellow-300 px-2 py-1 rounded-full text-xs font-semibold border border-yellow-500/30">
-                    {stats.tareasPendientes}
+                    {stats.totalTareas}
                   </span>
                 )}
               </button>
-              
+
               <button
                 onClick={() => setActiveTab('evaluaciones')}
-                className={`${
-                  activeTab === 'evaluaciones'
+                className={`${activeTab === 'evaluaciones'
                     ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500'
-                } group flex items-center gap-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-lg transition-all duration-300 rounded-t-lg`}
+                  } group flex items-center gap-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-lg transition-all duration-300 rounded-t-lg`}
               >
                 <Brain size={20} />
                 Evaluaciones
-                {stats.evaluacionesPendientes > 0 && (
+                {stats.totalEvaluaciones > 0 && (
                   <span className="ml-2 bg-orange-600/20 text-orange-300 px-2 py-1 rounded-full text-xs font-semibold border border-orange-500/30">
-                    {stats.evaluacionesPendientes}
+                    {stats.totalEvaluaciones}
                   </span>
                 )}
               </button>
@@ -447,8 +552,13 @@ const AlumnoCatedraDetailPage = () => {
                           setEditingPublicacion(pub);
                           setIsPublicacionModalOpen(true);
                         }}
+                        onInteractToggle={handleInteractToggle}
                         userType="alumno"
                         userId={currentAlumnoId}
+                        onGoToTaskTab={handleGoToTaskTab}
+                        onGoToTab={handleGoToTab}
+                        getStatusColor={getStatusColor}
+                        getTaskStatusDisplay={getTaskStatusDisplay}
                       />
                     ))}
                   </div>
@@ -518,17 +628,43 @@ const AlumnoCatedraDetailPage = () => {
                   </div>
                 ) : (
                   <>
-                    <EvaluationTable
-                      title="Pendientes"
-                      evaluations={evaluaciones.filter(e => !e.realizada)}
-                      getStatusColor={getStatusColor}
-                      showActions={true}
-                    />
-                    <EvaluationTable
-                      title="Completadas"
-                      evaluations={evaluaciones.filter(e => e.realizada)}
-                      getStatusColor={getStatusColor}
-                    />
+                    {/* Helper function para obtener el estado */}
+                    {(() => {
+                      const getEstado = (evaluacion) => {
+                        if (evaluacion.EvaluacionAsignacion && evaluacion.EvaluacionAsignacion.length > 0) {
+                          return evaluacion.EvaluacionAsignacion[0].estado;
+                        }
+                        return evaluacion.estado || 'PENDIENTE';
+                      };
+
+                      // Filtrar evaluaciones pendientes (PENDIENTE o VENCIDA)
+                      const pendientes = evaluaciones.filter(e => {
+                        const estado = getEstado(e);
+                        return estado === 'PENDIENTE' || estado === 'VENCIDA';
+                      });
+
+                      // Filtrar evaluaciones completadas (REALIZADA o CALIFICADA)
+                      const completadas = evaluaciones.filter(e => {
+                        const estado = getEstado(e);
+                        return estado === 'REALIZADA' || estado === 'CALIFICADA';
+                      });
+
+                      return (
+                        <>
+                          <EvaluationTable
+                            title="Pendientes"
+                            evaluations={pendientes}
+                            getStatusColor={getStatusColor}
+                            showActions={true}
+                          />
+                          <EvaluationTable
+                            title="Completadas"
+                            evaluations={completadas}
+                            getStatusColor={getStatusColor}
+                          />
+                        </>
+                      );
+                    })()}
                   </>
                 )}
               </div>
@@ -565,7 +701,7 @@ const AlumnoCatedraDetailPage = () => {
       <Modal
         isOpen={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
-        title={`Subir Entrega: ${taskToSubmit?.titulo}`}
+        title={`Subir Entrega: ${taskToSubmit?.TareaMaestra?.titulo}`}
         onSubmit={handleSubmitDelivery}
         submitText="Subir Entrega"
         submitDisabled={!selectedFile || loading}

@@ -64,7 +64,8 @@ const DiaClaseForm = ({ catedraId, onDiaClaseCreated, onDiaClaseUpdated, onCance
       };
 
       if (isEditMode) {
-        await api.updateDiaClase(initialData.id, data);
+        console.log('DiaClaseForm: Updating diaClaseId:', initialData.id, 'with data:', data);
+        await api.updateDiaClase(catedraId, Number(initialData.id), data);
         Swal.fire('¡Actualizado!', 'Día de clase actualizado exitosamente.', 'success');
         onDiaClaseUpdated();
       } else {

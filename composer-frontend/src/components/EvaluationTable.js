@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import EvaluationCard from './EvaluationCard'; // Importar EvaluationCard
+import EvaluationCard from './EvaluationCard';
 
 const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true, showActions = false }) => {
   if (!evaluations || evaluations.length === 0) {
@@ -11,6 +11,25 @@ const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true
       </div>
     );
   }
+
+  // Función auxiliar para obtener el estado desde EvaluacionAsignacion
+  const getEstado = (evaluation) => {
+    if (evaluation.EvaluacionAsignacion && evaluation.EvaluacionAsignacion.length > 0) {
+      return evaluation.EvaluacionAsignacion[0].estado;
+    }
+    return evaluation.estado || 'PENDIENTE'; // Fallback
+  };
+
+  // Función auxiliar para obtener el texto del estado
+  const getEstadoText = (estado) => {
+    switch(estado) {
+      case 'PENDIENTE': return 'Pendiente';
+      case 'VENCIDA': return 'Vencida';
+      case 'REALIZADA': return 'Realizada';
+      case 'CALIFICADA': return 'Calificada';
+      default: return estado;
+    }
+  };
 
   return (
     <div className="mb-8">
@@ -28,30 +47,37 @@ const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
-            {evaluations.map((evaluation) => (
-              <tr key={evaluation.id} className="hover:bg-gray-700/50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">{evaluation.titulo}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{evaluation.catedra?.nombre || 'N/A'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                  {new Date(evaluation.created_at).toLocaleDateString()}
-                </td>
-                {showStatus && (
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${getStatusColor(evaluation.realizada ? 'Completado' : 'Pendiente')}`}>
-                    {evaluation.realizada ? 'Completada' : 'Pendiente'}
+            {evaluations.map((evaluation) => {
+              const estado = getEstado(evaluation);
+              return (
+                <tr key={evaluation.id} className="hover:bg-gray-700/50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">
+                    {evaluation.titulo}
                   </td>
-                )}
-                {showActions && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <Link
-                      to={`/evaluacion/${evaluation.id}`}
-                      className="text-blue-400 hover:text-blue-500"
-                    >
-                      Realizar Evaluación
-                    </Link>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    {evaluation.Catedra?.nombre || 'N/A'}
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    {new Date(evaluation.created_at).toLocaleDateString()}
+                  </td>
+                  {showStatus && (
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${getStatusColor(estado)}`}>
+                      {getEstadoText(estado)}
+                    </td>
+                  )}
+                  {showActions && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <Link
+                        to={`/evaluacion/${evaluation.id}`}
+                        className="text-blue-400 hover:text-blue-500"
+                      >
+                        Realizar Evaluación
+                      </Link>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -65,7 +91,6 @@ const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true
             evaluacion={evaluation} 
             showStatus={showStatus}
             showActions={showActions}
-            // Puedes pasar otras props si son necesarias para la lógica dentro de EvaluationCard
           />
         ))}
       </div>

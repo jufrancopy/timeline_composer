@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Timeline from '../components/Timeline';
 import AddComposerForm from '../components/AddComposerForm';
 import EditSuggestionForm from '../components/EditSuggestionForm';
+import Ephemeris from '../components/Ephemeris';
+import ComposerOfTheDay from '../components/ComposerOfTheDay';
 import apiClient from '../api';
 
 const TimelinePage = () => {
@@ -9,6 +11,7 @@ const TimelinePage = () => {
   const [loading, setLoading] = useState(true);
   const [newComposer, setNewComposer] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [selectedComposerId, setSelectedComposerId] = useState(null);
 
   // Estados para el modal de edición
   const [editingComposer, setEditingComposer] = useState(null);
@@ -166,6 +169,14 @@ const TimelinePage = () => {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-gray-900 to-black">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Efemérides y Compositor del Día */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <Ephemeris composers={composers} onComposerClick={setSelectedComposerId} />
+          <ComposerOfTheDay composers={composers} onComposerClick={setSelectedComposerId} />
+        </div>
+      </div>
+
       {/* Header con filtros */}
       <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -259,6 +270,7 @@ const TimelinePage = () => {
           onNewComposerHandled={handleNewComposerHandled}
           onSuggestEdit={handleSuggestEdit}
           lastComposerElementRef={lastComposerElementRef}
+          selectedComposerId={selectedComposerId}
         />
 
         {loadingMore && (

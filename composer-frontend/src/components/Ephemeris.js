@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Calendar } from 'lucide-react';
 
-const Ephemeris = ({ composers }) => {
+const Ephemeris = ({ composers, onComposerClick }) => {
   const today = new Date();
   const currentDay = today.getDate();
   const currentMonth = today.getMonth() + 1; // JS months are 0-indexed
@@ -25,7 +25,9 @@ const Ephemeris = ({ composers }) => {
             const age = isBirthday ? today.getFullYear() - event.birth_year : today.getFullYear() - event.death_year;
 
             return (
-              <li key={event.id} className="flex items-center space-x-3">
+              <li key={event.id} className="flex items-center space-x-3 cursor-pointer hover:bg-white/10 p-2 rounded-lg transition-colors"
+                onClick={() => onComposerClick(event.id)}
+              >
                 <Calendar className="w-5 h-5 text-purple-400" />
                 <div>
                   <p className="text-white font-semibold">{event.first_name} {event.last_name}</p>

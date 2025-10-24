@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 import { MessageSquare, Heart } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDeleteComment, onEditPublication, onInteractToggle, userType, userId, docenteId, setActiveTab }) => {
+const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDeleteComment, onEditPublication, onInteractToggle, userType, userId, docenteId, tareas, onGoToTaskTab, onGoToTab, getStatusColor, getTaskStatusDisplay }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
   const navigate = useNavigate();
@@ -121,21 +121,21 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
               <div className="mt-3">
                 {publicacion.tareaAsignacionEstado === 'ASIGNADA' || (publicacion.tareaAsignacionEstado === 'VENCIDA' && !publicacion.tareaAsignacionSubmissionPath) ? (
                   <button
-                    onClick={() => navigate('/my-contributions', { state: { activeTab: 'tareas', taskId: publicacion.tareaMaestraId } })}
+                    onClick={() => onGoToTaskTab(publicacion.catedraId, publicacion.tareaAsignacionId)}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 mt-2"
                   >
                     <span className="font-semibold">Estado: Pendiente - </span>Ir a Mis Tareas
                   </button>
                 ) : publicacion.tareaAsignacionEstado === 'ENTREGADA' || (publicacion.tareaAsignacionEstado === 'VENCIDA' && publicacion.tareaAsignacionSubmissionPath) ? (
                   <button
-                    onClick={() => navigate('/my-contributions', { state: { activeTab: 'tareas', taskId: publicacion.tareaMaestraId } })}
+                    onClick={() => onGoToTaskTab(publicacion.catedraId, publicacion.tareaAsignacionId)}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mt-2"
                   >
                     <span className="font-semibold">Estado: Entregada - </span>Ver Mi Entrega
                   </button>
                 ) : publicacion.tareaAsignacionEstado === 'CALIFICADA' ? (
                   <button
-                    onClick={() => navigate('/my-contributions', { state: { activeTab: 'tareas', taskId: publicacion.tareaMaestraId } })}
+                    onClick={() => onGoToTaskTab(publicacion.catedraId, publicacion.tareaAsignacionId)}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mt-2"
                   >
                     <span className="font-semibold">Estado: Calificada - </span>Ver Calificación
@@ -155,21 +155,21 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
               <div className="mt-3">
                 {publicacion.evaluacionAsignacionEstado === 'PENDIENTE' || publicacion.evaluacionAsignacionEstado === 'VENCIDA' ? (
                   <button
-                    onClick={() => navigate(`/alumno/evaluaciones/${publicacion.evaluacionAsignacionId}`)}
+                    onClick={() => onGoToTab('evaluaciones', publicacion.evaluacionAsignacionId)}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 mt-2"
                   >
                     <span>Estado: {publicacion.evaluacionAsignacionEstado === 'PENDIENTE' ? 'Pendiente' : 'Vencida'} - </span>Realizar Evaluación
                   </button>
                 ) : publicacion.evaluacionAsignacionEstado === 'REALIZADA' ? (
                   <button
-                    onClick={() => navigate(`/alumno/evaluaciones/${publicacion.evaluacionAsignacionId}/results`)}
+                    onClick={() => onGoToTab('evaluaciones', publicacion.evaluacionAsignacionId)}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mt-2"
                   >
                     <span>Estado: Realizada - </span>Ver Resultados
                   </button>
                 ) : publicacion.evaluacionAsignacionEstado === 'CALIFICADA' ? (
                   <button
-                    onClick={() => navigate(`/alumno/evaluaciones/${publicacion.evaluacionAsignacionId}/results`)}
+                    onClick={() => onGoToTab('evaluaciones', publicacion.evaluacionAsignacionId)}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mt-2"
                   >
                     <span>Estado: Calificada - </span>Ver Calificación
@@ -197,13 +197,13 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
           className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors focus:outline-none"
         >
           <MessageSquare size={16} />
-          <span>{publicacion.comentarios?.length || 0} Comentario{publicacion.comentarios?.length !== 1 ? 's' : ''}</span>
+          <span>{publicacion.ComentarioPublicacion?.length || 0} Comentario{publicacion.ComentarioPublicacion?.length !== 1 ? 's' : ''}</span>
         </button>
       </div>
 
       {showComments && (
         <div className="mt-4 space-y-3">
-          {publicacion.comentarios?.map(comment => (
+          {publicacion.ComentarioPublicacion?.map(comment => (
             <div key={comment.id} className="bg-gray-700 p-3 rounded-lg flex justify-between items-start">
               <div>
                 <p className="text-gray-200 text-sm" dangerouslySetInnerHTML={{ __html: comment.texto }}></p>
@@ -233,7 +233,8 @@ PublicacionCard.propTypes = {
   userType: PropTypes.oneOf(['alumno', 'docente']).isRequired,
   userId: PropTypes.number,
   docenteId: PropTypes.number,
-  setActiveTab: PropTypes.func,
+  onGoToTaskTab: PropTypes.func,
+  onGoToTab: PropTypes.func.isRequired,
 };
 
 export default PublicacionCard;

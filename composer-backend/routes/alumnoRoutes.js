@@ -52,7 +52,6 @@ module.exports = (prisma, transporter) => {
   };
 
   // RUTAS ESPECÍFICAS (/me) - DEBEN IR PRIMERO
-
   router.get('/alumnos/me', requireUser(prisma), async (req, res) => {
     try {
       const alumnoId = parseInt(req.user.alumnoId);
@@ -113,7 +112,7 @@ module.exports = (prisma, transporter) => {
 
       const alumnoId = parseInt(req.user.alumnoId);
 
-      const alumnoCatedras = await prisma.catedraAlumno.findMany({
+      const alumnoCatedras = await prisma.CatedraAlumno.findMany({
         where: {
           alumnoId: alumnoId,
         },
@@ -147,12 +146,21 @@ module.exports = (prisma, transporter) => {
       }
 
       const alumnoId = parseInt(req.user.alumnoId);
-
-      const tareas = await prisma.tareaAsignacion.findMany({
+      console.log("[BACKEND GET ALUMNO TAREAS] Alumno ID:", alumnoId);
+      const tareas = await prisma.TareaAsignacion.findMany({
         where: {
           alumnoId: alumnoId,
         },
-        include: {
+        select: {
+          id: true,
+          estado: true,
+          submission_path: true,
+          submission_date: true,
+          puntos_obtenidos: true,
+          created_at: true,
+          updated_at: true,
+          alumnoId: true,
+          tareaMaestraId: true,
           TareaMaestra: {
             select: {
               id: true,
@@ -163,14 +171,16 @@ module.exports = (prisma, transporter) => {
               puntos_posibles: true,
               Catedra: {
                 select: {
-                  id: true,
+                  id: true, // Añadir el ID de la cátedra
                   nombre: true,
-                },
-              },
-            },
-          },
+                  anio: true
+                }
+              }
+            }
+          }
         },
       });
+      console.log("[BACKEND GET ALUMNO TAREAS] Tareas fetched:", tareas);
 
       res.json(tareas);
     } catch (error) {
@@ -187,7 +197,7 @@ module.exports = (prisma, transporter) => {
 
       const alumnoId = parseInt(req.user.alumnoId);
 
-      const evaluaciones = await prisma.evaluacion.findMany({
+      const evaluaciones = await prisma.Evaluacion.findMany({
         where: {
           EvaluacionAsignacion: {
             some: {
@@ -229,6 +239,237 @@ module.exports = (prisma, transporter) => {
     }
   });
 
+  router.post('/alumnos/me/evaluaciones/:evaluationId/submit', requireUser(prisma), async (req, res) => {
+    try {
+      if (!validateStudentAccess(req)) {
+        return res.status(403).json({ error: 'Acceso denegado: Solo para alumnos.' });
+      }
+
+      const alumnoId = parseInt(req.user.alumnoId);
+      const evaluationId = parseInt(req.params.evaluationId);
+      const { respuestas } = req.body;
+
+      if (isNaN(evaluationId) || !Array.isArray(respuestas) || respuestas.length === 0) {
+        return res.status(400).json({ error: 'Datos de envío de evaluación inválidos.' });
+      }
+
+      const evaluacionAsignacion = await prisma.EvaluacionAsignacion.findUnique({
+        where: {
+          alumnoId_evaluacionId: { alumnoId, evaluacionId: evaluationId },
+        },
+      });
+
+      if (!evaluacionAsignacion) {
+        return res.status(404).json({ error: 'Evaluación no asignada al alumno o no encontrada.' });
+      }
+
+      if (evaluacionAsignacion.estado !== 'PENDIENTE') {
+        return res.status(400).json({ error: 'Esta evaluación ya ha sido completada o está en un estado no editable.' });
+      }
+
+      // Transacción para guardar respuestas y calificar
+      const result = await prisma.$transaction(async (prisma) => {
+        let correctAnswersCount = 0;
+        const preguntas = await prisma.Pregunta.findMany({
+          where: { evaluacionId: evaluationId },
+          include: { Opcion: true },
+        });
+
+        for (const respuesta of respuestas) {
+          const { preguntaId, opcionElegidaId } = respuesta;
+
+          const pregunta = preguntas.find(p => p.id === preguntaId);
+          if (!pregunta) {
+            throw new Error(`Pregunta con ID ${preguntaId} no encontrada.`);
+          }
+
+          const opcionCorrecta = pregunta.Opcion.find(o => o.es_correcta);
+          if (opcionCorrecta && opcionElegidaId === opcionCorrecta.id) {
+            correctAnswersCount++;
+          }
+
+          await prisma.RespuestaAlumno.create({
+            data: {
+              alumnoId: alumnoId,
+              preguntaId: preguntaId,
+              opcionElegidaId: opcionElegidaId,
+            },
+          });
+        }
+
+        const totalQuestions = preguntas.length;
+        const score = totalQuestions > 0 ? Math.round((correctAnswersCount / totalQuestions) * 100) : 0;
+
+        await prisma.EvaluacionAsignacion.update({
+          where: { id: evaluacionAsignacion.id },
+          data: { estado: 'REALIZADA' },
+        });
+
+        await prisma.CalificacionEvaluacion.create({
+          data: {
+            puntos: score, // Almacenar el score como puntos
+            alumnoId: alumnoId,
+            evaluacionAsignacionId: evaluacionAsignacion.id,
+          },
+        });
+
+        return { score, correctAnswersCount, totalQuestions };
+      });
+
+      res.status(200).json({ message: 'Evaluación enviada con éxito.', score: result.score });
+
+    } catch (error) {
+      console.error('Error al enviar la evaluación del alumno:', error);
+      res.status(500).json({ error: 'Error al procesar el envío de la evaluación', details: error.message });
+    }
+  });
+
+  router.get('/alumnos/me/evaluaciones/:evaluationId/results', requireUser(prisma), async (req, res) => {
+    try {
+      if (!validateStudentAccess(req)) {
+        return res.status(403).json({ error: 'Acceso denegado: Solo para alumnos.' });
+      }
+
+      const alumnoId = parseInt(req.user.alumnoId);
+      const evaluationId = parseInt(req.params.evaluationId);
+
+      if (isNaN(evaluationId)) {
+        return res.status(400).json({ error: 'ID de evaluación inválido.' });
+      }
+
+      const evaluation = await prisma.Evaluacion.findUnique({
+        where: { id: evaluationId },
+        include: {
+          Pregunta: {
+            include: {
+              Opcion: true,
+            },
+          },
+        },
+      });
+
+      if (!evaluation) {
+        return res.status(404).json({ error: 'Evaluación no encontrada.' });
+      }
+      const formattedEvaluation = {
+        ...evaluation,
+        Pregunta: evaluation.Pregunta.map(pregunta => ({
+          ...pregunta,
+          opciones: pregunta.Opcion, // Renombra Opcion a opciones
+        })),
+      };
+
+      const studentResponses = await prisma.RespuestaAlumno.findMany({
+        where: {
+          alumnoId: alumnoId,
+          Pregunta: {
+            evaluacionId: evaluationId,
+          },
+        },
+        include: {
+          Opcion: true,
+          Pregunta: true,
+        },
+      });
+
+      let correctAnswersCount = 0;
+      const totalQuestions = formattedEvaluation.Pregunta.length;
+      const results = formattedEvaluation.Pregunta.map(pregunta => {
+        const studentResponse = studentResponses.find(sr => sr.preguntaId === pregunta.id);
+        const correctAnswer = pregunta.opciones.find(opt => opt.es_correcta === true);
+        const isCorrect = studentResponse && correctAnswer && studentResponse.opcionElegidaId === correctAnswer.id;
+
+        if (isCorrect) {
+          correctAnswersCount++;
+        }
+
+        return {
+          pregunta: pregunta.texto,
+          seleccionada: studentResponse ? studentResponse.Opcion.texto : 'No respondida',
+          es_correcta_alumno: isCorrect,
+          correct_answer: correctAnswer ? correctAnswer.texto : 'N/A',
+          opciones: pregunta.opciones.map(opt => ({
+            texto: opt.texto,
+            es_correcta: opt.es_correcta,
+            seleccionada: studentResponse && studentResponse.opcionElegidaId === opt.id,
+          })),
+        };
+      });
+
+      const score = totalQuestions > 0 ? Math.round((correctAnswersCount / totalQuestions) * 100) : 0;
+
+      res.json({ score, results });
+    } catch (error) {
+      console.error('Error al obtener resultados de la evaluación del alumno:', error);
+      res.status(500).json({ error: 'Error al obtener resultados de la evaluación', details: error.message });
+    }
+  });
+
+  router.get('/alumnos/me/evaluaciones/:id', requireUser(prisma), async (req, res) => {
+    try {
+      if (!validateStudentAccess(req)) {
+        return res.status(403).json({ error: 'Acceso denegado: Solo para alumnos.' });
+      }
+
+      const alumnoId = parseInt(req.user.alumnoId);
+      const evaluationId = parseInt(req.params.id);
+
+      if (isNaN(evaluationId)) {
+        return res.status(400).json({ error: 'ID de evaluación inválido.' });
+      }
+
+      const evaluation = await prisma.Evaluacion.findFirst({
+        where: {
+          id: evaluationId,
+          EvaluacionAsignacion: {
+            some: {
+              alumnoId: alumnoId,
+            },
+          },
+        },
+        include: {
+          Pregunta: {
+            include: {
+              Opcion: true,
+            },
+          },
+          Catedra: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+          EvaluacionAsignacion: {
+            where: {
+              alumnoId: alumnoId,
+            },
+            select: {
+              id: true,
+              estado: true,
+            },
+          },
+        },
+      });
+
+      if (!evaluation) {
+        return res.status(404).json({ error: 'Evaluación no encontrada o no asignada al alumno.' });
+      }
+
+      const formattedEvaluation = {
+        ...evaluation,
+        Pregunta: evaluation.Pregunta.map(pregunta => ({
+          ...pregunta,
+          opciones: pregunta.Opcion,
+        })),
+      };
+      const { Pregunta, ...restOfEvaluation } = formattedEvaluation;
+      res.json({ ...restOfEvaluation, preguntas: Pregunta });
+    } catch (error) {
+      console.error('Error al obtener la evaluación del alumno:', error);
+      res.status(500).json({ error: 'Error al obtener la evaluación del alumno', details: error.message });
+    }
+  });
+
   router.get('/alumnos/me/publicaciones', requireUser(prisma), async (req, res) => {
     try {
       const alumnoId = parseInt(req.user.alumnoId);
@@ -236,7 +477,7 @@ module.exports = (prisma, transporter) => {
         return res.status(403).json({ error: 'Acceso denegado: Solo para alumnos.' });
       }
 
-      const catedrasAlumno = await prisma.catedraAlumno.findMany({
+      const catedrasAlumno = await prisma.CatedraAlumno.findMany({
         where: { alumnoId: alumnoId },
         select: { catedraId: true },
       });
@@ -246,7 +487,7 @@ module.exports = (prisma, transporter) => {
         return res.json([]);
       }
 
-      const publicaciones = await prisma.publicacion.findMany({
+      const publicaciones = await prisma.Publicacion.findMany({
         where: {
           catedraId: { in: catedrasIds },
           OR: [
@@ -316,7 +557,7 @@ module.exports = (prisma, transporter) => {
         return res.status(403).json({ error: 'Acceso denegado: El alumno no tiene permiso para ver estas tareas.' });
       }
 
-      const tareas = await prisma.tareaAsignacion.findMany({
+      const tareas = await prisma.TareaAsignacion.findMany({
         where: {
           alumnoId: paramAlumnoId,
         },
@@ -380,7 +621,7 @@ module.exports = (prisma, transporter) => {
 
       const submissionPath = `/uploads/entregas/${req.file.filename}`;
 
-      const tareaAsignacion = await prisma.tareaAsignacion.findUnique({ 
+      const tareaAsignacion = await prisma.TareaAsignacion.findUnique({ 
         where: { id: tareaAsignacionId } 
       });
 
@@ -419,7 +660,7 @@ module.exports = (prisma, transporter) => {
   // RUTA PÚBLICA - Listar alumnos (sin autenticación requerida)
   router.get('/alumnos', async (req, res) => {
     try {
-      const alumnos = await prisma.alumno.findMany({
+      const alumnos = await prisma.Alumno.findMany({
         select: {
           id: true,
           nombre: true,
@@ -444,7 +685,7 @@ module.exports = (prisma, transporter) => {
         return res.status(403).json({ error: 'Acceso denegado: Solo para alumnos.' });
       }
 
-      const contributions = await prisma.composer.findMany({
+      const contributions = await prisma.Composer.findMany({
         where: {
           is_student_contribution: true,
           email: userEmail,
@@ -464,7 +705,7 @@ module.exports = (prisma, transporter) => {
   router.get('/alumnos/contributing', requireUser(prisma), async (req, res) => {
     try {
       // Obtener compositores que son contribuciones de estudiantes
-      const studentComposers = await prisma.composer.findMany({
+      const studentComposers = await prisma.Composer.findMany({
         where: {
           is_student_contribution: true,
           status: 'PUBLISHED', // Solo publicados para que sean elegibles
@@ -478,7 +719,7 @@ module.exports = (prisma, transporter) => {
       });
 
       // Obtener sugerencias de edición de alumnos que han sido aprobadas
-      const approvedStudentSuggestions = await prisma.editSuggestion.findMany({
+      const approvedStudentSuggestions = await prisma.EditSuggestion.findMany({
         where: {
           is_student_contribution: true,
           status: 'APPLIED', // Solo sugerencias aplicadas

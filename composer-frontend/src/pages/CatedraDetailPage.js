@@ -98,6 +98,10 @@ const CatedraDetailPage = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [userRole, setUserRole] = useState(null);
 
+  // State para la edición de inscripción
+  const [isEditEnrollmentModalOpen, setIsEditEnrollmentModalOpen] = useState(false);
+  const [selectedEnrollmentToEdit, setSelectedEnrollmentToEdit] = useState(null);
+
   const fetchPublicaciones = useCallback(async () => {
     try {
       const response = await api.getPublicaciones(id);
@@ -125,9 +129,11 @@ const CatedraDetailPage = () => {
   const handleInteractToggle = async (publicacionId, hasUserInteracted) => {
     try {
       if (hasUserInteracted) {
-        await api.uninteractWithPublicacion(publicacionId);
+        await api.removeInteraction(publicacionId);
+        toast.info('Interacción eliminada.');
       } else {
-        await api.interactWithPublicacion(publicacionId);
+        await api.addInteraction(publicacionId);
+        toast.success('¡Has interactuado con la publicación!');
       }
       fetchPublicaciones();
     } catch (error) {
@@ -342,6 +348,18 @@ const CatedraDetailPage = () => {
       setIsModalOpen(false);
     } catch (error) {
       toast.error(error.response?.data?.error || 'No se pudo inscribir al alumno.');
+    }
+  };
+
+  const handleUpdateEnrollment = async (catedraAlumnoId, updatedDiaCobro) => {
+    try {
+      await api.updateCatedraAlumno(catedraAlumnoId, { dia_cobro: updatedDiaCobro });
+      toast.success('Inscripción actualizada exitosamente!');
+      fetchCatedraDetails();
+      setIsEditEnrollmentModalOpen(false);
+      setSelectedEnrollmentToEdit(null);
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'No se pudo actualizar la inscripción.');
     }
   };
 
@@ -814,6 +832,15 @@ const CatedraDetailPage = () => {
                           </td>
                         )}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => {
+                              setSelectedEnrollmentToEdit(inscripcion);
+                              setIsEditEnrollmentModalOpen(true);
+                            }}
+                            className="text-yellow-400 hover:text-yellow-500 mr-4"
+                          >
+                            Editar
+                          </button>
                           <button onClick={() => handleDesinscribir(inscripcion)} className="text-red-400 hover:text-red-500">
                             Desinscribir
                           </button>
@@ -842,6 +869,24 @@ const CatedraDetailPage = () => {
           catedra={catedra}
         />
       </Modal>
+
+      {/* Modal de Edición de Inscripción */}
+      {isEditEnrollmentModalOpen && selectedEnrollmentToEdit && (
+        <Modal
+          isOpen={isEditEnrollmentModalOpen}
+          onClose={() => setIsEditEnrollmentModalOpen(false)}
+          title={`Editar Inscripción de ${selectedEnrollmentToEdit.Alumno?.nombre || selectedEnrollmentToEdit.Composer?.student_first_name}`}
+          showSubmitButton={false}
+          cancelText=""
+        >
+          <EditEnrollmentModalContent
+            initialData={selectedEnrollmentToEdit}
+            onUpdate={handleUpdateEnrollment}
+            onCancel={() => setIsEditEnrollmentModalOpen(false)}
+            catedra={catedra}
+          />
+        </Modal>
+      )}
 
       {/* Modal de Asistencia */}
       <Modal
@@ -1099,6 +1144,46 @@ const CatedraDetailPage = () => {
         </Modal>
       )}
     </>
+  );
+};
+
+const EditEnrollmentModalContent = ({ initialData, onUpdate, onCancel, catedra }) => {
+  const [diaCobro, setDiaCobro] = useState(initialData.dia_cobro || '');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onUpdate(initialData.id, diaCobro ? parseInt(diaCobro) : null);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <p className="mb-4 text-gray-300">
+        Editando inscripción para:
+        <span className="font-semibold ml-1">
+          {initialData.Alumno?.nombre} {initialData.Alumno?.apellido}
+          {initialData.Composer && ` ${initialData.Composer.student_first_name || ''} ${initialData.Composer.student_last_name || ''} (Contribuyente)`}
+        </span>
+      </p>
+      {catedra && catedra.modalidad_pago === 'PARTICULAR' && (
+        <div className="mb-4">
+          <label htmlFor="editDiaCobro" className="block mb-1 font-semibold text-gray-200">Día de Cobro Mensual (1-31)</label>
+          <input
+            type="number"
+            id="editDiaCobro"
+            min="1"
+            max="31"
+            value={diaCobro}
+            onChange={(e) => setDiaCobro(e.target.value)}
+            className="w-full p-2 bg-gray-700 rounded text-white"
+            placeholder="Ej: 5 (se cobrará el día 5 de cada mes)"
+          />
+        </div>
+      )}
+      <div className="flex justify-end space-x-4 pt-6">
+        <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-600 rounded hover:bg-gray-500">Cancelar</button>
+        <button type="submit" className="px-4 py-2 bg-purple-600 rounded hover:bg-purple-500">Guardar Cambios</button>
+      </div>
+    </form>
   );
 };
 

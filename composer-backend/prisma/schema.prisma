@@ -503,6 +503,7 @@ enum TipoPublicacion {
   TAREA
   EVALUACION
   OTRO
+  TAREA_ASIGNADA
 }
 
 enum TipoPuntuacion {

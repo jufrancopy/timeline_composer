@@ -17,7 +17,9 @@ import DocenteLoginPage from './pages/DocenteLoginPage';
 import AlumnoLoginPage from './pages/AlumnoLoginPage';
 import DocenteDashboardPage from './pages/DocenteDashboardPage';
 import AlumnoDashboardPage from './pages/AlumnoDashboardPage';
+import AlumnoTareasPage from './pages/AlumnoTareasPage';
 import AlumnoCatedraDetailPage from './pages/AlumnoCatedraDetailPage';
+import AlumnoPublicacionesPage from './pages/AlumnoPublicacionesPage';
 import DocenteCatedraDetailPage from './pages/DocenteCatedraDetailPage';
 import DocenteAlumnoTareasPage from './pages/DocenteAlumnoTareasPage';
 import DocenteTareaPage from './pages/DocenteTareaPage';
@@ -83,6 +85,14 @@ function AppContent() {
             } 
           />
           <Route path="/my-contributions" element={<MyContributionsPage handleLogout={handleLogout} onLogin={handleStudentLogin} />} />
+          <Route 
+            path="/alumno/tareas" 
+            element={
+              <PrivateRoute>
+                <AlumnoTareasPage />
+              </PrivateRoute>
+            } 
+          />
           
           {/* Rutas de Administrador Protegidas */}
           <Route 
@@ -196,10 +206,18 @@ function AppContent() {
             } 
           />
           <Route 
-            path="/alumno/catedra/:id" 
+            path="/alumno/catedra/:catedraId" 
             element={
               <PrivateRoute>
                 <AlumnoCatedraDetailPage />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/alumno/publicaciones" 
+            element={
+              <PrivateRoute>
+                <AlumnoPublicacionesPage />
               </PrivateRoute>
             } 
           />

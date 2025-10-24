@@ -139,15 +139,15 @@ const CatedrasPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-gray-300">{c.anio}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-300">{c.institucion}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                        {c.horariosPorDia && c.horariosPorDia.length > 0 ? (
-                          [...new Set(c.horariosPorDia.map(h => h.dia_semana))].join(', ')
+                        {c.CatedraDiaHorario && c.CatedraDiaHorario.length > 0 ? (
+                          [...new Set(c.CatedraDiaHorario.map(h => h.dia_semana))].join(', ')
                         ) : (
                           'N/A'
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                        {c.horariosPorDia && c.horariosPorDia.length > 0 ? (
-                          c.horariosPorDia.map((horario, index) => (
+                        {c.CatedraDiaHorario && c.CatedraDiaHorario.length > 0 ? (
+                          c.CatedraDiaHorario.map((horario, index) => (
                             <div key={index}>{horario.hora_inicio} - {horario.hora_fin}</div>
                           ))
                         ) : (

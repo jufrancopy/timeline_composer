@@ -12,16 +12,16 @@ const AttendanceForm = ({ catedraId, diaClaseId, alumnos, onSave, onCancel }) =>
       setLoading(true);
       setError('');
       try {
-        const response = await api.getAttendanceByDiaClase(diaClaseId);
+        const response = await api.getAttendanceByDiaClase(catedraId, diaClaseId);
         const existingAttendanceMap = new Map(response.data.map(rec => [rec.alumnoId, rec]));
 
         const initialRecords = alumnos.map(inscripcion => {
-          const alumno = inscripcion.alumno || inscripcion.composer; // Puede ser alumno o composer
+          const alumno = inscripcion.Alumno || inscripcion.Composer; // Puede ser Alumno o Composer
           const existing = existingAttendanceMap.get(alumno.id);
           return {
             alumnoId: alumno.id,
-            nombre: alumno.nombre || alumno.first_name,
-            apellido: alumno.apellido || alumno.last_name,
+            nombre: alumno.nombre || alumno.student_first_name,
+            apellido: alumno.apellido || alumno.student_last_name,
             presente: existing ? existing.presente : false,
             id: existing ? existing.id : null, // ID del registro de asistencia si ya existe
           };
@@ -55,11 +55,9 @@ const AttendanceForm = ({ catedraId, diaClaseId, alumnos, onSave, onCancel }) =>
     setError('');
 
     try {
-      const recordsToSubmit = attendanceRecords.map(({ alumnoId, presente }) => ({
-        alumnoId,
-        presente,
-      }));
-      await api.registerAttendance(diaClaseId, { asistencias: recordsToSubmit });
+      for (const record of attendanceRecords) {
+        await api.toggleAsistencia(catedraId, diaClaseId, record.alumnoId, record.presente);
+      }
       Swal.fire('¡Guardado!', 'Asistencia registrada exitosamente.', 'success');
       onSave(); // Notificar al componente padre que se guardó la asistencia
     } catch (err) {
