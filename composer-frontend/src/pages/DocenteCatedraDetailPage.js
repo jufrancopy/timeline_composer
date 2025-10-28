@@ -238,6 +238,15 @@ const DocenteCatedraDetailPage = () => {
   }, [id, fetchCatedra, fetchDiasClase, fetchPublicaciones, fetchPlanesDeClase]);
 
   useEffect(() => {
+    if (selectedPlanDeClases && planesDeClase.length > 0) {
+      const updatedSelectedPlan = planesDeClase.find(plan => plan.id === selectedPlanDeClases.id);
+      if (updatedSelectedPlan) {
+        setSelectedPlanDeClases(updatedSelectedPlan);
+      }
+    }
+  }, [planesDeClase, selectedPlanDeClases]);
+
+  useEffect(() => {
     fetchAnnualAttendance();
   }, [fetchAnnualAttendance]);
 
@@ -621,6 +630,7 @@ const DocenteCatedraDetailPage = () => {
   };
 
   const handleSelectPlanDeClases = (plan) => {
+    console.log("[DocenteCatedraDetailPage] Selected Plan:", JSON.stringify(plan, null, 2));
     setSelectedPlanDeClases(plan);
   };
 

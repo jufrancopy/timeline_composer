@@ -157,6 +157,14 @@ const api = {
   getDocenteAlumnoPagos: (alumnoId) => apiClient.get(`/docente/alumnos/${alumnoId}/pagos`),
   getAttendanceByDiaClase: (catedraId, diaClaseId) => apiClient.get(`/docente/catedra/${catedraId}/diasclase/${diaClaseId}/asistencias`),
   getAnnualAttendance: (catedraId, year) => apiClient.get(`/docente/catedra/${catedraId}/asistencias/anual/${year}`),
+  // ==== Endpoints para Docentes (Planes de Clase) ====
+  createPlanDeClases: (catedraId, data) => apiClient.post(`/docente/catedra/${catedraId}/planes`, data),
+  updatePlanDeClases: (planId, data) => apiClient.put(`/docente/me/planes/${planId}`, data),
+  deletePlanDeClases: (planId) => apiClient.delete(`/docente/me/planes/${planId}`),
+  createUnidadPlan: (planId, data) => apiClient.post(`/docente/me/planes/${planId}/unidades`, data),
+  updateUnidadPlan: (unidadId, data) => apiClient.put(`/docente/me/unidades/${unidadId}`, data),
+  deleteUnidadPlan: (unidadId) => apiClient.delete(`/docente/me/unidades/${unidadId}`),
+
   // ==== Endpoints para Docentes (Asignacion de Tarea Maestra) ====
   assignTareaToAlumnos: (catedraId, tareaMaestraId, data) => apiClient.post(`/docente/catedra/${catedraId}/tareas-maestras/${tareaMaestraId}/assign`, data),
 

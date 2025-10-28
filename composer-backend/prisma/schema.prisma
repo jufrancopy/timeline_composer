@@ -448,7 +448,7 @@ model UnidadPlan {
   horasPracticas               Int
   estrategiasMetodologicas     String
   mediosVerificacionEvaluacion String
-  recursos                     String[]     @default([])
+  recursos                     Json[]       @default([])
   created_at                   DateTime     @default(now())
   updated_at                   DateTime     @updatedAt
   PlanDeClases                 PlanDeClases @relation(fields: [planDeClasesId], references: [id])

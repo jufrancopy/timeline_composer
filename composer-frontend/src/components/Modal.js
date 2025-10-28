@@ -1,11 +1,12 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 
 const Modal = ({ isOpen, onClose, onSubmit, title, children, showSubmitButton = true, submitText = 'Enviar', cancelText = 'Cancelar' }) => {
   if (!isOpen) {
     return null;
   }
 
-  return (
+  return ReactDOM.createPortal(
     <div 
       className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4"
       onClick={onClose}
@@ -40,7 +41,8 @@ const Modal = ({ isOpen, onClose, onSubmit, title, children, showSubmitButton = 
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.getElementById('modal-root')
   );
 };
 

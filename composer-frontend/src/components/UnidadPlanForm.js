@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
 import Swal from 'sweetalert2';
-import { Plus, Edit3, Loader, XCircle, FileText, Globe } from 'lucide-react';
+import { Plus, Edit3, Loader, XCircle, FileText, Globe, Youtube } from 'lucide-react';
 
 const UnidadPlanForm = ({ planDeClasesId, onUnidadCreated, onUnidadUpdated, onCancel, initialData, isEditMode }) => {
   const [periodo, setPeriodo] = useState('');
@@ -12,7 +12,10 @@ const UnidadPlanForm = ({ planDeClasesId, onUnidadCreated, onUnidadUpdated, onCa
   const [estrategiasMetodologicas, setEstrategiasMetodologicas] = useState('');
   const [mediosVerificacionEvaluacion, setMediosVerificacionEvaluacion] = useState('');
   const [recursos, setRecursos] = useState([]);
-  const [newRecurso, setNewRecurso] = useState('');
+  const [newRecursoValue, setNewRecursoValue] = useState('');
+  const [newRecursoType, setNewRecursoType] = useState('url');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,13 +38,39 @@ const UnidadPlanForm = ({ planDeClasesId, onUnidadCreated, onUnidadUpdated, onCa
       setEstrategiasMetodologicas('');
       setMediosVerificacionEvaluacion('');
       setRecursos([]);
+      setNewRecursoValue('');
+      setNewRecursoType('url');
     }
   }, [isEditMode, initialData]);
 
-  const handleAddRecurso = () => {
-    if (newRecurso.trim()) {
-      setRecursos([...recursos, newRecurso.trim()]);
-      setNewRecurso('');
+  const handleFileChange = (e) => {
+    setSelectedFile(e.target.files[0]);
+  };
+
+  const handleAddRecurso = async () => {
+    if (newRecursoType === 'file') {
+      if (selectedFile) {
+        setUploadingFile(true);
+        try {
+          const response = await api.uploadTareaMultimedia(selectedFile);
+          const uploadedFilePath = response.data.filePath; // Asume que el backend devuelve { filePath: 'ruta' }
+          setRecursos([...recursos, { type: 'file', value: uploadedFilePath }]);
+          setSelectedFile(null);
+          setNewRecursoType('url');
+          Swal.fire('¡Archivo Subido!', 'El archivo se ha subido exitosamente.', 'success');
+        } catch (uploadError) {
+          console.error('Error al subir archivo:', uploadError);
+          Swal.fire('Error', uploadError.response?.data?.message || 'Error al subir el archivo.', 'error');
+        } finally {
+          setUploadingFile(false);
+        }
+      } else {
+        setError('Por favor, seleccione un archivo para subir.');
+      }
+    } else if (newRecursoValue.trim()) {
+      setRecursos([...recursos, { type: newRecursoType, value: newRecursoValue.trim() }]);
+      setNewRecursoValue('');
+      setNewRecursoType('url'); // Reset to default
     }
   };
 
@@ -60,6 +89,11 @@ const UnidadPlanForm = ({ planDeClasesId, onUnidadCreated, onUnidadUpdated, onCa
       return;
     }
 
+    let finalRecursos = [...recursos];
+    if (newRecursoValue.trim()) {
+      finalRecursos.push({ type: newRecursoType, value: newRecursoValue.trim() });
+    }
+
     const data = {
       periodo,
       contenido,
@@ -68,7 +102,7 @@ const UnidadPlanForm = ({ planDeClasesId, onUnidadCreated, onUnidadUpdated, onCa
       horasPracticas: parseInt(horasPracticas, 10),
       estrategiasMetodologicas,
       mediosVerificacionEvaluacion,
-      recursos,
+      recursos: finalRecursos,
     };
 
     try {
@@ -209,37 +243,55 @@ const UnidadPlanForm = ({ planDeClasesId, onUnidadCreated, onUnidadUpdated, onCa
         ></textarea>
       </div>
 
-      {/* Sección de Recursos */}
       <div>
-        <label htmlFor="newRecurso" className="block text-sm font-medium text-slate-300 mb-2">
-          Recursos Adicionales (URLs)
+        <label htmlFor="newRecursoValue" className="block text-sm font-medium text-slate-300 mb-2">
+          Recursos Adicionales
         </label>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            id="newRecurso"
-            value={newRecurso}
-            onChange={(e) => setNewRecurso(e.target.value)}
-            className="flex-grow px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-            placeholder="Añadir URL de recurso (ej: https://ejemplo.com/documento.pdf)"
+        <div className="flex flex-col sm:flex-row gap-2 mb-2">
+          <select
+            id="newRecursoType"
+            value={newRecursoType}
+            onChange={(e) => setNewRecursoType(e.target.value)}
+            className="flex-shrink-0 w-full sm:w-auto px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
             disabled={loading}
-          />
+          >
+            <option value="url">Enlace (URL)</option>
+            <option value="youtube">Video de YouTube</option>
+            <option value="file">Archivo (subir)</option>
+          </select>
+          {newRecursoType === 'file' ? (
+            <input
+              type="file"
+              id="newRecursoFile"
+              onChange={handleFileChange}
+              className="flex-grow px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600"
+              disabled={loading}
+            />
+          ) : (
+            <input
+              type="text"
+              id="newRecursoValue"
+              value={newRecursoValue}
+              onChange={(e) => setNewRecursoValue(e.target.value)}
+              className="flex-grow px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              placeholder={newRecursoType === 'youtube' ? 'ID o URL de YouTube' : (newRecursoType === 'file' ? 'Nombre del archivo (ej: documento.pdf)' : 'URL de recurso (ej: https://ejemplo.com/doc.pdf)')}
+              disabled={loading}
+            />
+          )}
           <button
             type="button"
             onClick={handleAddRecurso}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading}
+            disabled={loading || uploadingFile || (newRecursoType !== 'file' && !newRecursoValue.trim()) || (newRecursoType === 'file' && !selectedFile)}
           >
-            <Plus size={20} />
+            {uploadingFile ? <Loader size={20} className="animate-spin" /> : <Plus size={20} />}
           </button>
         </div>
         <div className="space-y-2">
           {recursos.map((recurso, index) => (
             <div key={index} className="flex items-center gap-2 bg-slate-700/50 border border-slate-600 rounded-lg p-2 text-slate-300">
-              <Globe size={16} className="flex-shrink-0" />
-              <a href={recurso} target="_blank" rel="noopener noreferrer" className="flex-grow text-blue-400 hover:text-blue-300 truncate">
-                {recurso}
-              </a>
+              {recurso.type === 'youtube' ? <Youtube size={16} className="flex-shrink-0 text-red-500" /> : (recurso.type === 'file' ? <FileText size={16} className="flex-shrink-0 text-purple-400" /> : <Globe size={16} className="flex-shrink-0" />)}
+              <span className="flex-grow text-white truncate">{recurso.value} ({recurso.type})</span>
               <button
                 type="button"
                 onClick={() => handleRemoveRecurso(index)}

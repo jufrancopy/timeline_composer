@@ -223,6 +223,23 @@ module.exports = (prisma, transporter) => {
         where: {
           catedraId: parseInt(catedraId),
         },
+        include: {
+          UnidadPlan: {
+            select: {
+              id: true,
+              periodo: true,
+              contenido: true,
+              capacidades: true,
+              horasTeoricas: true,
+              horasPracticas: true,
+              estrategiasMetodologicas: true,
+              mediosVerificacionEvaluacion: true,
+              recursos: true, // Asegurar que recursos se incluye explícitamente
+              created_at: true,
+              updated_at: true,
+            },
+          },
+        },
         orderBy: { created_at: 'desc' },
       });
 
@@ -1379,19 +1396,19 @@ module.exports = (prisma, transporter) => {
   router.post('/docente/me/planes/:planId/unidades', requireDocente, async (req, res) => {
     const { planId } = req.params;
     const { periodo, contenido, capacidades, horasTeoricas, horasPracticas, estrategiasMetodologicas, mediosVerificacionEvaluacion, recursos } = req.body;
-    const docenteId = req.docente.docenteId;
+    const docenteId = req.docente.docenteId; // Reintroducir esta línea
 
     if (!periodo || !contenido || capacidades === undefined || horasTeoricas === undefined || horasPracticas === undefined || estrategiasMetodologicas === undefined || mediosVerificacionEvaluacion === undefined) {
       return res.status(400).json({ error: 'Todos los campos de la unidad son obligatorios.' });
     }
 
     try {
-      const planDeClases = await prisma.planDeClases.findUnique({
+      const planDeClases = await prisma.PlanDeClases.findUnique({
         where: {
           id: parseInt(planId),
         },
         include: {
-          catedra: {
+          Catedra: {
             select: { docenteId: true },
           },
         },
@@ -1401,11 +1418,11 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Plan de clases no encontrado.' });
       }
 
-      if (planDeClases.catedra.docenteId !== docenteId) {
+      if (planDeClases.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para añadir unidades a este plan de clases.' });
       }
 
-      const newUnidadPlan = await prisma.unidadPlan.create({
+      const newUnidadPlan = await prisma.UnidadPlan.create({
         data: {
           planDeClasesId: parseInt(planId),
           periodo,
@@ -1418,7 +1435,6 @@ module.exports = (prisma, transporter) => {
           recursos: recursos || [],
         },
       });
-
       res.status(201).json(newUnidadPlan);
     } catch (error) {
       console.error('Error al crear unidad de plan:', error);
@@ -1433,14 +1449,14 @@ module.exports = (prisma, transporter) => {
     const docenteId = req.docente.docenteId;
 
     try {
-      const unidadPlan = await prisma.unidadPlan.findUnique({
+      const unidadPlan = await prisma.UnidadPlan.findUnique({
         where: {
           id: parseInt(unidadId),
         },
         include: {
-          planDeClases: {
+          PlanDeClases: {
             include: {
-              catedra: {
+              Catedra: {
                 select: { docenteId: true },
               },
             },
@@ -1452,11 +1468,11 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Unidad de plan no encontrada.' });
       }
 
-      if (unidadPlan.planDeClases.catedra.docenteId !== docenteId) {
+      if (unidadPlan.PlanDeClases.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para actualizar esta unidad de plan.' });
       }
 
-      const updatedUnidadPlan = await prisma.unidadPlan.update({
+      const updatedUnidadPlan = await prisma.UnidadPlan.update({
         where: { id: parseInt(unidadId) },
         data: {
           periodo: periodo || undefined,
@@ -1483,14 +1499,14 @@ module.exports = (prisma, transporter) => {
     const docenteId = req.docente.docenteId;
 
     try {
-      const unidadPlan = await prisma.unidadPlan.findUnique({
+      const unidadPlan = await prisma.UnidadPlan.findUnique({
         where: {
           id: parseInt(unidadId),
         },
         include: {
-          planDeClases: {
+          PlanDeClases: {
             include: {
-              catedra: {
+              Catedra: {
                 select: { docenteId: true },
               },
             },
@@ -1502,12 +1518,12 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Unidad de plan no encontrada.' });
       }
 
-      if (unidadPlan.planDeClases.catedra.docenteId !== docenteId) {
+      if (unidadPlan.PlanDeClases.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para eliminar esta unidad de plan.' });
       }
 
       // Eliminar registros de asistencia asociados primero
-      await prisma.unidadPlan.delete({
+      await prisma.UnidadPlan.delete({
         where: { id: parseInt(unidadId) },
       });
 
@@ -1518,10 +1534,50 @@ module.exports = (prisma, transporter) => {
     }
   });
 
+  // POST /docente/catedra/:catedraId/planes - Crear un nuevo plan de clases
+  router.post('/docente/catedra/:catedraId/planes', requireDocente, async (req, res) => {
+    const { catedraId } = req.params;
+    const { titulo, tipoOrganizacion } = req.body;
+    const docenteId = req.docente.docenteId;
+
+    if (!titulo || !tipoOrganizacion) {
+      return res.status(400).json({ error: 'Título y tipo de organización son obligatorios.' });
+    }
+
+    try {
+      const catedra = await prisma.Catedra.findFirst({
+        where: {
+          id: parseInt(catedraId),
+          docenteId: docenteId,
+        },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      const newPlanDeClases = await prisma.PlanDeClases.create({
+        data: {
+          titulo,
+          tipoOrganizacion,
+          docenteId: docenteId,
+          catedraId: parseInt(catedraId),
+        },
+      });
+
+      res.status(201).json(newPlanDeClases);
+    } catch (error) {
+      console.error('Error al crear plan de clases:', error);
+      res.status(500).json({ error: 'Error al crear el plan de clases.', details: error.message });
+    }
+  });
+
+
+
   // Admin: CRUD de Docentes (solo accesible por Admin)
   router.get('/docente', requireDocente, async (req, res) => {
     try {
-      const docentes = await prisma.docente.findMany({
+      const docentes = await prisma.Docente.findMany({
         where: {
           otpEnabled: true, // Solo docentes que han completado el proceso de verificación OTP
           NOT: {
@@ -1551,7 +1607,7 @@ module.exports = (prisma, transporter) => {
   router.post('/docente', requireDocente, async (req, res) => {
     const { nombre, apellido, email, telefono, direccion } = req.body;
     try {
-      const newDocente = await prisma.docente.create({
+      const newDocente = await prisma.Docente.create({
         data: {
           nombre,
           apellido,
@@ -1571,7 +1627,7 @@ module.exports = (prisma, transporter) => {
     const { id } = req.params;
     const { nombre, apellido, email, telefono, direccion } = req.body;
     try {
-      const updatedDocente = await prisma.docente.update({
+      const updatedDocente = await prisma.Docente.update({
         where: { id: parseInt(id) },
         data: {
           nombre,
@@ -1591,7 +1647,7 @@ module.exports = (prisma, transporter) => {
   router.delete('/docente/:id', requireDocente, async (req, res) => {
     const { id } = req.params;
     try {
-      await prisma.docente.delete({
+      await prisma.Docente.delete({
         where: { id: parseInt(id) },
       });
       res.status(204).send();
@@ -1608,7 +1664,7 @@ module.exports = (prisma, transporter) => {
 
     try {
       // Verify the catedra belongs to the docente
-      const catedra = await prisma.catedra.findFirst({
+      const catedra = await prisma.Catedra.findFirst({
         where: {
           id: parseInt(catedraId),
           docenteId: docenteId,
@@ -1620,7 +1676,7 @@ module.exports = (prisma, transporter) => {
       }
 
       // Verify the master task belongs to the catedra and exists
-      const tareaMaestraToDelete = await prisma.tareaMaestra.findFirst({
+      const tareaMaestraToDelete = await prisma.TareaMaestra.findFirst({
         where: {
           id: parseInt(tareaMaestraId),
           catedraId: parseInt(catedraId),
@@ -1635,7 +1691,7 @@ module.exports = (prisma, transporter) => {
       // 1. Eliminar los registros de Puntuacion asociados a las TareaAsignacion de esta TareaMaestra
       // Esto requiere iterar por cada asignación para encontrar las puntuaciones relacionadas
       for (const asignacion of tareaMaestraToDelete.TareaAsignacion) {
-        await prisma.puntuacion.deleteMany({
+        await prisma.Puntuacion.deleteMany({
           where: {
             alumnoId: asignacion.alumnoId,
             catedraId: catedra.id,
@@ -1646,7 +1702,7 @@ module.exports = (prisma, transporter) => {
       }
 
       // 2. Eliminar todas las TareaAsignacion asociadas a esta TareaMaestra
-      await prisma.tareaAsignacion.deleteMany({
+      await prisma.TareaAsignacion.deleteMany({
         where: {
           tareaMaestraId: parseInt(tareaMaestraId),
         },
@@ -1657,23 +1713,23 @@ module.exports = (prisma, transporter) => {
         const publicacionId = tareaMaestraToDelete.Publicacion.id;
 
         // Eliminar interacciones asociadas a la publicación
-        await prisma.publicacionInteraccion.deleteMany({
+        await prisma.PublicacionInteraccion.deleteMany({
           where: { publicacionId: publicacionId },
         });
 
         // Eliminar comentarios asociados a la publicación
-        await prisma.comentarioPublicacion.deleteMany({
+        await prisma.ComentarioPublicacion.deleteMany({
           where: { publicacionId: publicacionId },
         });
 
         // Ahora eliminar la publicación
-        await prisma.publicacion.deleteMany({
+        await prisma.Publicacion.deleteMany({
           where: { id: publicacionId },
         });
       }
 
       // 4. Finalmente, eliminar la TareaMaestra
-      await prisma.tareaMaestra.delete({
+      await prisma.TareaMaestra.delete({
         where: { id: parseInt(tareaMaestraId) },
       });
 
@@ -1696,7 +1752,7 @@ module.exports = (prisma, transporter) => {
       }
 
       // Verify the catedra belongs to the docente
-      const catedra = await prisma.catedra.findFirst({
+      const catedra = await prisma.Catedra.findFirst({
         where: {
           id: parseInt(catedraId),
           docenteId: docenteId,
@@ -1715,17 +1771,17 @@ module.exports = (prisma, transporter) => {
 
       // Eliminar las TareaAsignacion del alumno en esta cátedra
       if (alumnoId) {
-        await prisma.tareaAsignacion.deleteMany({
+        await prisma.TareaAsignacion.deleteMany({
           where: {
             alumnoId: parseInt(alumnoId),
-            tareaMaestra: {
+            TareaMaestra: {
               catedraId: parseInt(catedraId),
             },
           },
         });
       }
 
-      const deleteResult = await prisma.catedraAlumno.deleteMany({
+      const deleteResult = await prisma.CatedraAlumno.deleteMany({
         where: whereClause,
       });
 
@@ -1747,7 +1803,7 @@ module.exports = (prisma, transporter) => {
 
     try {
       // 1. Verify the docente owns the catedra
-      const catedra = await prisma.catedra.findFirst({
+      const catedra = await prisma.Catedra.findFirst({
         where: {
           id: parseInt(catedraId),
           docenteId: docenteId,
@@ -1767,7 +1823,7 @@ module.exports = (prisma, transporter) => {
       const alumno = catedra.CatedraAlumno[0].Alumno;
 
       // 2. Get all task assignments for the specific student in this catedra
-      const asignacionesDelAlumno = await prisma.tareaAsignacion.findMany({
+      const asignacionesDelAlumno = await prisma.TareaAsignacion.findMany({
         where: {
           alumnoId: parseInt(alumnoId),
           TareaMaestra: {
@@ -2037,7 +2093,7 @@ module.exports = (prisma, transporter) => {
 
     try {
       // 1. Verify the docente owns the catedra
-      const catedra = await prisma.catedra.findFirst({
+      const catedra = await prisma.Catedra.findFirst({
         where: {
           id: parseInt(catedraId),
           docenteId: docenteId,
@@ -2055,7 +2111,7 @@ module.exports = (prisma, transporter) => {
       }
 
       // 2. Get all evaluations for this catedra
-      const evaluations = await prisma.evaluacion.findMany({
+      const evaluations = await prisma.Evaluacion.findMany({
         where: {
           catedraId: parseInt(catedraId),
         },
@@ -2099,35 +2155,35 @@ module.exports = (prisma, transporter) => {
 
     try {
       // 1. Verify the docente owns the catedra and the student is enrolled
-      const catedra = await prisma.catedra.findFirst({
+      const catedra = await prisma.Catedra.findFirst({
         where: {
           id: parseInt(catedraId),
           docenteId: docenteId,
         },
         include: {
-          alumnos: {
+          Alumno: {
             where: { alumnoId: parseInt(alumnoId) },
             include: { alumno: true },
           },
         },
       });
 
-      if (!catedra || catedra.alumnos.length === 0) {
+      if (!catedra || catedra.Alumno.length === 0) {
         return res.status(404).json({ error: 'Cátedra no encontrada, acceso denegado o el alumno no está inscrito.' });
       }
 
       const alumno = catedra.CatedraAlumno[0].Alumno;
 
       // 2. Fetch the evaluation with questions and options
-      const evaluation = await prisma.evaluacion.findUnique({
+      const evaluation = await prisma.Evaluacion.findUnique({
         where: { id: parseInt(evaluationId) },
         include: {
-          preguntas: {
+          Pregunta: {
             include: {
-              opciones: true,
+              Opcion: true,
             },
           },
-          calificaciones: {
+          EvaluacionAsignacion: {
             where: { alumnoId: parseInt(alumnoId) },
             select: { id: true, puntos: true, respuestas: true, created_at: true },
           },
@@ -2146,13 +2202,13 @@ module.exports = (prisma, transporter) => {
       const studentAnswers = evaluation.calificaciones.length > 0 ? JSON.parse(evaluation.calificaciones[0].respuestas) : {};
 
       let totalPossiblePoints = 0;
-      const formattedQuestions = evaluation.preguntas.map(question => {
-        const correctAnswer = question.opciones.find(opt => opt.es_correcta);
+      const formattedQuestions = evaluation.Pregunta.map(question => {
+        const correctAnswer = question.Opcion.find(opt => opt.es_correcta);
         totalPossiblePoints += 1; // Each question is 1 point
         return {
           id: question.id,
           text: question.texto,
-          options: question.opciones.map(option => ({
+          options: question.Opcion.map(option => ({
             id: option.id,
             text: option.texto,
           })),
@@ -2229,7 +2285,7 @@ module.exports = (prisma, transporter) => {
       // La cadena 'YYYY-MM-DD' se interpreta como medianoche UTC, que es lo correcto.
       const fechaUTC = new Date(fecha);
 
-      const catedra = await prisma.catedra.findFirst({
+      const catedra = await prisma.Catedra.findFirst({
         where: {
           id: parseInt(catedraId),
           docenteId: docenteId,
@@ -2240,7 +2296,7 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
       }
 
-      const newDiaClase = await prisma.diaClase.create({
+      const newDiaClase = await prisma.DiaClase.create({
         data: {
           fecha: fechaUTC,
           dia_semana,
@@ -2261,7 +2317,7 @@ module.exports = (prisma, transporter) => {
     const docenteId = req.docente.docenteId;
 
     try {
-      const catedra = await prisma.catedra.findFirst({
+      const catedra = await prisma.Catedra.findFirst({
         where: {
           id: parseInt(catedraId),
           docenteId: docenteId,
@@ -2272,7 +2328,7 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
       }
 
-      const diasClase = await prisma.diaClase.findMany({
+      const diasClase = await prisma.DiaClase.findMany({
         where: {
           catedraId: parseInt(catedraId),
         },
@@ -2294,12 +2350,12 @@ module.exports = (prisma, transporter) => {
     const docenteId = req.docente.docenteId;
 
     try {
-      const diaClase = await prisma.diaClase.findUnique({
+      const diaClase = await prisma.DiaClase.findUnique({
         where: {
           id: parseInt(diaClaseId),
         },
         include: {
-          catedra: {
+          Catedra: {
             select: { docenteId: true },
           },
         },
@@ -2309,7 +2365,7 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Día de clase no encontrado.' });
       }
 
-      if (diaClase.catedra.docenteId !== docenteId) {
+      if (diaClase.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para ver este día de clase.' });
       }
 
@@ -2327,12 +2383,12 @@ module.exports = (prisma, transporter) => {
     const docenteId = req.docente.docenteId;
 
     try {
-      const diaClase = await prisma.diaClase.findUnique({
+      const diaClase = await prisma.DiaClase.findUnique({
         where: {
           id: parseInt(diaClaseId),
         },
         include: {
-          catedra: {
+          Catedra: {
             select: { docenteId: true },
           },
         },
@@ -2342,7 +2398,7 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Día de clase no encontrado.' });
       }
 
-      if (diaClase.catedra.docenteId !== docenteId) {
+      if (diaClase.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para actualizar este día de clase.' });
       }
 
@@ -2373,12 +2429,12 @@ module.exports = (prisma, transporter) => {
     const docenteId = req.docente.docenteId;
 
     try {
-      const diaClase = await prisma.diaClase.findUnique({
+      const diaClase = await prisma.DiaClase.findUnique({
         where: {
           id: parseInt(diaClaseId),
         },
         include: {
-          catedra: {
+          Catedra: {
             select: { docenteId: true },
           },
         },
@@ -2388,16 +2444,16 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Día de clase no encontrado.' });
       }
 
-      if (diaClase.catedra.docenteId !== docenteId) {
+      if (diaClase.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para eliminar este día de clase.' });
       }
 
       // Eliminar registros de asistencia asociados primero
-      await prisma.asistencia.deleteMany({
+      await prisma.Asistencia.deleteMany({
         where: { diaClaseId: parseInt(diaClaseId) },
       });
 
-      await prisma.diaClase.delete({
+      await prisma.DiaClase.delete({
         where: { id: parseInt(diaClaseId) },
       });
 
@@ -2421,7 +2477,7 @@ module.exports = (prisma, transporter) => {
     }
 
     try {
-      const diaClase = await prisma.diaClase.findUnique({
+      const diaClase = await prisma.DiaClase.findUnique({
         where: {
           id: parseInt(diaClaseId),
         },
@@ -2436,14 +2492,14 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Día de clase no encontrado.' });
       }
 
-      if (diaClase.catedra.docenteId !== docenteId) {
+      if (diaClase.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para registrar asistencia en este día de clase.' });
       }
 
       const results = [];
 
       // Borrar asistencias existentes para este día de clase antes de registrar las nuevas
-      await prisma.asistencia.deleteMany({
+      await prisma.Asistencia.deleteMany({
         where: {
           diaClaseId: parseInt(diaClaseId),
         },
@@ -2474,17 +2530,17 @@ module.exports = (prisma, transporter) => {
     const docenteId = req.docente.docenteId;
 
     try {
-      const diaClase = await prisma.diaClase.findUnique({
+      const diaClase = await prisma.DiaClase.findUnique({
         where: {
           id: parseInt(diaClaseId),
         },
         include: {
-          catedra: {
+          Catedra: {
             select: { docenteId: true, id: true },
           },
           Asistencia: {
             include: {
-              alumno: {
+              Alumno: {
                 select: { id: true, nombre: true, apellido: true },
               },
             },
@@ -2502,9 +2558,9 @@ module.exports = (prisma, transporter) => {
 
       // Obtener todos los alumnos inscritos en la cátedra para ese día de clase,
       // y fusionar con las asistencias registradas.
-      const alumnosInscritos = await prisma.catedraAlumno.findMany({
+      const alumnosInscritos = await prisma.CatedraAlumno.findMany({
         where: {
-          catedraId: diaClase.catedra.id,
+          catedraId: diaClase.Catedra.id,
         },
         include: {
           Alumno: {
@@ -2538,7 +2594,7 @@ module.exports = (prisma, transporter) => {
     const docenteId = req.docente.docenteId;
 
     try {
-      const catedra = await prisma.catedra.findFirst({
+      const catedra = await prisma.Catedra.findFirst({
         where: {
           id: parseInt(catedraId),
           docenteId: docenteId,
@@ -2549,14 +2605,14 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
       }
 
-      const tareaMaestra = await prisma.tareaMaestra.findFirst({
+      const tareaMaestra = await prisma.TareaMaestra.findFirst({
         where: {
           id: parseInt(tareaMaestraId),
           catedraId: parseInt(catedraId),
         },
         include: {
           TareaAsignacion: true,
-          publicacion: true,
+          Publicacion: true,
         },
       });
 
@@ -2577,21 +2633,21 @@ module.exports = (prisma, transporter) => {
       }
 
       // 2. Eliminar todas las TareaAsignacion asociadas a esta TareaMaestra
-      await prisma.tareaAsignacion.deleteMany({
+      await prisma.TareaAsignacion.deleteMany({
         where: {
           tareaMaestraId: parseInt(tareaMaestraId),
         },
       });
 
       // 3. Eliminar la Publicacion asociada (si existe)
-      if (tareaMaestra.publicacion) {
-        await prisma.publicacion.delete({
-          where: { id: tareaMaestra.publicacion.id },
+      if (tareaMaestra.Publicacion) {
+        await prisma.Publicacion.delete({
+          where: { id: tareaMaestra.Publicacion.id },
         });
       }
 
       // 4. Finalmente, eliminar la TareaMaestra
-      await prisma.tareaMaestra.delete({
+      await prisma.TareaMaestra.delete({
         where: { id: parseInt(tareaMaestraId) },
       });
 

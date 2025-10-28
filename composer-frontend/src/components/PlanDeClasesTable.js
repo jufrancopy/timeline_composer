@@ -3,7 +3,14 @@ import Modal from './Modal';
 import UnidadPlanForm from './UnidadPlanForm';
 import Swal from 'sweetalert2';
 import api from '../api';
-import { ArrowLeft, Plus, Edit3, Trash2, Eye, BookOpen, Clock, Globe } from 'lucide-react';
+import { ArrowLeft, Plus, Edit3, Trash2, Eye, BookOpen, Clock, Globe, Youtube, FileText } from 'lucide-react';
+
+const getYouTubeVideoId = (url) => {
+  const regex = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([^\s&?"'<]{11})/;
+  const match = url.match(regex);
+  return match ? match[1] : null;
+};
+
 
 const PlanDeClasesTable = ({ plan, onBackToPlanes, fetchPlanesDeClase }) => {
   const [isUnidadModalOpen, setIsUnidadModalOpen] = useState(false);
@@ -23,11 +30,13 @@ const PlanDeClasesTable = ({ plan, onBackToPlanes, fetchPlanesDeClase }) => {
 
   const handleUnidadCreated = () => {
     fetchPlanesDeClase(); // Refresh parent's plans to get updated units
+    console.log("[PlanDeClasesTable] Unidad created, fetching plans.");
     setIsUnidadModalOpen(false);
   };
 
   const handleUnidadUpdated = () => {
     fetchPlanesDeClase(); // Refresh parent's plans to get updated units
+    console.log("[PlanDeClasesTable] Unidad updated, fetching plans.");
     setIsUnidadModalOpen(false);
     setEditingUnidad(null);
   };
@@ -90,7 +99,7 @@ const PlanDeClasesTable = ({ plan, onBackToPlanes, fetchPlanesDeClase }) => {
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-white">Unidades del Plan</h3>
-                <p className="text-slate-400">{plan.unidades?.length || 0} unidades definidas</p>
+                <p className="text-slate-400">{plan.UnidadPlan?.length || 0} unidades definidas</p>
               </div>
             </div>
             <button
@@ -104,7 +113,7 @@ const PlanDeClasesTable = ({ plan, onBackToPlanes, fetchPlanesDeClase }) => {
         </div>
         
         <div className="p-6">
-          {(plan.unidades?.length || 0) === 0 ? (
+          {(plan.UnidadPlan?.length || 0) === 0 ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
                 <BookOpen className="text-slate-500" size={32} />
@@ -117,16 +126,16 @@ const PlanDeClasesTable = ({ plan, onBackToPlanes, fetchPlanesDeClase }) => {
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-slate-700/50">
-                    <th className="text-left py-4 px-4 text-slate-300 font-semibold">Período/Módulo</th>
+                    <th className="text-left py-4 px-4 text-slate-300 font-semibold">{plan.tipoOrganizacion === 'MES' ? 'Período' : 'Módulo'}</th>
                     <th className="text-left py-4 px-4 text-slate-300 font-semibold">Horas</th>
                     <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {plan.unidades.map((unidad) => (
+                  {plan.UnidadPlan.map((unidad) => (
                     <tr key={unidad.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
                       <td className="py-4 px-4">
-                        <div className="font-medium text-white">{unidad.periodo}</div>
+                        <div className="font-medium text-white">{unidad.nombre || unidad.periodo}</div>
                       </td>
                       <td className="py-4 px-4">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-600/20 text-blue-300 rounded-full text-sm border border-blue-500/30">
@@ -171,7 +180,7 @@ const PlanDeClasesTable = ({ plan, onBackToPlanes, fetchPlanesDeClase }) => {
       <Modal
         isOpen={isUnidadModalOpen}
         onClose={() => setIsUnidadModalOpen(false)}
-        title={editingUnidad ? "Editar Unidad del Plan" : "Crear Nueva Unidad del Plan"}
+        title={editingUnidad ? `Editar ${plan.tipoOrganizacion === 'MES' ? 'Período' : 'Módulo'} del Plan` : `Crear Nuevo ${plan.tipoOrganizacion === 'MES' ? 'Período' : 'Módulo'} del Plan`}
         showSubmitButton={false}
         showCancelButton={false}
       >
@@ -236,13 +245,46 @@ const PlanDeClasesTable = ({ plan, onBackToPlanes, fetchPlanesDeClase }) => {
             {(selectedUnidad.recursos && selectedUnidad.recursos.length > 0) && (
               <div>
                 <h4 className="text-lg font-semibold text-white mb-2">Recursos</h4>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {selectedUnidad.recursos.map((recurso, index) => (
-                    <div key={index} className="flex items-center gap-2 bg-slate-700/50 border border-slate-600 rounded-lg p-2 text-slate-300">
-                      <Globe size={16} className="flex-shrink-0" />
-                      <a href={recurso} target="_blank" rel="noopener noreferrer" className="flex-grow text-blue-400 hover:text-blue-300 truncate">
-                        {recurso}
-                      </a>
+                    <div key={index} className="bg-slate-800/30 rounded-lg p-3 border border-slate-700/50">
+                      {recurso.type === 'youtube' ? (
+                        <div className="aspect-video w-full rounded-lg overflow-hidden mb-2">
+                          <iframe
+                            width="100%"
+                            height="100%"
+                            src={`https://www.youtube.com/embed/${getYouTubeVideoId(recurso.value)}`}
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            title="YouTube video player"
+                          ></iframe>
+                        </div>
+                      ) : recurso.type === 'file' ? (
+                        <div className="flex items-center gap-2 text-slate-300">
+                          <FileText size={20} className="flex-shrink-0 text-purple-400" />
+                          <a
+                            href={recurso.value.startsWith('http') ? recurso.value : `${process.env.REACT_APP_API_URL}/${recurso.value}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-grow text-blue-400 hover:text-blue-300 truncate font-medium"
+                          >
+                            {recurso.value.split('/').pop()} {recurso.type && `(${recurso.type})`}
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-slate-300">
+                          <Globe size={20} className="flex-shrink-0" />
+                          <a
+                            href={recurso.value}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-grow text-blue-400 hover:text-blue-300 truncate font-medium"
+                          >
+                            {recurso.value} {recurso.type && `(${recurso.type})`}
+                          </a>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
