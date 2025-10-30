@@ -41,6 +41,8 @@ const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Título</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Cátedra</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Plan de Clases</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Módulo (Unidad)</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Fecha de Creación</th>
               {showStatus && <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Estado</th>}
               {showActions && <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Acciones</th>}
@@ -56,6 +58,12 @@ const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                     {evaluation.Catedra?.nombre || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    {evaluation.UnidadPlan?.PlanDeClases?.titulo || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    {evaluation.UnidadPlan?.periodo || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                     {new Date(evaluation.created_at).toLocaleDateString()}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { format } from 'date-fns';
+import { FileText, BookOpen, BookMarked, Target } from 'lucide-react';
 
 const TaskCard = ({ task, getStatusColor, getTaskStatusDisplay, handleOpenSubmitModal, showActions, showPoints, onEditTask, onDeleteTask, onViewTask, onAssignTask, onToggleVisibility, docenteView = false }) => {
   return (
@@ -12,7 +13,25 @@ const TaskCard = ({ task, getStatusColor, getTaskStatusDisplay, handleOpenSubmit
       </div>
       {/* <p className="text-sm text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: task.descripcion.substring(0, 100) + '...' }}></p> */}
       <p className="text-sm text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: docenteView ? task.descripcion : task.TareaMaestra.descripcion }}></p>
-      <p className="text-sm text-gray-400"><strong>Puntos Posibles:</strong> {docenteView ? task.puntos_posibles : task.TareaMaestra.puntos_posibles}</p>
+      <div className="flex flex-col space-y-1 text-sm text-gray-400 mt-2">
+        <div className="flex items-center gap-2">
+          <BookOpen size={16} className="text-emerald-400" />
+          <span><strong>Cátedra:</strong> {docenteView ? task.Catedra?.nombre : task.TareaMaestra.Catedra?.nombre}</span>
+        </div>
+        {task.TareaMaestra?.UnidadPlan?.PlanDeClases?.titulo && (
+          <div className="flex items-center gap-2">
+            <BookMarked size={16} className="text-blue-400" />
+            <span><strong>Plan:</strong> {task.TareaMaestra.UnidadPlan.PlanDeClases.titulo}</span>
+          </div>
+        )}
+        {task.TareaMaestra?.UnidadPlan?.periodo && (
+          <div className="flex items-center gap-2">
+            <Target size={16} className="text-purple-400" />
+            <span><strong>Unidad:</strong> {task.TareaMaestra.UnidadPlan.periodo}</span>
+          </div>
+        )}
+      </div>
+      <p className="text-sm text-gray-400 mt-2"><strong>Puntos Posibles:</strong> {docenteView ? task.puntos_posibles : task.TareaMaestra.puntos_posibles}</p>
       <p className="text-sm text-gray-400"><strong>Vence:</strong> {(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega) ? format(new Date(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega), 'dd/MM/yyyy') : 'N/A'}</p>
       {showPoints && task.puntos_obtenidos !== null && (
         <p className="text-sm font-bold text-green-400 mt-1"><strong>Mis Puntos:</strong> {task.puntos_obtenidos}</p>

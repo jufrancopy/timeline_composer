@@ -29,6 +29,8 @@ function TaskTable({ title, tasks, getStatusColor, getTaskStatusDisplay, handleO
                 <tr>
                   {!docenteView && <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Cátedra</th>}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Tarea</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Plan de Clases</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Módulo (Unidad)</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Descripción</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Puntos Posibles</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Fecha de Entrega</th>
@@ -50,10 +52,22 @@ function TaskTable({ title, tasks, getStatusColor, getTaskStatusDisplay, handleO
                         task.TareaMaestra.titulo
                       )}
                     </td>
-                                        <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate"
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {docenteView 
+                        ? (task.UnidadPlan?.PlanDeClases?.titulo || 'N/A')
+                        : (task.TareaMaestra?.UnidadPlan?.PlanDeClases?.titulo || 'N/A')
+                      }
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {docenteView 
+                        ? (task.UnidadPlan?.periodo || 'N/A')
+                        : (task.TareaMaestra?.UnidadPlan?.periodo || 'N/A')
+                      }
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate"
                       dangerouslySetInnerHTML={{ __html: docenteView ? task.descripcion : task.TareaMaestra.descripcion }}></td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{docenteView ? task.puntos_posibles : task.TareaMaestra.puntos_posibles}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega) ? new Date(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega).toLocaleDateString() : 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{docenteView ? task.puntos_posibles : task.TareaMaestra.puntos_posibles}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega) ? new Date(docenteView ? task.fecha_entrega : task.TareaMaestra.fecha_entrega).toLocaleDateString() : 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task)}`}>
                         {getTaskStatusDisplay(task)}

@@ -26,6 +26,7 @@ import DocenteTareaPage from './pages/DocenteTareaPage';
 import DocenteEvaluationPage from './pages/DocenteEvaluationPage';
 import DocenteGenerateEvaluationPage from './pages/DocenteGenerateEvaluationPage';
 import DocenteEvaluationResultsPage from './pages/DocenteEvaluationResultsPage';
+import AlumnoTareaDetailPage from './pages/AlumnoTareaDetailPage'; // Import new page
 import Footer from './components/Footer';
 import Header from './components/Header';
 import PrivateRoute from './components/PrivateRoute';
@@ -185,7 +186,14 @@ function AppContent() {
               </DocentePrivateRoute>
             }
           />
-          <Route path="/my-contributions" element={<MyContributionsPage handleLogout={handleLogout} />} />
+          <Route
+            path="/alumno/tarea/:tareaAsignacionId"
+            element={
+              <PrivateRoute>
+                <AlumnoTareaDetailPage />
+              </PrivateRoute>
+            }
+          />
           <Route path="/gamification" element={<GamificationPage />} />
 
           {/* Rutas de Alumno Protegidas */}

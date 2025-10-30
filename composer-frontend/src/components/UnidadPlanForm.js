@@ -59,7 +59,6 @@ const UnidadPlanForm = ({ planDeClasesId, onUnidadCreated, onUnidadUpdated, onCa
           setNewRecursoType('url');
           Swal.fire('¡Archivo Subido!', 'El archivo se ha subido exitosamente.', 'success');
         } catch (uploadError) {
-          console.error('Error al subir archivo:', uploadError);
           Swal.fire('Error', uploadError.response?.data?.message || 'Error al subir el archivo.', 'error');
         } finally {
           setUploadingFile(false);

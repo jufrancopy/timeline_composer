@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../api';
+import toast from 'react-hot-toast';
 
-function EvaluationForm({ onSubmit, loading, onCancel, userType = 'admin' }) {
+function EvaluationForm({ catedraId, onSubmit, loading, onCancel, userType = 'admin', initialData = null, isEditMode = false }) {
   const [prompt, setPrompt] = useState('');
   const [subject, setSubject] = useState('');
   const [numberOfQuestions, setNumberOfQuestions] = useState(5);
   const [numberOfOptions, setNumberOfOptions] = useState(4);
+  const [selectedUnidadId, setSelectedUnidadId] = useState('');
+
+  useEffect(() => {
+    if (initialData?.unidadPlanId) {
+      setSelectedUnidadId(initialData.unidadPlanId);
+    }
+  }, [initialData]);
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (prompt.trim() && subject.trim() && numberOfQuestions > 0 && numberOfOptions > 0) {
-      onSubmit(prompt, subject, numberOfQuestions, numberOfOptions);
+      onSubmit(prompt, subject, numberOfQuestions, numberOfOptions, selectedUnidadId ? parseInt(selectedUnidadId, 10) : null);
     }
   };
 

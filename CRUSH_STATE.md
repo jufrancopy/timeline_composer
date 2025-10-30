@@ -4,9 +4,16 @@
 - SE HA PERDIDO DÍAS DE TRABAJO EN EL PASADO POR ELIMINAR CÓDIGO Y REVERTIR A UN PUNTO PRIMITIVO DEL SISTEMA. SE ESTÁ RECONSTRUYENDO CON AYUDA DEL AGENTE.
 
 ### Last Action:
-Moved router files to a new 'routes' directory and updated imports in `index.js`.
+Reestructuración de DocenteCatedraDetailPage.js **completada**:
+- Se han eliminado importaciones, variables de estado y funciones no utilizadas relacionadas con Tareas y Evaluaciones.
+- La estructura JSX ha sido reorganizada según lo especificado.
+- Se han renombrado componentes:
+    - `composer-frontend/src/components/PlanDeClasesTable.js` a `composer-frontend/src/components/UnidadPlanTable.js`.
+- Se ha creado un nuevo componente `composer-frontend/src/components/PlanDeClasesTable.js` para la gestión general de planes de clase.
+- `DocenteCatedraDetailPage.js` ahora utiliza el nuevo `PlanDeClasesTable` para listar planes y `UnidadPlanTable` (o `UnidadContentManagement`) para gestionar unidades.
+- Se mantienen solo los modales relevantes (`DiaClaseForm`, `AttendanceForm`, `PublicacionForm`, `PlanDeClasesForm`).
 
-# Información del Proyecto
+### Información del Proyecto
 
 ## Recuperación del Sistema
 - Se está recuperando el sistema de una caída con pérdida de información.

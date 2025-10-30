@@ -700,31 +700,96 @@ const AlumnoCatedraDetailPage = () => {
 
       <Modal
         isOpen={isSubmitModalOpen}
-        onClose={() => setIsSubmitModalOpen(false)}
-        title={`Subir Entrega: ${taskToSubmit?.TareaMaestra?.titulo}`}
+        onClose={() => {
+          setIsSubmitModalOpen(false);
+          setSelectedFile(null);
+        }}
+        title="Subir Entrega"
         onSubmit={handleSubmitDelivery}
         submitText="Subir Entrega"
         submitDisabled={!selectedFile || loading}
       >
         <div className="p-6 space-y-6">
-          <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
-            <p className="text-slate-300 mb-4 flex items-center gap-2">
-              <FileText size={20} />
+          {/* Información de la tarea */}
+          <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-xl p-5 border border-purple-500/30 space-y-3">
+            <h3 className="text-xl font-bold text-purple-300 flex items-center gap-2">
+              <FileText size={24} />
+              {taskToSubmit?.TareaMaestra?.titulo}
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2 text-slate-300">
+                <BookOpen size={16} className="text-emerald-400" />
+                <span><strong>Cátedra:</strong> {taskToSubmit?.TareaMaestra?.Catedra?.nombre || 'N/A'}</span>
+              </div>
+              
+              {taskToSubmit?.TareaMaestra?.UnidadPlan?.PlanDeClases?.titulo && (
+                <div className="flex items-center gap-2 text-slate-300">
+                  <BookOpen size={16} className="text-blue-400" />
+                  <span><strong>Plan:</strong> {taskToSubmit.TareaMaestra.UnidadPlan.PlanDeClases.titulo}</span>
+                </div>
+              )}
+              
+              {taskToSubmit?.TareaMaestra?.UnidadPlan?.periodo && (
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Target size={16} className="text-purple-400" />
+                  <span><strong>Unidad:</strong> {taskToSubmit.TareaMaestra.UnidadPlan.periodo}</span>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-2 text-slate-300">
+                <Calendar size={16} className="text-yellow-400" />
+                <span><strong>Vence:</strong> {taskToSubmit?.TareaMaestra?.fecha_entrega ? new Date(taskToSubmit.TareaMaestra.fecha_entrega).toLocaleDateString() : 'N/A'}</span>
+              </div>
+              
+              <div className="flex items-center gap-2 text-slate-300">
+                <Award size={16} className="text-green-400" />
+                <span><strong>Puntos:</strong> {taskToSubmit?.TareaMaestra?.puntos_posibles || 0}</span>
+              </div>
+            </div>
+
+            {taskToSubmit?.TareaMaestra?.descripcion && (
+              <div className="pt-3 border-t border-slate-700/50">
+                <p className="text-xs text-slate-400 mb-1 font-semibold">Descripción:</p>
+                <div 
+                  className="text-sm text-slate-300 max-h-32 overflow-y-auto prose prose-sm prose-invert"
+                  dangerouslySetInnerHTML={{ __html: taskToSubmit.TareaMaestra.descripcion }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Sección de carga de archivo */}
+          <div className="bg-slate-800/30 rounded-xl p-5 border border-slate-700/50 space-y-4">
+            <p className="text-slate-300 font-medium flex items-center gap-2">
+              <FileText size={20} className="text-purple-400" />
               Selecciona el archivo para tu entrega
             </p>
             <input
               type="file"
               onChange={handleFileChange}
-              className="w-full p-3 border border-slate-600/50 rounded-xl bg-slate-700/50 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-purple-600 file:text-white hover:file:bg-purple-700 transition-colors"
+              className="w-full p-3 border border-slate-600/50 rounded-xl bg-slate-700/50 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-purple-600 file:text-white hover:file:bg-purple-700 transition-colors cursor-pointer"
             />
             {selectedFile && (
-              <div className="mt-4 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
-                <p className="text-green-300 flex items-center gap-2">
-                  <CheckCircle size={16} />
-                  Archivo: <span className="font-semibold">{selectedFile.name}</span>
+              <div className="p-4 bg-green-900/20 border border-green-500/30 rounded-lg animate-in fade-in duration-200">
+                <p className="text-green-300 flex items-center gap-2 font-medium">
+                  <CheckCircle size={18} />
+                  Archivo seleccionado: <span className="font-bold">{selectedFile.name}</span>
+                </p>
+                <p className="text-green-400/70 text-xs mt-1 ml-6">
+                  Tamaño: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Alerta informativa */}
+          <div className="flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+            <AlertCircle size={20} className="text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-slate-300">
+              <p className="font-medium text-blue-300 mb-1">Importante:</p>
+              <p>Asegúrate de que el archivo sea el correcto antes de subirlo. Una vez enviado, no podrás modificar tu entrega sin la autorización del docente.</p>
+            </div>
           </div>
         </div>
       </Modal>

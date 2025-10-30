@@ -325,11 +325,21 @@ module.exports = (prisma, transporter) => {
                     },
                     TareaMaestra: {
                         include: {
+                            UnidadPlan: {
+                                include: {
+                                    PlanDeClases: true
+                                }
+                            },
                             TareaAsignacion: { where: { alumnoId: alumnoId || undefined } }
                         }
                     },
                     Evaluacion: {
                         include: {
+                            UnidadPlan: {
+                                include: {
+                                    PlanDeClases: true
+                                }
+                            },
                             EvaluacionAsignacion: { where: { alumnoId: alumnoId || undefined } }
                         }
                     },
@@ -353,6 +363,8 @@ module.exports = (prisma, transporter) => {
                 if (role === 'alumno') {
                     if (publicacion.tipo === 'TAREA') {
                         const tareaAsignacion = publicacion.TareaMaestra?.TareaAsignacion?.[0];
+                        const unidadPlan = publicacion.TareaMaestra?.UnidadPlan;
+                        const planDeClases = unidadPlan?.PlanDeClases;
                         return {
                             ...basePublicacion,
                             catedraId: publicacion.catedraId, // Aseguramos que catedraId esté presente
@@ -362,12 +374,16 @@ module.exports = (prisma, transporter) => {
                             tareaAsignacionSubmissionPath: tareaAsignacion?.submission_path || null,
                             tareaAsignacionSubmissionDate: tareaAsignacion?.submission_date || null,
                             tareaAsignacionPuntosObtenidos: tareaAsignacion?.puntos_obtenidos || null,
+                            unidadPlanNombre: unidadPlan?.periodo || null,
+                            planDeClasesTitulo: planDeClases?.titulo || null,
                             tareaMaestra: undefined,
                             ComentarioPublicacion: publicacion.ComentarioPublicacion, // Ensure comments are included
                         };
                     } else if (publicacion.tipo === 'EVALUACION') {
                         const evaluacionAsignacion = publicacion.Evaluacion?.EvaluacionAsignacion?.[0];
                         const evaluacionMaestra = publicacion.Evaluacion;
+                        const unidadPlan = evaluacionMaestra?.UnidadPlan;
+                        const planDeClases = unidadPlan?.PlanDeClases;
                         let estadoFinal = evaluacionAsignacion?.estado || null; // Usar el estado directamente de la asignación
 
                         // Si hay una calificación, y el estado no es ya CALIFICADA, podemos inferir que ha sido calificada.
@@ -382,6 +398,8 @@ module.exports = (prisma, transporter) => {
                             evaluacionMaestraTitulo: evaluacionMaestra?.titulo || null,
                             evaluacionAsignacionEstado: estadoFinal,
                             evaluacionAsignacionId: evaluacionAsignacion?.id || null,
+                            unidadPlanNombre: unidadPlan?.periodo || null,
+                            planDeClasesTitulo: planDeClases?.titulo || null,
                             Evaluacion: undefined,
                             evaluacionAsignacion: undefined,
                             ComentarioPublicacion: publicacion.ComentarioPublicacion, // Ensure comments are included
@@ -472,6 +490,11 @@ module.exports = (prisma, transporter) => {
                     _count: { select: { PublicacionInteraccion: true } },
                     tareaMaestra: {
                         include: {
+                            UnidadPlan: {
+                                include: {
+                                    PlanDeClases: true
+                                }
+                            },
                             TareaAsignacion: {
                                 where: { alumnoId: alumnoId },
                                 select: { id: true, estado: true, submission_path: true, submission_date: true, puntos_obtenidos: true },
@@ -504,7 +527,9 @@ module.exports = (prisma, transporter) => {
                     },
                     PublicacionInteraccion: { where: { alumnoId: alumnoId }, select: { id: true } },
                     _count: { select: { PublicacionInteraccion: true } },
-                    evaluacionMaestra: { select: { id: true, titulo: true, catedraId: true } },
+                    evaluacionMaestra: {
+                        select: { id: true, titulo: true, catedraId: true, UnidadPlan: { include: { PlanDeClases: true } } },
+                    },
                     evaluacionAsignacion: {
                         where: { alumnoId: alumnoId },
                         include: {
@@ -530,6 +555,8 @@ module.exports = (prisma, transporter) => {
 
                 if (publicacion.tipo === 'TAREA') {
                     const tareaAsignacion = publicacion.tareaMaestra?.TareaAsignacion?.[0];
+                    const unidadPlan = publicacion.tareaMaestra?.UnidadPlan;
+                    const planDeClases = unidadPlan?.PlanDeClases;
                     return {
                         ...basePublicacion,
                         tareaMaestraId: publicacion.tareaMaestra?.id || null,
@@ -538,12 +565,16 @@ module.exports = (prisma, transporter) => {
                         tareaAsignacionSubmissionPath: tareaAsignacion?.submission_path || null,
                         tareaAsignacionSubmissionDate: tareaAsignacion?.submission_date || null,
                         tareaAsignacionPuntosObtenidos: tareaAsignacion?.puntos_obtenidos || null,
+                        unidadPlanNombre: unidadPlan?.periodo || null,
+                        planDeClasesTitulo: planDeClases?.titulo || null,
                         tareaMaestra: undefined,
                         ComentarioPublicacion: publicacion.ComentarioPublicacion, // Ensure comments are included
                     };
                 } else if (publicacion.tipo === 'EVALUACION') {
                     const evaluacionAsignacion = publicacion.evaluacionAsignacion?.[0];
                     const evaluacionMaestra = publicacion.evaluacionMaestra;
+                    const unidadPlan = evaluacionMaestra?.UnidadPlan;
+                    const planDeClases = unidadPlan?.PlanDeClases;
                     let estadoFinal = evaluacionAsignacion?.estado || null; // Usar el estado directamente de la asignación
 
                     // Si hay una calificación, y el estado no es ya CALIFICADA, podemos inferir que ha sido calificada.
@@ -558,6 +589,8 @@ module.exports = (prisma, transporter) => {
                         evaluacionMaestraTitulo: evaluacionMaestra?.titulo || null,
                         evaluacionAsignacionEstado: estadoFinal,
                         evaluacionAsignacionId: evaluacionAsignacion?.id || null,
+                        unidadPlanNombre: unidadPlan?.periodo || null,
+                        planDeClasesTitulo: planDeClases?.titulo || null,
                         Evaluacion: undefined,
                         evaluacionAsignacion: undefined,
                         ComentarioPublicacion: publicacion.ComentarioPublicacion, // Ensure comments are included

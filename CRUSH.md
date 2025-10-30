@@ -1,6 +1,25 @@
 ## Lo que debemos hacer
 - La sección "Mis Aportes" para el alumno ya se lista correctamente.
 
+## Tareas Realizadas Recientemente
+- **Modal de Asignación de Tareas (`AssignTaskToStudentsModal.js`)**:
+    - Se eliminó el botón "Cancelar" duplicado.
+    - Se corrigió la lógica de cierre del modal para que la prop `isOpen` sea controlada correctamente por el componente padre.
+    - Se añadió un campo de `fechaEntrega` y se incluyó en la llamada a la API.
+- **Modal de Asignación de Evaluaciones (`AssignEvaluationToStudentsModal.js`)**:
+    - Se implementó la carga de alumnos previamente asignados y la fecha de entrega, para que aparezcan marcados y precargados al reabrir el modal.
+    - Se eliminó el botón "Cancelar" duplicado.
+    - Se añadió un campo de `fechaEntrega` y se incluyó en la llamada a la API.
+    - Se corrigió un error de sintaxis en el `useEffect`.
+- **API Frontend (`src/api.js`)**:
+    - Se modificó la función `assignEvaluationToAlumnos` para aceptar un objeto de datos (`alumnoIds`, `fecha_entrega`).
+    - Se añadió la función `getAssignedEvaluationStudents` para obtener las asignaciones de evaluación existentes.
+- **Backend (`composer-backend/routes/docenteRoutes.js`)**:
+    - Se ajustó la ruta `POST /docente/catedra/:catedraId/evaluaciones/:evaluationId/assign` para esperar `fecha_entrega` en el cuerpo de la solicitud.
+    - Se añadió una nueva ruta `GET /docente/catedra/:catedraId/evaluaciones/:evaluationId/assignments` para obtener los alumnos asignados y la fecha de entrega de una evaluación.
+- **Componente `UnidadPlanTable.js`**:
+    - Se pasó correctamente la prop `onAssignEvaluation` a `UnidadContentManagement`.
+
 ## Plan de Implementación Futura: Conexión de Influencias (Maestro-Alumno)
 
 **Objetivo:** Permitir a los usuarios especificar un "Maestro" para un compositor y visualizar esta conexión en la línea de tiempo.
@@ -63,5 +82,54 @@
 *   **Múltiples Maestros/Influencias:** Si en el futuro se desea permitir múltiples influencias, el campo `masterId` debería convertirse en una relación de muchos a muchos (a través de una tabla intermedia) y la interfaz de usuario para la selección y visualización se volvería más compleja.
 *   **Rendimiento:** El dibujo de muchas líneas dinámicas puede afectar el rendimiento. Se deberán aplicar optimizaciones si la cantidad de conexiones es muy alta.
 *   **UI/UX:** Es crucial que la representación visual sea clara e intuitiva, evitando el desorden.
+
+---
+
+## Tarea Pendiente: Conexión de Tareas y Evaluaciones con el Plan de Clases (Docentes)
+
+**Objetivo:** Conectar las Tareas y Evaluaciones con las Unidades del Plan de Clases para mejorar la organización y trazabilidad.
+
+---
+
+#### **Fase 1: Backend (composer-backend)**
+
+1.  **Modificación del Esquema Prisma (`prisma/schema.prisma`):**
+    *   Añadir el campo `unidadPlanId` al modelo `TareaMaestra` y `Evaluacion`.\
+    *   Añadir las relaciones inversas `tareas TareaMaestra[]` y `evaluaciones Evaluacion[]` al modelo `UnidadPlan`.
+2.  **Migración de Base de Datos:**
+    *   Generar y aplicar una nueva migración de Prisma. Si se detecta un drift, se debe ejecutar `npx prisma migrate reset --force` para limpiar la base de datos de desarrollo y luego `npx prisma migrate dev --name <nombre_de_la_migracion>` para aplicar todas las migraciones desde cero.
+    *   Comandos útiles para la gestión de la base de datos de desarrollo:
+        *   `cd composer-backend && npx prisma migrate reset --force`: Reinicia completamente la base de datos y aplica todas las migraciones. **¡Esto borrará todos los datos!**
+        *   `cd composer-backend && npx prisma migrate dev --name <nombre_de_la_migracion>`: Genera una nueva migración si hay cambios en el esquema y la aplica.
+        *   `cd composer-backend && node wipe_db.js`: Script para limpiar la base de datos.
+        *   `cd composer-backend && node seed_db.js`: Script para cargar datos iniciales en la base de datos.
+
+---
+
+#### **Fase 2: Frontend (composer-frontend) - REESTRUCTURACIÓN**
+
+**Objetivo Revisado:** La gestión de Tareas y Evaluaciones se realizará directamente desde el contexto de una `UnidadPlan` específica, a la que se accede a través de un `PlanDeClases`.
+
+1.  **Actualización del Cliente API (`src/api.js`):**
+    *   Modificar las funciones relevantes para Tareas y Evaluaciones para aceptar y enviar el `unidadPlanId` al backend.
+    *   Asegurarse de que las funciones para obtener `PlanDeClases` y `UnidadPlan` estén actualizadas (ya realizado: `getDocentePlanesDeClase` y `getUnidadesPlanPorPlan`).
+
+2.  **Modificación de Formularios (`TareaForm.js`, `EvaluationForm.js`):**
+    *   Añadir un campo de selección de `PlanDeClases`.
+    *   El campo de selección de `UnidadPlan` debe depender del `PlanDeClases` seleccionado, listando solo las unidades correspondientes. (Ya realizado).
+
+3.  **Reestructuración de Vistas en `DocenteCatedraDetailPage.js`:**
+    *   **Vista Principal de Cátedra:** Contendrá el "Tablón de Clases", el "Módulo de Gestión de Plan de Clases", el "Módulo de Gestión de Alumnos" y el "Módulo de Gestión de Asistencias".
+    *   **Módulo de Gestión de Plan de Clases (`PlanDeClasesTable.js`):**
+        *   Listará los `PlanDeClases` de la cátedra.
+        *   Por cada `PlanDeClases`, al "Ver Detalles", se accederá a la lista de `UnidadPlan`.
+    *   **Dentro de `PlanDeClasesTable.js` (o un nuevo componente de detalles de unidad):**
+        *   Cada `UnidadPlan` listada tendrá un botón o acción para **"Gestionar Tareas y Evaluaciones de la Unidad"**.
+        *   Al activar esta acción, se mostrará una vista dedicada a las Tareas y Evaluaciones asociadas específicamente a esa `UnidadPlan`. Las secciones de "Tareas del Curso" y "Evaluaciones" (que actualmente están en `DocenteCatedraDetailPage.js`) se moverán a esta vista.
+
+4.  **Actualización de `TaskTable.js` y `EvaluationCard.js` (u otros componentes de listado):**
+    *   Adaptar estos componentes para que reciban y muestren datos filtrados por `UnidadPlanId`.
+    *   Asegurar que los botones de "Crear Tarea" y "Generar Evaluación" en la nueva ubicación (dentro de la gestión de una `UnidadPlan`) pasen automáticamente el `unidadPlanId` correcto.
+
 
 ---

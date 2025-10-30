@@ -135,7 +135,7 @@ const api = {
 
   // ==== Endpoints para Docentes (Cátedras) ====
   getDocenteCatedras: () => apiClient.get('/docente/me/catedras'),
-  getDocentePlanesDeClaseForCatedra: (catedraId) => apiClient.get(`/docente/me/catedra/${catedraId}/planes`),
+  getDocentePlanesDeClase: (catedraId) => apiClient.get(`/docente/me/catedra/${catedraId}/planes`),
   getDocenteCatedraDetalles: (catedraId) => apiClient.get(`/docente/me/catedra/${catedraId}`),
   createDiaClase: (catedraId, data) => apiClient.post(`/docente/catedra/${catedraId}/diasclase`, data),
   getDocenteDiasClase: (catedraId) => apiClient.get(`/docente/catedra/${catedraId}/diasclase`),
@@ -146,7 +146,9 @@ const api = {
   // ==== Endpoints para Docentes (Evaluaciones) ====
   getDocenteEvaluacionesMaestras: (catedraId) => apiClient.get(`/docente/catedra/${catedraId}/evaluaciones-maestras`),
   generateDocenteEvaluation: (catedraId, data) => apiClient.post(`/docente/catedra/${catedraId}/generate-evaluation`, data),
-  assignEvaluationToAlumnos: (catedraId, evaluationId, alumnoIds, fecha_limite) => apiClient.post(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}/assign`, { alumnoIds, fecha_limite }),
+  updateDocenteEvaluation: (evaluationId, data) => apiClient.put(`/docente/evaluaciones/${evaluationId}`, data),
+  assignEvaluationToAlumnos: (catedraId, evaluationId, data) => apiClient.post(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}/assign`, data),
+  getAssignedEvaluationStudents: (catedraId, evaluationId) => apiClient.get(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}/assignments`),
   getDocenteEvaluationById: (evaluationId) => apiClient.get(`/docente/evaluaciones/${evaluationId}`),
   deleteDocenteEvaluation: (catedraId, evaluationId) => apiClient.delete(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}`),
   // ==== Endpoints para Docentes (Autenticación) ====
@@ -162,6 +164,7 @@ const api = {
   updatePlanDeClases: (planId, data) => apiClient.put(`/docente/me/planes/${planId}`, data),
   deletePlanDeClases: (planId) => apiClient.delete(`/docente/me/planes/${planId}`),
   createUnidadPlan: (planId, data) => apiClient.post(`/docente/me/planes/${planId}/unidades`, data),
+  getUnidadesPlanPorPlan: (planId) => apiClient.get(`/docente/me/planes/${planId}/unidades-plan`),
   updateUnidadPlan: (unidadId, data) => apiClient.put(`/docente/me/unidades/${unidadId}`, data),
   deleteUnidadPlan: (unidadId) => apiClient.delete(`/docente/me/unidades/${unidadId}`),
 
@@ -175,7 +178,11 @@ const api = {
   calificarTarea: (tareaAsignacionId, data) => apiClient.post(`/docente/tareasAsignaciones/${tareaAsignacionId}/calificar`, data),
   createTareaForDocenteCatedra: (catedraId, data) => apiClient.post(`/docente/catedra/${catedraId}/tareas`, data),
   updateTareaForDocenteCatedra: (catedraId, tareaMaestraId, data) => apiClient.put(`/docente/catedra/${catedraId}/tareas/${tareaMaestraId}`, data),
+  updateTareaForDocenteCatedra: (catedraId, tareaMaestraId, data) => apiClient.put(`/docente/catedra/${catedraId}/tareas/${tareaMaestraId}`, data),
   deleteTareaForDocente: (catedraId, tareaMaestraId) => apiClient.delete(`/docente/catedra/${catedraId}/tareas/${tareaMaestraId}`),
+
+  getTareasMaestrasPorUnidad: (catedraId, unidadId) => apiClient.get(`/docente/catedra/${catedraId}/unidad/${unidadId}/tareas-maestras`),
+  getEvaluacionesPorUnidad: (catedraId, unidadId) => apiClient.get(`/docente/catedra/${catedraId}/unidad/${unidadId}/evaluaciones`),
   
 
   uploadTareaMultimedia: (file) => {

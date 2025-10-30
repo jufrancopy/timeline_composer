@@ -12,26 +12,43 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
   const [externalUrls, setExternalUrls] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [multimediaPath, setMultimediaPath] = useState(null); // To store existing multimedia path
+  const [planesDeClases, setPlanesDeClases] = useState([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [unidadesPlan, setUnidadesPlan] = useState([]);
+  const [selectedUnidadId, setSelectedUnidadId] = useState('');
 
   useEffect(() => {
     if (isEditMode && initialData) {
       setTitulo(initialData.titulo || '');
       setDescripcion(initialData.descripcion || '');
       setPuntosPosibles(initialData.puntos_posibles || '');
-      setFechaEntrega(initialData.fecha_entrega ? new Date(initialData.fecha_entrega).toISOString().split('T')[0] : '');
-      
-      // Filter out multimedia_path from resources and set externalUrls
-      if (initialData.recursos && Array.isArray(initialData.recursos)) {
-        const existingExternalUrls = initialData.recursos.filter(url => 
-          url !== initialData.multimedia_path && url.trim() !== ''
-        ).join('\n');
-        setExternalUrls(existingExternalUrls);
+      // Formatear la fecha para input[type="date"]
+      if (initialData.fecha_entrega) {
+        const date = new Date(initialData.fecha_entrega);
+        setFechaEntrega(date.toISOString().split('T')[0]);
       } else {
-        setExternalUrls('');
+        setFechaEntrega('');
       }
-      setMultimediaPath(initialData.multimedia_path || null);
-    } else {
-      // Reset form if not in edit mode or no initial data
+
+      // Asignar URLs externas y multimediaPath
+      const currentExternalUrls = initialData.recursos
+        ? initialData.recursos.filter(url => !url.startsWith('uploads/')).join('\n')
+        : '';
+      setExternalUrls(currentExternalUrls);
+
+      const currentMultimediaPath = initialData.recursos
+        ? initialData.recursos.find(url => url.startsWith('uploads/'))
+        : null;
+      setMultimediaPath(currentMultimediaPath);
+      
+      // Si initialData ya tiene unidadPlanId, úsala
+      if (initialData.unidadPlanId) {
+        setSelectedUnidadId(initialData.unidadPlanId);
+      }
+      // Si no, y hay un planId en initialData, podrías necesitar cargar las unidades del plan
+      // y luego seleccionar la unidad si es necesario. Por ahora, nos centramos en la carga directa.
+    } else if (!isEditMode) {
+      // Resetear formulario para el modo de creación
       setTitulo('');
       setDescripcion('');
       setPuntosPosibles('');
@@ -39,8 +56,16 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
       setExternalUrls('');
       setSelectedFile(null);
       setMultimediaPath(null);
+      // Si se pasa una unidadPlanId para creación (ej. desde UnidadContentManagement),
+      // asegúrate de que se preseleccione.
+      if (initialData?.unidadPlanId) {
+        setSelectedUnidadId(initialData.unidadPlanId);
+      } else {
+        setSelectedUnidadId('');
+      }
     }
-  }, [isEditMode, initialData]);
+  }, [initialData, isEditMode]);
+
 
   const handleFileChange = (e) => {
     setSelectedFile(e.target.files[0]);
@@ -82,6 +107,7 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
       fecha_entrega: fecha_entrega || null,
       recursos: finalRecursos,
       multimedia_path: finalMultimediaPath,
+      unidadPlanId: selectedUnidadId ? parseInt(selectedUnidadId, 10) : null,
     };
 
     try {
@@ -90,7 +116,6 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
         toast.success('Tarea actualizada exitosamente!');
         onTareaUpdated(initialData.id, tareaData);
       } else {
-        console.log('[TareaForm] Enviando datos de tarea al backend:', tareaData);
         const apiFunction = userType === 'docente' ? api.createTareaForDocenteCatedra : api.createTareaForCatedra;
         const response = await apiFunction(catedraId, tareaData);
 
@@ -136,6 +161,7 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
           min="1"
         />
       </div>
+
       <div>
         <label htmlFor="fecha_entrega" className="block text-sm font-medium text-gray-300">Fecha de Entrega (Opcional)</label>
         <input

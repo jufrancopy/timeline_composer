@@ -1,14 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Eye, Target, Trash2 } from 'lucide-react';
+import { Eye, Target, Trash2, UserPlus, BookOpen, BookMarked, CalendarCheck } from 'lucide-react';
 
 const EvaluationCard = ({ 
   catedraId, 
   evaluacion, 
   onDeleteEvaluation, 
+  onAssignEvaluation, 
   showStatus = false, 
-  showActions = false 
+  showActions = false, 
+  docenteView = false 
 }) => {
   // Función para obtener el estado desde EvaluacionAsignacion
   const getEstado = () => {
@@ -61,13 +63,27 @@ const EvaluationCard = ({
         </div>
       </div>
 
-      <div className="space-y-1">
-        <p className="text-sm text-gray-400">
-          <strong>Cátedra:</strong> {evaluacion.Catedra?.nombre || 'N/A'}
-        </p>
-        <p className="text-sm text-gray-400">
-          <strong>Fecha de Creación:</strong> {format(new Date(evaluacion.created_at), 'dd/MM/yyyy')}
-        </p>
+      <div className="flex flex-col space-y-1 text-sm text-gray-400">
+        <div className="flex items-center gap-2">
+          <BookOpen size={16} className="text-emerald-400" />
+          <span><strong>Cátedra:</strong> {evaluacion.Catedra?.nombre || 'N/A'}</span>
+        </div>
+        {evaluacion.UnidadPlan?.PlanDeClases?.titulo && (
+          <div className="flex items-center gap-2">
+            <BookMarked size={16} className="text-blue-400" />
+            <span><strong>Plan:</strong> {evaluacion.UnidadPlan.PlanDeClases.titulo}</span>
+          </div>
+        )}
+        {evaluacion.UnidadPlan?.periodo && (
+          <div className="flex items-center gap-2">
+            <Target size={16} className="text-purple-400" />
+            <span><strong>Unidad:</strong> {evaluacion.UnidadPlan.periodo}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-700">
+          <CalendarCheck size={16} className="text-gray-400" />
+          <span><strong>Fecha de Creación:</strong> {format(new Date(evaluacion.created_at), 'dd/MM/yyyy')}</span>
+        </div>
       </div>
       
       <div className="mt-4 pt-4 border-t border-slate-700 flex items-center gap-2">
@@ -81,7 +97,7 @@ const EvaluationCard = ({
         </Link>
 
         {/* Botón adicional de acciones (realizar evaluación para alumnos) */}
-        {showActions && (
+        {showActions && !docenteView && ( // Muestra este botón solo si showActions es true y NO es vista de docente
           <Link
             to={`/evaluacion/${evaluacion.id}`}
             className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-500/30"
@@ -98,6 +114,16 @@ const EvaluationCard = ({
             title="Eliminar Evaluación"
           >
             <Trash2 size={16} />
+          </button>
+        )}
+
+        {onAssignEvaluation && (
+          <button
+            onClick={() => onAssignEvaluation(evaluacion)}
+            className="p-2 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-500/30 ml-2"
+            title="Asignar Evaluación a Alumnos"
+          >
+            <UserPlus size={16} />
           </button>
         )}
       </div>

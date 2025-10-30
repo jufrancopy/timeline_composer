@@ -3,22 +3,21 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../api';
 import { jwtDecode } from 'jwt-decode';
 import Modal from '../components/Modal';
-import TareaForm from '../components/TareaForm';
-import EvaluationForm from '../components/EvaluationForm';
 import DiaClaseForm from '../components/DiaClaseForm';
 import AttendanceForm from '../components/AttendanceForm';
 import PublicacionForm from '../components/PublicacionForm';
 import PublicacionCard from '../components/PublicacionCard';
-import EvaluationCard from '../components/EvaluationCard';
 import PlanDeClasesForm from '../components/PlanDeClasesForm';
 import PlanDeClasesTable from '../components/PlanDeClasesTable';
+import UnidadPlanTable from '../components/UnidadPlanTable';
+import UnidadContentManagement from '../components/UnidadContentManagement';
+import TaskDetailsModal from '../components/TaskDetailsModal';
+import AssignTaskToStudentsModal from '../components/AssignTaskToStudentsModal';
+import AssignEvaluationToStudentsModal from '../components/AssignEvaluationToStudentsModal';
 import Swal from 'sweetalert2';
-import TaskTable from '../components/TaskTable';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Toaster, toast } from 'react-hot-toast'; // Importar Toaster y toast
-import AssignTareaForm from '../components/AssignTareaForm'; // Import the new component
-import AssignEvaluationForm from '../components/AssignEvaluationForm'; // Import the new component
+import { Toaster, toast } from 'react-hot-toast';
 import { 
   ArrowLeft, 
   Plus, 
@@ -30,18 +29,10 @@ import {
   Clock, 
   MapPin,
   BookOpen,
-  Award,
-  CheckCircle,
   AlertCircle,
   DollarSign,
   MessageSquare,
-  Star,
-  TrendingUp,
-  Activity,
-  FileText,
-  Brain,
   UserMinus,
-  Target,
   ClipboardCheck
 } from 'lucide-react';
 
@@ -51,20 +42,6 @@ const DocenteCatedraDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // State variables for modals/forms
-  const [isTareaModalOpen, setIsTareaModalOpen] = useState(false);
-  const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
-  const [isEditTareaModalOpen, setIsEditTareaModalOpen] = useState(false);
-  const [editingTarea, setEditingTarea] = useState(null);
-  const [isTaskDetailModalOpen, setIsTaskDetailModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const [isAssignTareaModalOpen, setIsAssignTareaModalOpen] = useState(false); // New state for assign task modal
-  const [selectedTareaToAssign, setSelectedTareaToAssign] = useState(null); // New state to hold task ID for assignment
-  const [isAssignEvaluationModalOpen, setIsAssignEvaluationModalOpen] = useState(false);
-  const [selectedEvaluationToAssign, setSelectedEvaluationToAssign] = useState(null);
-
   // State for DiaClase and Asistencia
   const [diasClase, setDiasClase] = useState([]);
   const [isDiaClaseModalOpen, setIsDiaClaseModalOpen] = useState(false);
@@ -77,7 +54,6 @@ const DocenteCatedraDetailPage = () => {
 
   // State for Publicaciones (Tablón)
   const [publicaciones, setPublicaciones] = useState([]);
-  const [processedTareasMaestras, setProcessedTareasMaestras] = useState([]);
   const [isPublicacionModalOpen, setIsPublicacionModalOpen] = useState(false);
   const [editingPublicacion, setEditingPublicacion] = useState(null);
   const [publicationLoading, setPublicationLoading] = useState(false);
@@ -87,12 +63,33 @@ const DocenteCatedraDetailPage = () => {
   const [isPlanDeClasesModalOpen, setIsPlanDeClasesModalOpen] = useState(false);
   const [editingPlanDeClases, setEditingPlanDeClases] = useState(null);
   const [selectedPlanDeClases, setSelectedPlanDeClases] = useState(null);
+  const [viewingTask, setViewingTask] = useState(null);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [selectedTaskForAssignment, setSelectedTaskForAssignment] = useState(null);
+  const [isAssignEvaluationModalOpen, setIsAssignEvaluationModalOpen] = useState(false);
+  const [selectedEvaluationForAssignment, setSelectedEvaluationForAssignment] = useState(null);
+
+  const handleViewTask = (task) => {
+    setViewingTask(task);
+  };
+
+  const handleAssignTask = (task) => {
+    console.log("DocenteCatedraDetailPage - handleAssignTask called with task:", task);
+    setSelectedTaskForAssignment(task);
+    setIsAssignModalOpen(true);
+    console.log("DocenteCatedraDetailPage - After state update: selectedTaskForAssignment=", task, "isAssignModalOpen=true");
+  };
+
+  const handleAssignEvaluation = (evaluation) => {
+    console.log("DocenteCatedraDetailPage - handleAssignEvaluation called with evaluation:", evaluation);
+    setSelectedEvaluationForAssignment(evaluation);
+    setIsAssignEvaluationModalOpen(true);
+    console.log("DocenteCatedraDetailPage - After state update: selectedEvaluationForAssignment=", evaluation, "isAssignEvaluationModalOpen=true");
+  };
+
 
   // Stats para el dashboard
   const [stats, setStats] = useState({
-    tareasAsignadas: 0,
-    tareasEntregadas: 0,
-    evaluacionesCreadas: 0,
     alumnosInscritos: 0
   });
 
@@ -102,17 +99,9 @@ const DocenteCatedraDetailPage = () => {
       setCatedra(response.data);
       
       // Calcular estadísticas
-      const tareasMaestras = response.data.TareaMaestra || [];
-      const evaluacionesMaestras = response.data.Evaluacion || [];
       const alumnos = response.data.CatedraAlumno || [];
       
       setStats({
-        tareasAsignadas: tareasMaestras.length,
-        tareasEntregadas: tareasMaestras.reduce((acc, tarea) => {
-          const entregadasYCalificadas = tarea.TareaAsignacion.filter(asig => asig.estado === 'ENTREGADA' || asig.estado === 'CALIFICADA').length;
-          return acc + entregadasYCalificadas;
-        }, 0),
-        evaluacionesCreadas: evaluacionesMaestras.length,
         alumnosInscritos: alumnos.length
       });
 
@@ -171,7 +160,7 @@ const DocenteCatedraDetailPage = () => {
       }
     }
     setStudentPaymentStatuses(statuses);
-  }, [id]);
+  }, []);
 
   const fetchPublicaciones = useCallback(async () => {
     try {
@@ -184,58 +173,19 @@ const DocenteCatedraDetailPage = () => {
 
   const fetchPlanesDeClase = useCallback(async () => {
     try {
-      const response = await api.getDocentePlanesDeClaseForCatedra(id);
+      const response = await api.getDocentePlanesDeClase(id);
       setPlanesDeClase(response.data);
     } catch (err) {
       console.error("Error al cargar planes de clases:", err);
     }
   }, [id]);
 
-  // Helper functions for TaskTable
-  const getStatusColor = (taskOrEstado) => {
-    if (typeof taskOrEstado === 'object' && taskOrEstado !== null) {
-      // This is a TareaMaestra object, not a TareaAsignacion status
-      // For master tasks, we might want a generic color or derive from overall assignment status
-      // For now, let's return a default for master tasks
-      return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'; // A distinct color for master tasks
-    }
-    // If it's a string, it's a TareaAsignacion status
-    switch (taskOrEstado) {
-      case 'ASIGNADA': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-      case 'ENTREGADA': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
-      case 'CALIFICADA': return 'bg-green-500/20 text-green-300 border-green-500/30';
-      case 'VENCIDA': return 'bg-red-500/20 text-red-300 border-red-500/30';
-      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
-    }
-  };
-
-  const getTaskStatusDisplay = (taskOrEstado) => {
-    if (typeof taskOrEstado === 'object' && taskOrEstado !== null) {
-      // This is a TareaMaestra object
-      // We can display a generic status or check if it has any assignments
-      if (taskOrEstado.TareaAsignacion && taskOrEstado.TareaAsignacion.length > 0) {
-        // If there are assignments, we could summarize, but for simplicity, let's say 'Maestra con Asignaciones'
-        return 'Maestra (Asignada)'; 
-      } else {
-        return 'Maestra (Sin Asignar)';
-      }
-    }
-    // If it's a string, it's a TareaAsignacion status
-    switch (taskOrEstado) {
-      case 'ASIGNADA': return 'Asignada';
-      case 'ENTREGADA': return 'Entregada';
-      case 'CALIFICADA': return 'Calificada';
-      case 'VENCIDA': return 'Vencida';
-      default: return taskOrEstado;
-    }
-  };
-
   useEffect(() => {
     fetchCatedra();
     fetchDiasClase();
     fetchPublicaciones();
     fetchPlanesDeClase();
-  }, [id, fetchCatedra, fetchDiasClase, fetchPublicaciones, fetchPlanesDeClase]);
+  }, [fetchCatedra, fetchDiasClase, fetchPublicaciones, fetchPlanesDeClase]);
 
   useEffect(() => {
     if (selectedPlanDeClases && planesDeClase.length > 0) {
@@ -249,13 +199,6 @@ const DocenteCatedraDetailPage = () => {
   useEffect(() => {
     fetchAnnualAttendance();
   }, [fetchAnnualAttendance]);
-
-  useEffect(() => {
-    if (catedra?.TareaMaestra) {
-      const processed = catedra.TareaMaestra.map(tarea => ({ ...tarea }));
-      setProcessedTareasMaestras(processed);
-    }
-  }, [catedra]);
 
   const handleDiaClaseCreated = () => {
     fetchDiasClase();
@@ -331,123 +274,6 @@ const DocenteCatedraDetailPage = () => {
       case 'GRATUITO': return 'Gratuito';
       case 'ERROR_CARGA': return 'Error al Cargar';
       default: return 'Desconocido';
-    }
-  };
-
-  const handleTareaCreated = async (createdTarea) => {
-    fetchCatedra();
-    setIsTareaModalOpen(false);
-    toast.success(`Tarea '${createdTarea.titulo}' creada exitosamente. Asígnala para publicarla en el tablón.`);
-    fetchPublicaciones(); // Actualizar el tablón de publicaciones después de crear una tarea
-  };
-
-  const handleAssignTarea = (tarea) => {
-    setSelectedTareaToAssign(tarea);
-    setIsAssignTareaModalOpen(true);
-  };
-
-  const handleTareaAssigned = () => {
-    fetchCatedra();
-    setIsAssignTareaModalOpen(false);
-    setSelectedTareaToAssign(null);
-    toast.success('Tarea asignada a los alumnos con éxito.');
-    fetchPublicaciones(); // Actualizar el tablón de publicaciones también
-  };
-
-  const handleAssignEvaluation = (evaluationId) => {
-    setSelectedEvaluationToAssign(evaluationId);
-    setIsAssignEvaluationModalOpen(true);
-  };
-
-  const handleEvaluationAssigned = () => {
-    fetchCatedra();
-    setIsAssignEvaluationModalOpen(false);
-    setSelectedEvaluationToAssign(null);
-    toast.success('Evaluación asignada a los alumnos con éxito.');
-    fetchPublicaciones(); // Refetch publications to update tablón visibility
-  };
-
-  const handleTareaUpdated = async (tareaMaestraId, updatedTareaData) => {
-    try {
-      await api.updateTareaForDocenteCatedra(catedra.id, tareaMaestraId, updatedTareaData);
-      toast.success('Tarea maestra actualizada exitosamente.');
-      fetchCatedra();
-      fetchPublicaciones(); // Para actualizar cualquier cambio en la publicación asociada
-      setIsEditTareaModalOpen(false);
-      setEditingTarea(null);
-    } catch (error) {
-      toast.error(error.response?.data?.error || 'Error al actualizar la tarea maestra.');
-      console.error('Error al actualizar la tarea maestra:', error);
-    }
-  };
-
-  const handleDeleteTarea = async (tareaId) => {
-    const result = await Swal.fire({
-      title: '¿Estás seguro?',
-      text: "¡No podrás revertir esto!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Sí, ¡eliminarla!',
-      cancelButtonText: 'Cancelar'
-    });
-    if (result.isConfirmed) {
-      try {
-        await api.deleteTareaForDocente(catedra.id, tareaId);
-        Swal.fire('¡Eliminada!', 'La tarea ha sido eliminada.', 'success');
-        fetchCatedra();
-        fetchPublicaciones(); // Actualizar el tablón de publicaciones también
-      } catch (error) {
-        Swal.fire('Error', error.response?.data?.error || 'Error al eliminar la tarea.', 'error');
-      }
-    }
-  };
-
-  const handleEditTarea = (tarea) => {
-    setEditingTarea(tarea);
-    setIsEditTareaModalOpen(true);
-  };
-
-  const handleGenerateEvaluation = async (topic, subject, numberOfQuestions, numberOfOptions) => {
-    setIsGenerating(true);
-    try {
-      const response = await api.generateDocenteEvaluation(id, { topic, subject, numberOfQuestions, numberOfOptions });
-      const createdEvaluation = response.data;
-      Swal.fire({
-        title: '¡Éxito!',
-        text: 'La evaluación ha sido generada y guardada correctamente. Asígnala para publicarla en el tablón.',
-        icon: 'success',
-        timer: 3000,
-        showConfirmButton: false
-      });
-      setIsEvaluationModalOpen(false);
-      fetchCatedra();
-      fetchPublicaciones(); // Actualizar el tablón de publicaciones después de crear una evaluación
-    } catch (error) {
-      let errorMessage = error.response?.data?.error || 'No se pudo generar la evaluación.';
-      if (errorMessage.includes('The model is overloaded')) {
-        errorMessage = 'El modelo de IA está sobrecargado. Por favor, inténtalo de nuevo más tarde.';
-      }
-      Swal.fire('Error', errorMessage, 'error');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-
-  const openTaskDetailModal = (task) => {
-    setSelectedTask(task);
-    setIsTaskDetailModalOpen(true);
-  };
-
-  const handleToggleVisibility = async (publicacionId, catedraId) => {
-    try {
-      await api.togglePublicacionVisibility(publicacionId, catedraId);
-      toast.success('Visibilidad de la tarea actualizada.');
-      fetchPublicaciones();
-    } catch (error) {
-      toast.error(error.response?.data?.error || 'Error al cambiar la visibilidad.');
     }
   };
 
@@ -547,7 +373,7 @@ const DocenteCatedraDetailPage = () => {
         await api.addInteraction(publicacionId);
         toast.success('¡Has interactuado con la publicación!');
       }
-      fetchPublicaciones(); // Refrescar publicaciones para actualizar conteo y estado
+      fetchPublicaciones();
     } catch (error) {
       console.error("Error al interactuar con la publicación:", error);
       toast.error('Error al interactuar con la publicación.');
@@ -561,28 +387,6 @@ const DocenteCatedraDetailPage = () => {
       fetchPublicaciones();
     } catch (error) {
       Swal.fire('Error', error.response?.data?.error || 'Error al eliminar el comentario.', 'error');
-    }
-  };
-
-  const handleDeleteEvaluation = async (evaluationId) => {
-    const result = await Swal.fire({
-      title: '¿Estás seguro?',
-      text: "¡Esta acción eliminará la evaluación y todas sus preguntas/opciones asociadas!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Sí, ¡eliminarla!',
-      cancelButtonText: 'Cancelar'
-    });
-    if (result.isConfirmed) {
-      try {
-        await api.deleteDocenteEvaluation(id, evaluationId);
-        Swal.fire('¡Eliminada!', 'La evaluación ha sido eliminada.', 'success');
-        fetchCatedra();
-      } catch (error) {
-        Swal.fire('Error', error.response?.data?.error || 'Error al eliminar la evaluación.', 'error');
-      }
     }
   };
 
@@ -638,12 +442,9 @@ const DocenteCatedraDetailPage = () => {
     setSelectedPlanDeClases(null);
   };
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL;
-  const STATIC_ASSET_BASE_URL = API_BASE_URL.endsWith('/api') ? API_BASE_URL.slice(0, -4) : API_BASE_URL;
-
   // Extraer el ID del docente del token para usarlo en PublicacionCard
   const [currentDocenteId, setCurrentDocenteId] = useState(null);
-  const [userRole, setUserRole] = useState(null); // Nuevo estado para el rol del usuario
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('docenteToken');    
@@ -651,7 +452,7 @@ const DocenteCatedraDetailPage = () => {
       try {
         const decoded = jwtDecode(token);
         setCurrentDocenteId(decoded.docenteId);
-        setUserRole(decoded.role); // Extraer el rol del token
+        setUserRole(decoded.role);
       } catch (error) {
         console.error('Error decodificando el token del docente:', error);
         setCurrentDocenteId(null);
@@ -705,6 +506,7 @@ const DocenteCatedraDetailPage = () => {
 
   return (
     <>
+      <Toaster />
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950">
         {/* Header Navigation */}
         <div className="bg-slate-950/50 backdrop-blur-xl border-b border-slate-800/50">
@@ -722,6 +524,66 @@ const DocenteCatedraDetailPage = () => {
         </div>
 
         <div className="max-w-7xl mx-auto p-6 space-y-8">
+          {/* Sección de Tablón */}
+          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-600/20 rounded-lg">
+                    <MessageSquare className="text-green-400" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-white">Tablón de la Cátedra</h3>
+                    <p className="text-slate-400">{publicaciones?.length || 0} publicaciones</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => openPublicacionModal()}
+                  className="group inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-xl transition-all duration-300 shadow-lg shadow-green-900/25 hover:shadow-xl hover:shadow-green-900/40 hover:scale-105"
+                >
+                  <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+                  <span>Crear Publicación</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {(publicaciones?.length === 0) ? (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
+                    <MessageSquare className="text-slate-500" size={32} />
+                  </div>
+                  <p className="text-slate-400 text-lg font-medium">No hay publicaciones</p>
+                  <p className="text-slate-500 text-sm mt-1">Comparte anuncios e información importante con tus estudiantes</p>
+                </div>
+              ) : (
+                (currentDocenteId !== null && currentDocenteId !== undefined) ? (
+                  <div className="space-y-6">
+                    {publicaciones.map(publicacion => (
+                      <PublicacionCard 
+                        key={publicacion.id} 
+                        publicacion={publicacion}
+                        onAddComment={handleAddComment}
+                        onDeletePublication={handleDeletePublicacion}
+                        onDeleteComment={handleDeleteComment}
+                        onEditPublication={() => openPublicacionModal(publicacion)}
+                        onInteractToggle={handleInteractToggle}
+                        userType="docente"
+                        userId={currentDocenteId}
+                        docenteId={currentDocenteId} 
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 border-4 border-purple-600/30 rounded-full animate-spin border-t-purple-500 mx-auto"></div>
+                    <p className="text-slate-400 mt-4">Cargando publicaciones...</p>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+
           {/* Header de la Cátedra */}
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900/80 via-purple-900/40 to-slate-900/80 backdrop-blur-xl border border-slate-700/50">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-pink-600/5 to-purple-600/10"></div>
@@ -746,28 +608,7 @@ const DocenteCatedraDetailPage = () => {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:min-w-0 lg:flex-shrink-0">
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Target className="text-blue-400" size={20} />
-                      <span className="text-xs text-slate-400 font-medium">TAREAS</span>
-                    </div>
-                    <div className="text-2xl font-bold text-white">{stats.tareasAsignadas}</div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle className="text-green-400" size={20} />
-                      <span className="text-xs text-slate-400 font-medium">ENTREGADAS</span>
-                    </div>
-                    <div className="text-2xl font-bold text-white">{stats.tareasEntregadas}</div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Brain className="text-purple-400" size={20} />
-                      <span className="text-xs text-slate-400 font-medium">EVALUACIONES</span>
-                    </div>
-                    <div className="text-2xl font-bold text-white">{stats.evaluacionesCreadas}</div>
-                  </div>
+                <div className="grid grid-cols-1 gap-4">
                   <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
                     <div className="flex items-center gap-2 mb-2">
                       <Users className="text-pink-400" size={20} />
@@ -816,170 +657,25 @@ const DocenteCatedraDetailPage = () => {
             </div>
           </div>
 
-          {/* Sección de Tareas */}
-          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-600/20 rounded-lg">
-                    <FileText className="text-purple-400" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-white">Tareas del Curso</h3>
-                    <p className="text-slate-400">{catedra.TareaMaestra?.length || 0} tareas asignadas</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsTareaModalOpen(true)}
-                  className="group inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-xl transition-all duration-300 shadow-lg shadow-purple-900/25 hover:shadow-xl hover:shadow-purple-900/40 hover:scale-105"
-                >
-                  <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
-                  <span>Crear Nueva Tarea</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {(catedra.TareaMaestra?.length || 0) === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
-                    <FileText className="text-slate-500" size={32} />
-                  </div>
-                  <p className="text-slate-400 text-lg font-medium">No hay tareas asignadas</p>
-                  <p className="text-slate-500 text-sm mt-1">Crea la primera tarea para tus estudiantes</p>
-                </div>
-              ) : (
-                <TaskTable 
-                  tasks={processedTareasMaestras} 
-                  onEditTask={handleEditTarea} 
-                  onDeleteTask={handleDeleteTarea} 
-                  onViewTask={openTaskDetailModal} 
-                  onAssignTask={handleAssignTarea} // Pass the new handler
-                  onToggleVisibility={handleToggleVisibility}
-                  docenteView={true}
-                  getStatusColor={getStatusColor}
-                  getTaskStatusDisplay={getTaskStatusDisplay}
-                  showActions={true}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Sección de Evaluaciones */}
-          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-600/20 rounded-lg">
-                    <Brain className="text-green-400" size={24} />
-                  </div>
-                  <div>
-            <h3 className="text-xl sm:text-2xl font-bold text-white">Evaluaciones</h3>
-                    <p className="text-slate-400">{(catedra.Evaluacion?.length || 0)} evaluaciones creadas</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsEvaluationModalOpen(true)}
-                  className="group inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-xl transition-all duration-300 shadow-lg shadow-green-900/25 hover:shadow-xl hover:shadow-green-900/40 hover:scale-105"
-                >
-                  <Brain size={20} className="group-hover:scale-110 transition-transform duration-300" />
-                  <span>Generar con IA</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {(catedra.Evaluacion?.length || 0) === 0 ? (                <div className="text-center py-12">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
-                    <Brain className="text-slate-500" size={32} />
-                  </div>
-                  <p className="text-slate-400 text-lg font-medium">No hay evaluaciones</p>
-                  <p className="text-slate-500 text-sm mt-1">Usa IA para generar evaluaciones automáticamente</p>
-                </div>
-              ) : (
-                <>
-                  {/* Vista de tabla para pantallas grandes */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="border-b border-slate-700/50">
-                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Título</th>
-                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Preguntas</th>
-                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Fecha</th>
-                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Publicada</th>
-                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {catedra.Evaluacion.map((evaluacion, index) => (
-                          <tr key={evaluacion.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                            <td className="py-4 px-4">
-                              <div className="font-medium text-white">{evaluacion.titulo}</div>
-                            </td>
-                            <td className="py-4 px-4">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-600/20 text-blue-300 rounded-full text-sm border border-blue-500/30">
-                                <Target size={14} />
-                                {evaluacion.Pregunta?.length || 0}
-                              </span>
-                            </td>
-                            <td className="py-4 px-4 text-slate-300">
-                              {new Date(evaluacion.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="py-4 px-4">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border ${evaluacion.Publicacion?.visibleToStudents ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30'}`}>
-                                {
-                                  evaluacion.Publicacion && typeof evaluacion.Publicacion.visibleToStudents === 'boolean'
-                                    ? (evaluacion.Publicacion.visibleToStudents ? 'Sí' : 'No')
-                                    : 'N/A'
-                                }
-                              </span>
-                            </td>
-                            <td className="py-4 px-4">
-                              <div className="flex items-center gap-2">
-                                <Link 
-                                  to={`/docente/catedra/${catedra.id}/evaluation/${evaluacion.id}`} 
-                                  className="p-2 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-purple-200 rounded-lg transition-all duration-200 border border-purple-500/30"
-                                  title="Ver Detalles"
-                                >
-                                  <Eye size={16} />
-                                </Link>
-                                <button
-                                  onClick={() => handleAssignEvaluation(evaluacion.id)}
-                                  className="p-2 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-500/30"
-                                  title="Asignar Evaluación"
-                                >
-                                  <Users size={16} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteEvaluation(evaluacion.id)}
-                                  className="p-2 bg-red-600/20 text-red-300 hover:bg-red-600/30 hover:text-red-200 rounded-lg transition-all duration-200 border border-red-500/30"
-                                  title="Eliminar Evaluación"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Vista de tarjetas para pantallas pequeñas */}
-                  <div className="block md:hidden space-y-4">
-                    {catedra.Evaluacion.map(evaluacion => (
-                      <EvaluationCard 
-                        key={evaluacion.id} 
-                        catedraId={catedra.id} 
-                        evaluacion={evaluacion} 
-                        onDeleteEvaluation={handleDeleteEvaluation}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
+          {/* Sección de Planes de Clase */}
+          {selectedPlanDeClases ? (
+            <UnidadPlanTable
+              plan={selectedPlanDeClases}
+              onBackToPlanes={handleBackToPlanes}
+              fetchPlanesDeClase={fetchPlanesDeClase}
+              onViewTask={handleViewTask}
+              onAssignTask={handleAssignTask}
+              onAssignEvaluation={handleAssignEvaluation}
+            />
+          ) : (
+            <PlanDeClasesTable
+              planesDeClase={planesDeClase}
+              onEdit={openPlanDeClasesModal}
+              onDelete={handleDeletePlanDeClases}
+              onSelect={handleSelectPlanDeClases}
+              onCreate={() => openPlanDeClasesModal()}
+            />
+          )}
 
           {/* Sección de Días de Clase */}
           <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
@@ -1028,7 +724,6 @@ const DocenteCatedraDetailPage = () => {
                         <tr key={diaClase.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
                           <td className="py-4 px-4">
                             <div className="font-medium text-white">
-                              {/* FIX: Ajustar la fecha para la zona horaria local antes de formatear */}
                               {(() => {
                                 const date = new Date(diaClase.fecha);
                                 const userTimezoneOffset = date.getTimezoneOffset() * 60000;
@@ -1052,10 +747,7 @@ const DocenteCatedraDetailPage = () => {
                                 <Edit3 size={16} />
                               </button>
                               <button
-                                onClick={() => {
-                                  console.log('DiaClase ID to delete:', diaClase.id);
-                                  handleDeleteDiaClase(diaClase.id);
-                                }}
+                                onClick={() => handleDeleteDiaClase(diaClase.id)}
                                 className="p-2 bg-red-600/20 text-red-300 hover:bg-red-600/30 hover:text-red-200 rounded-lg transition-all duration-200 border border-red-500/30"
                                 title="Eliminar Día de Clase"
                               >
@@ -1066,7 +758,7 @@ const DocenteCatedraDetailPage = () => {
                                 className="p-2 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-purple-200 rounded-lg transition-all duration-200 border border-purple-500/30"
                                 title="Gestionar Asistencia"
                               >
-                                <CheckCircle size={16} />
+                                <ClipboardCheck size={16} />
                               </button>
                             </div>
                           </td>
@@ -1146,105 +838,6 @@ const DocenteCatedraDetailPage = () => {
             </div>
           </div>
 
-          {/* Sección de Plan de Clases */}
-          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-600/20 rounded-lg">
-                    <BookOpen className="text-indigo-400" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-white">Plan de Clases</h3>
-                    <p className="text-slate-400">{planesDeClase?.length || 0} planes creados</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => openPlanDeClasesModal()}
-                  className="group inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-medium rounded-xl transition-all duration-300 shadow-lg shadow-indigo-900/25 hover:shadow-xl hover:shadow-indigo-900/40 hover:scale-105"
-                >
-                  <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
-                  <span>Crear Nuevo Plan</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {selectedPlanDeClases ? (
-                <PlanDeClasesTable 
-                  plan={selectedPlanDeClases} 
-                  onBackToPlanes={handleBackToPlanes} 
-                  fetchPlanesDeClase={fetchPlanesDeClase}
-                />
-              ) : (
-                planesDeClase.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
-                      <BookOpen className="text-slate-500" size={32} />
-                  </div>
-                    <p className="text-slate-400 text-lg font-medium">No hay planes de clases creados</p>
-                    <p className="text-slate-500 text-sm mt-1">Comienza creando el primer plan para tu cátedra</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="border-b border-slate-700/50">
-                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Título</th>
-                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Organización</th>
-                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Fecha Creación</th>
-                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {planesDeClase.map((plan) => (
-                          <tr key={plan.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                            <td className="py-4 px-4">
-                              <div className="font-medium text-white">{plan.titulo}</div>
-                            </td>
-                            <td className="py-4 px-4">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-600/20 text-purple-300 rounded-full text-sm border border-purple-500/30">
-                                {plan.tipoOrganizacion === 'MES' ? 'Por Mes' : 'Por Módulo'}
-                              </span>
-                            </td>
-                            <td className="py-4 px-4 text-slate-300">
-                              {new Date(plan.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="py-4 px-4">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleSelectPlanDeClases(plan)} // This will open the PlanDeClasesTable view
-                                  className="p-2 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 hover:text-indigo-200 rounded-lg transition-all duration-200 border border-indigo-500/30"
-                                  title="Ver Detalles del Plan"
-                                >
-                                  <Eye size={16} />
-                                </button>
-                                <button
-                                  onClick={() => openPlanDeClasesModal(plan)}
-                                  className="p-2 bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/30 hover:text-yellow-200 rounded-lg transition-all duration-200 border border-yellow-500/30"
-                                  title="Editar Plan"
-                                >
-                                  <Edit3 size={16} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeletePlanDeClases(plan.id)}
-                                  className="p-2 bg-red-600/20 text-red-300 hover:bg-red-600/30 hover:text-red-200 rounded-lg transition-all duration-200 border border-red-500/30"
-                                  title="Eliminar Plan"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-
           {/* Sección de Alumnos */}
           <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
             <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
@@ -1285,12 +878,12 @@ const DocenteCatedraDetailPage = () => {
                           ? `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}` 
                           : inscripcion.Composer
                             ? `${inscripcion.Composer.student_first_name} ${inscripcion.Composer.student_last_name} (Contrib.)`
-                            : 'Nombre Desconocido'; // Fallback
+                            : 'Nombre Desconocido';
                         const email = inscripcion.Alumno 
                           ? inscripcion.Alumno.email 
                           : inscripcion.Composer
                             ? inscripcion.Composer.email
-                            : 'N/A'; // Fallback
+                            : 'N/A';
                         const studentIdentifier = inscripcion.alumnoId || inscripcion.composerId;
                         const paymentStatus = studentPaymentStatuses[studentIdentifier];
                         
@@ -1318,7 +911,7 @@ const DocenteCatedraDetailPage = () => {
                                 <Link 
                                   to={`/docente/catedra/${catedra.id}/alumno/${inscripcion.alumnoId || inscripcion.composerId}`}
                                   className="p-2 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 hover:text-indigo-200 rounded-lg transition-all duration-200 border border-indigo-500/30"
-                                  title="Revisar Tareas"
+                                  title="Ver Detalles"
                                 >
                                   <Eye size={16} />
                                 </Link>
@@ -1340,300 +933,122 @@ const DocenteCatedraDetailPage = () => {
               )}
             </div>
           </div>
-
-          {/* Sección de Tablón */}
-          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-600/20 rounded-lg">
-                    <MessageSquare className="text-green-400" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-white">Tablón de la Cátedra</h3>
-                    <p className="text-slate-400">{publicaciones?.length || 0} publicaciones</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => openPublicacionModal()}
-                  className="group inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-xl transition-all duration-300 shadow-lg shadow-green-900/25 hover:shadow-xl hover:shadow-green-900/40 hover:scale-105"
-                >
-                  <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
-                  <span>Crear Publicación</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {(publicaciones?.length === 0) ? (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
-                    <MessageSquare className="text-slate-500" size={32} />
-                  </div>
-                  <p className="text-slate-400 text-lg font-medium">No hay publicaciones</p>
-                  <p className="text-slate-500 text-sm mt-1">Comparte anuncios e información importante con tus estudiantes</p>
-                </div>
-              ) : (
-                (currentDocenteId !== null && currentDocenteId !== undefined) ? (
-                  <div className="space-y-6">
-                    {publicaciones.map(publicacion => (
-                      <PublicacionCard 
-                        key={publicacion.id} 
-                        publicacion={publicacion}
-                        onAddComment={handleAddComment}
-                        onDeletePublication={handleDeletePublicacion}
-                        onDeleteComment={handleDeleteComment}
-                        onEditPublication={() => openPublicacionModal(publicacion)}
-                        onInteractToggle={handleInteractToggle}
-                        onToggleVisibility={(publicacionId) => handleToggleVisibility(publicacionId, catedra.id)} // Nueva prop
-                        userType="docente"
-                        userId={currentDocenteId}
-                        docenteId={currentDocenteId} 
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 border-4 border-purple-600/30 rounded-full animate-spin border-t-purple-500 mx-auto"></div>
-                    <p className="text-slate-400 mt-4">Cargando publicaciones...</p>
-                  </div>
-                )
-              )}
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Modales */}
+      <Modal 
+        isOpen={isDiaClaseModalOpen} 
+        onClose={() => setIsDiaClaseModalOpen(false)} 
+        title={editingDiaClase ? "Editar Día de Clase" : "Crear Nuevo Día de Clase"} 
+        showSubmitButton={false} 
+        showCancelButton={false}
+      >
+        <DiaClaseForm 
+          catedraId={catedra?.id} 
+          onDiaClaseCreated={handleDiaClaseCreated} 
+          onDiaClaseUpdated={handleDiaClaseUpdated} 
+          onCancel={() => setIsDiaClaseModalOpen(false)} 
+          initialData={editingDiaClase} 
+          isEditMode={!!editingDiaClase} 
+          scheduledDays={catedra?.CatedraDiaHorario?.map(h => h.dia_semana)} 
+        />
+      </Modal>
+
+      {selectedDiaClaseForAttendance && (
         <Modal 
-          isOpen={isTareaModalOpen} 
-          onClose={() => setIsTareaModalOpen(false)} 
-          title="Crear Nueva Tarea" 
+          isOpen={isAttendanceModalOpen} 
+          onClose={() => setIsAttendanceModalOpen(false)} 
+          title={`Asistencia para ${(() => {
+            const date = new Date(selectedDiaClaseForAttendance.fecha);
+            const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+            const correctedDate = new Date(date.getTime() + userTimezoneOffset);
+            return format(correctedDate, 'dd/MM/yyyy');
+          })()} (${selectedDiaClaseForAttendance.dia_semana})`} 
           showSubmitButton={false} 
           showCancelButton={false}
         >
-          <TareaForm 
+          <AttendanceForm 
             catedraId={catedra?.id} 
-            onTareaCreated={handleTareaCreated} 
-            onCancel={() => setIsTareaModalOpen(false)} 
-            userType="docente" 
+            diaClaseId={selectedDiaClaseForAttendance.id} 
+            alumnos={catedra.CatedraAlumno}
+            onSave={handleSaveAttendance} 
+            onCancel={() => setIsAttendanceModalOpen(false)} 
           />
         </Modal>
+      )}
 
-        <Modal 
-          isOpen={isEditTareaModalOpen} 
-          onClose={() => setIsEditTareaModalOpen(false)} 
-          title="Editar Tarea" 
-          showSubmitButton={false} 
-          showCancelButton={false}
-        >
-          <TareaForm 
-            catedraId={catedra?.id} 
-            onTareaUpdated={handleTareaUpdated} 
-            onCancel={() => setIsEditTareaModalOpen(false)} 
-            userType="docente" 
-            initialData={editingTarea} 
-            isEditMode={true} 
-          />
-        </Modal>
+      <Modal 
+        isOpen={isPublicacionModalOpen} 
+        onClose={() => setIsPublicacionModalOpen(false)} 
+        title={editingPublicacion ? "Editar Publicación" : "Crear Nueva Publicación"} 
+        showSubmitButton={false} 
+        showCancelButton={false}
+      >
+        <PublicacionForm 
+          catedraId={catedra?.id} 
+          onSubmit={editingPublicacion ? handleEditPublicacion : handleCreatePublicacion} 
+          initialData={editingPublicacion || {}} 
+          isEditMode={!!editingPublicacion} 
+          loading={publicationLoading} 
+          onCancel={() => setIsPublicacionModalOpen(false)} 
+          userRole={userRole}
+          isTablonCreation={true}
+        />
+      </Modal>
 
-        <Modal 
-          isOpen={isEvaluationModalOpen} 
-          onClose={() => setIsEvaluationModalOpen(false)} 
-          title="Generar Nueva Evaluación con IA"
-        >
-          <EvaluationForm 
-            onSubmit={handleGenerateEvaluation} 
-            loading={isGenerating} 
-            onCancel={() => setIsEvaluationModalOpen(false)} 
-            userType="docente" 
-          />
-        </Modal>
+      <Modal
+        isOpen={isPlanDeClasesModalOpen}
+        onClose={() => setIsPlanDeClasesModalOpen(false)}
+        title={editingPlanDeClases ? "Editar Plan de Clases" : "Crear Nuevo Plan de Clases"}
+        showSubmitButton={false}
+        showCancelButton={false}
+      >
+        <PlanDeClasesForm
+          catedraId={catedra?.id}
+          onPlanCreated={handlePlanDeClasesCreated}
+          onPlanUpdated={handlePlanDeClasesUpdated}
+          onCancel={() => setIsPlanDeClasesModalOpen(false)}
+          initialData={editingPlanDeClases}
+          isEditMode={!!editingPlanDeClases}
+        />
+      </Modal>
 
-        <Modal 
-          isOpen={isDiaClaseModalOpen} 
-          onClose={() => setIsDiaClaseModalOpen(false)} 
-          title={editingDiaClase ? "Editar Día de Clase" : "Crear Nuevo Día de Clase"} 
-          showSubmitButton={false} 
-          showCancelButton={false}
-        >
-          <DiaClaseForm 
-            catedraId={catedra?.id} 
-            onDiaClaseCreated={handleDiaClaseCreated} 
-            onDiaClaseUpdated={handleDiaClaseUpdated} 
-            onCancel={() => setIsDiaClaseModalOpen(false)} 
-            initialData={editingDiaClase} 
-            isEditMode={!!editingDiaClase} 
-            scheduledDays={catedra?.CatedraDiaHorario?.map(h => h.dia_semana)} 
-          />
-        </Modal>
+      <TaskDetailsModal 
+        isOpen={!!viewingTask} 
+        onClose={() => setViewingTask(null)} 
+        task={viewingTask} 
+      />
 
-        {selectedDiaClaseForAttendance && (
-          <Modal 
-            isOpen={isAttendanceModalOpen} 
-            onClose={() => setIsAttendanceModalOpen(false)} 
-            title={`Asistencia para ${(() => {
-              const date = new Date(selectedDiaClaseForAttendance.fecha);
-              const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-              const correctedDate = new Date(date.getTime() + userTimezoneOffset);
-              return format(correctedDate, 'dd/MM/yyyy');
-            })()} (${selectedDiaClaseForAttendance.dia_semana})`} 
-            showSubmitButton={false} 
-            showCancelButton={false}
-          >
-            <AttendanceForm 
-              catedraId={catedra?.id} 
-              diaClaseId={selectedDiaClaseForAttendance.id} 
-              alumnos={catedra.CatedraAlumno}
-              onSave={handleSaveAttendance} 
-              onCancel={() => setIsAttendanceModalOpen(false)} 
-            />
-          </Modal>
-        )}
+      {selectedTaskForAssignment && (
+        <AssignTaskToStudentsModal
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
+          task={selectedTaskForAssignment}
+          students={catedra?.CatedraAlumno?.map(ca => ca.Alumno || ca.Composer) || []}
+          catedraId={catedra?.id}
+          onTaskAssigned={() => {
+            console.log('Tarea asignada, refrescando planes de clase...');
+            fetchPlanesDeClase(); // Esto recargará todas las unidades y tareas
+          }}
+        />
+      )}
 
-        <Modal 
-          isOpen={isPublicacionModalOpen} 
-          onClose={() => setIsPublicacionModalOpen(false)} 
-          title={editingPublicacion ? "Editar Publicación" : "Crear Nueva Publicación"} 
-          showSubmitButton={false} 
-          showCancelButton={false}
-        >
-          <PublicacionForm 
-            catedraId={catedra?.id} 
-            onSubmit={editingPublicacion ? handleEditPublicacion : handleCreatePublicacion} 
-            initialData={editingPublicacion || {}} 
-            isEditMode={!!editingPublicacion} 
-            loading={publicationLoading} 
-            onCancel={() => setIsPublicacionModalOpen(false)} 
-            userRole={userRole}
-            isTablonCreation={true}
-          />
-        </Modal>
-
-        {isTaskDetailModalOpen && selectedTask && (
-          <Modal 
-            isOpen={isTaskDetailModalOpen} 
-            onClose={() => setIsTaskDetailModalOpen(false)} 
-            title={`Detalles de Tarea: ${selectedTask.titulo}`} 
-            showSubmitButton={false} 
-            cancelText="Cerrar"
-          >
-            <div className="p-4 text-slate-300 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
-                  <span className="text-sm text-slate-400 font-medium">Puntos Posibles</span>
-                  <div className="text-2xl font-bold text-white mt-1">{selectedTask.puntos_posibles}</div>
-                </div>
-                <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
-                  <span className="text-sm text-slate-400 font-medium">Fecha de Entrega</span>
-                  <div className="text-lg font-semibold text-white mt-1">
-                    {selectedTask.fecha_entrega ? new Date(selectedTask.fecha_entrega).toLocaleDateString() : 'No definida'}
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                  <FileText size={20} />
-                  Descripción
-                </h4>
-                <div 
-                  className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50 prose prose-invert max-w-none" 
-                  dangerouslySetInnerHTML={{ __html: selectedTask.descripcion }}
-                />
-              </div>
-
-              {(selectedTask.recursos && selectedTask.recursos.length > 0) && (
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                    <Activity size={20} />
-                    Recursos Adjuntos
-                  </h4>
-                  <div className="grid gap-3">
-                    {selectedTask.recursos.map((recurso, resIndex) => {
-                      const fileName = recurso.split('/').pop();
-                      const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileName.split('.').pop().toLowerCase());
-                      const fullRecursoUrl = `${STATIC_ASSET_BASE_URL}/${recurso}`;
-                      return (
-                        <div key={resIndex} className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
-                          {isImage ? (
-                            <img 
-                              src={fullRecursoUrl} 
-                              alt="Recurso" 
-                              className="max-w-full h-auto rounded-lg shadow-lg" 
-                            />
-                          ) : (
-                            <a 
-                              href={fullRecursoUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                            >
-                              <FileText size={16} />
-                              {fileName}
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </Modal>
-        )}
-
-        <Modal
-          isOpen={isPlanDeClasesModalOpen}
-          onClose={() => setIsPlanDeClasesModalOpen(false)}
-          title={editingPlanDeClases ? "Editar Plan de Clases" : "Crear Nuevo Plan de Clases"}
-          showSubmitButton={false}
-          showCancelButton={false}
-        >
-          <PlanDeClasesForm
-            catedraId={catedra?.id}
-            onPlanCreated={handlePlanDeClasesCreated}
-            onPlanUpdated={handlePlanDeClasesUpdated}
-            onCancel={() => setIsPlanDeClasesModalOpen(false)}
-            initialData={editingPlanDeClases}
-            isEditMode={!!editingPlanDeClases}
-          />
-        </Modal>
-
-        <Modal 
-          isOpen={isAssignTareaModalOpen} 
-          onClose={() => setIsAssignTareaModalOpen(false)} 
-          title="Asignar Tarea a Alumnos" 
-          showSubmitButton={false} 
-          showCancelButton={false}
-        >
-          <AssignTareaForm 
-            catedraId={catedra?.id} 
-            onTareaAssigned={handleTareaAssigned} 
-            onCancel={() => setIsAssignTareaModalOpen(false)} 
-            userType="docente" 
-            initialTask={selectedTareaToAssign}
-          />
-        </Modal>
-
-        <Modal 
-          isOpen={isAssignEvaluationModalOpen} 
-          onClose={() => setIsAssignEvaluationModalOpen(false)} 
-          title="Asignar Evaluación a Alumnos" 
-          showSubmitButton={false} 
-          showCancelButton={false}
-        >
-          <AssignEvaluationForm 
-            catedraId={catedra?.id} 
-            onEvaluationAssigned={handleEvaluationAssigned} 
-            onCancel={() => setIsAssignEvaluationModalOpen(false)} 
-            initialEvaluationId={selectedEvaluationToAssign}
-          />
-        </Modal>
+      {selectedEvaluationForAssignment && (
+        <AssignEvaluationToStudentsModal
+          isOpen={isAssignEvaluationModalOpen}
+          onClose={() => setIsAssignEvaluationModalOpen(false)}
+          evaluation={selectedEvaluationForAssignment}
+          students={catedra?.CatedraAlumno?.map(ca => ca.Alumno || ca.Composer) || []}
+          catedraId={catedra?.id}
+          onEvaluationAssigned={() => {
+            console.log('Evaluación asignada, refrescando contenido de unidad...');
+            fetchPlanesDeClase(); // Podría ser necesario un fetchContent más específico si solo afecta una unidad
+          }}
+        />
+      )}
     </>
   );
 };
 
 export default DocenteCatedraDetailPage;
-
-<Toaster />

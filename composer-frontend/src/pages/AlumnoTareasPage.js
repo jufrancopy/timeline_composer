@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { FileText, ChevronRight, AlertCircle, Loader, BookMarked } from 'lucide-react';
+import { FileText, ChevronRight, AlertCircle, Loader, BookMarked, BookOpen, Target } from 'lucide-react';
 
 const AlumnoTareasPage = () => {
   const [tareas, setTareas] = useState([]);
@@ -109,9 +109,24 @@ const AlumnoTareasPage = () => {
                       {tarea.estado === 'ASIGNADA' ? 'Asignada' : 'Pendiente'}
                     </span>
                   </div>
-                  <p className="text-slate-400 text-sm mb-3">
-                    Cátedra: {tarea.TareaMaestra.Catedra?.nombre || 'N/A'} - {tarea.TareaMaestra.Catedra?.anio || 'N/A'}
-                  </p>
+                  <div className="flex flex-col space-y-1 text-sm text-gray-400 mb-3">
+                    <div className="flex items-center gap-2">
+                      <BookOpen size={16} className="text-emerald-400" />
+                      <span><strong>Cátedra:</strong> {tarea.TareaMaestra.Catedra?.nombre || 'N/A'} - {tarea.TareaMaestra.Catedra?.anio || 'N/A'}</span>
+                    </div>
+                    {tarea.TareaMaestra?.UnidadPlan?.PlanDeClases?.titulo && (
+                      <div className="flex items-center gap-2">
+                        <BookMarked size={16} className="text-blue-400" />
+                        <span><strong>Plan:</strong> {tarea.TareaMaestra.UnidadPlan.PlanDeClases.titulo}</span>
+                      </div>
+                    )}
+                    {tarea.TareaMaestra?.UnidadPlan?.periodo && (
+                      <div className="flex items-center gap-2">
+                        <Target size={16} className="text-purple-400" />
+                        <span><strong>Unidad:</strong> {tarea.TareaMaestra.UnidadPlan.periodo}</span>
+                      </div>
+                    )}
+                  </div>
                   <p className="text-slate-500 text-sm line-clamp-2 mb-4">
                     {tarea.TareaMaestra.descripcion}
                   </p>

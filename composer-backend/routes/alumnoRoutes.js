@@ -171,9 +171,21 @@ module.exports = (prisma, transporter) => {
               puntos_posibles: true,
               Catedra: {
                 select: {
-                  id: true, // Añadir el ID de la cátedra
+                  id: true,
                   nombre: true,
                   anio: true
+                }
+              },
+              UnidadPlan: {
+                select: {
+                  id: true,
+                  periodo: true,
+                  PlanDeClases: {
+                    select: {
+                      id: true,
+                      titulo: true
+                    }
+                  }
                 }
               }
             }
@@ -211,6 +223,18 @@ module.exports = (prisma, transporter) => {
               id: true,
               nombre: true,
             },
+          },
+          UnidadPlan: {
+            select: {
+              id: true,
+              periodo: true,
+              PlanDeClases: {
+                select: {
+                  id: true,
+                  titulo: true
+                }
+              }
+            }
           },
           EvaluacionAsignacion: {
             where: {
@@ -438,6 +462,18 @@ module.exports = (prisma, transporter) => {
               id: true,
               nombre: true,
             },
+          },
+          UnidadPlan: {
+            select: {
+              id: true,
+              periodo: true,
+              PlanDeClases: {
+                select: {
+                  id: true,
+                  titulo: true
+                }
+              }
+            }
           },
           EvaluacionAsignacion: {
             where: {
@@ -770,6 +806,62 @@ module.exports = (prisma, transporter) => {
     } catch (error) {
       console.error('Error al obtener alumnos contribuyentes:', error);
       res.status(500).json({ error: 'Error al obtener la lista de alumnos contribuyentes.', details: error.message });
+    }
+  });
+
+  router.get('/tareas/:tareaAsignacionId', requireUser(prisma), async (req, res) => {
+    try {
+      if (!validateStudentAccess(req)) {
+        return res.status(403).json({ error: 'Acceso denegado: Solo para alumnos.' });
+      }
+
+      const alumnoId = parseInt(req.user.alumnoId);
+      const tareaAsignacionId = parseInt(req.params.tareaAsignacionId);
+
+      if (isNaN(tareaAsignacionId)) {
+        return res.status(400).json({ error: 'ID de asignación de tarea inválido.' });
+      }
+
+      const tareaAsignacion = await prisma.TareaAsignacion.findFirst({
+        where: {
+          id: tareaAsignacionId,
+          alumnoId: alumnoId,
+        },
+        include: {
+          TareaMaestra: {
+            include: {
+              Catedra: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  anio: true
+                }
+              },
+              UnidadPlan: {
+                select: {
+                  id: true,
+                  periodo: true,
+                  PlanDeClases: {
+                    select: {
+                      id: true,
+                      titulo: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!tareaAsignacion) {
+        return res.status(404).json({ error: 'Asignación de tarea no encontrada o no pertenece al alumno.' });
+      }
+
+      res.json(tareaAsignacion);
+    } catch (error) {
+      console.error('Error al obtener la asignación de tarea por ID:', error);
+      res.status(500).json({ error: 'Error al obtener los detalles de la asignación de tarea', details: error.message });
     }
   });
 

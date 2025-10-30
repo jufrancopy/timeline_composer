@@ -177,6 +177,11 @@ module.exports = (prisma, transporter) => {
           TareaMaestra: {
             include: {
               TareaAsignacion: true, // Incluir asignaciones para obtener su estado
+              UnidadPlan: {
+                include: {
+                  PlanDeClases: true,
+                },
+              },
             },
           },
           CatedraAlumno: {
@@ -652,11 +657,88 @@ module.exports = (prisma, transporter) => {
     }
   });
 
+  // GET /docente/catedra/:catedraId/unidad/:unidadId/tareas-maestras - Obtener tareas maestras de una unidad específica
+  router.get('/docente/catedra/:catedraId/unidad/:unidadId/tareas-maestras', requireDocente, async (req, res) => {
+    const { catedraId, unidadId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      const catedra = await prisma.catedra.findFirst({
+        where: {
+          id: parseInt(catedraId),
+          docenteId: docenteId,
+        },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      const tareasMaestras = await prisma.tareaMaestra.findMany({
+        where: {
+          catedraId: parseInt(catedraId),
+          unidadPlanId: parseInt(unidadId),
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        include: {
+          TareaAsignacion: true, // Incluir asignaciones para obtener su estado
+        },
+      });
+
+      res.status(200).json(tareasMaestras);
+    } catch (error) {
+      console.error('Error al obtener tareas maestras por unidad:', error);
+      res.status(500).json({ error: 'Error al obtener las tareas maestras de la unidad.', details: error.message });
+    }
+  });
+
+  // GET /docente/catedra/:catedraId/unidad/:unidadId/evaluaciones - Obtener evaluaciones de una unidad específica
+  router.get('/docente/catedra/:catedraId/unidad/:unidadId/evaluaciones', requireDocente, async (req, res) => {
+    const { catedraId, unidadId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      const catedra = await prisma.catedra.findFirst({
+        where: {
+          id: parseInt(catedraId),
+          docenteId: docenteId,
+        },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      const evaluaciones = await prisma.evaluacion.findMany({
+        where: {
+          catedraId: parseInt(catedraId),
+          unidadPlanId: parseInt(unidadId),
+        },
+        include: {
+          _count: {
+            select: { Pregunta: true },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      res.status(200).json(evaluaciones);
+    } catch (error) {
+      console.error('Error al obtener evaluaciones por unidad:', error);
+      res.status(500).json({ error: 'Error al obtener las evaluaciones de la unidad.', details: error.message });
+    }
+  });
+
+
 
   // Create a new master task for a catedra
   router.post('/docente/catedra/:catedraId/tareas', requireDocente, async (req, res) => {
     const { catedraId } = req.params;
-    const { titulo, descripcion, puntos_posibles, fecha_entrega, recursos, multimedia_path } = req.body;
+    const { titulo, descripcion, puntos_posibles, fecha_entrega, recursos, multimedia_path, unidadPlanId } = req.body;
     const docenteId = req.docente.docenteId;
     console.log('[DOCENTE TAREAS] Contenido de req.body:', req.body);
     console.log('[DOCENTE TAREAS] Título extraído de req.body:', titulo);
@@ -684,6 +766,7 @@ module.exports = (prisma, transporter) => {
           recursos,
           multimedia_path,
           Catedra: { connect: { id: parseInt(catedraId) } },
+          UnidadPlan: unidadPlanId ? { connect: { id: unidadPlanId } } : undefined,
         },
       });
 
@@ -900,7 +983,7 @@ module.exports = (prisma, transporter) => {
   router.post('/docente/catedra/:catedraId/generate-evaluation', requireDocente, async (req, res) => {
     console.log('[DOCENTE EVALUACION] Ruta de generación de evaluación accedida.');
     const { catedraId } = req.params;
-    const { topic, subject, numberOfQuestions, numberOfOptions } = req.body;
+    const { topic, subject, numberOfQuestions, numberOfOptions, unidadPlanId } = req.body;
     const docenteId = req.docente.docenteId;
 
     try {
@@ -931,6 +1014,7 @@ module.exports = (prisma, transporter) => {
         data: {
           titulo: `Evaluación de ${evaluationTitle} para ${catedra.nombre}`,
           catedraId: parseInt(catedraId),
+          unidadPlanId: unidadPlanId ? parseInt(unidadPlanId) : null,
           Pregunta: {
             create: generatedQuestions.map(p => ({
               texto: p.texto,
@@ -1062,7 +1146,7 @@ module.exports = (prisma, transporter) => {
   // POST /docentes/catedras/:catedraId/evaluaciones/:evaluationId/assign - Asignar una evaluación a alumnos
   router.post('/docente/catedra/:catedraId/evaluaciones/:evaluationId/assign', requireDocente, async (req, res) => {
     const { catedraId, evaluationId } = req.params;
-    const { alumnoIds, fecha_entrega } = req.body; // Array de IDs de alumnos y fecha límite
+    const { alumnoIds, fecha_entrega } = req.body; // Array de IDs de alumnos y fecha de entrega
     const docenteId = req.docente.docenteId;
 
     if (!Array.isArray(alumnoIds) || alumnoIds.length === 0) {
@@ -1174,6 +1258,47 @@ module.exports = (prisma, transporter) => {
     } catch (error) {
       console.error('Error assigning evaluation to students:', error);
       res.status(500).json({ error: 'Error al asignar la evaluación.', details: error.message });
+    }
+  });
+
+  router.get('/docente/catedra/:catedraId/evaluaciones/:evaluationId/assignments', requireDocente, async (req, res) => {
+    const { catedraId, evaluationId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      const assignments = await prisma.evaluacionAsignacion.findMany({
+        where: {
+          evaluacionId: parseInt(evaluationId),
+          Evaluacion: {
+            catedraId: parseInt(catedraId),
+            Catedra: {
+              docenteId: docenteId,
+            },
+          },
+        },
+        select: {
+          alumnoId: true,
+          fecha_entrega: true,
+        },
+      });
+
+      // Find the latest fecha_entrega if multiple assignments exist with different dates
+      let latestFechaEntrega = null;
+      if (assignments.length > 0) {
+        const dates = assignments.map(a => a.fecha_entrega).filter(Boolean);
+        if (dates.length > 0) {
+          latestFechaEntrega = new Date(Math.max(...dates));
+        }
+      }
+      
+      res.status(200).json({
+        assignedAlumnoIds: assignments.map(a => a.alumnoId),
+        fecha_entrega: latestFechaEntrega ? latestFechaEntrega.toISOString().split('T')[0] : '', // Format to YYYY-MM-DD
+      });
+
+    } catch (error) {
+      console.error('Error fetching assigned students for evaluation:', error);
+      res.status(500).json({ error: 'Error al obtener los alumnos asignados para la evaluación.', details: error.message });
     }
   });
 
@@ -1831,7 +1956,15 @@ module.exports = (prisma, transporter) => {
           },
         },
         include: {
-          TareaMaestra: true,
+          TareaMaestra: {
+            include: {
+              UnidadPlan: {
+                include: {
+                  PlanDeClases: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
           TareaMaestra: {

@@ -276,6 +276,8 @@ model Evaluacion {
   EvaluacionAsignacion EvaluacionAsignacion[]
   Pregunta             Pregunta[]
   Publicacion          Publicacion?
+  unidadPlanId         Int?
+  UnidadPlan           UnidadPlan?        @relation(fields: [unidadPlanId], references: [id])
 }
 
 model EvaluacionAsignacion {
@@ -436,6 +438,8 @@ model TareaMaestra {
   Publicacion     Publicacion?
   TareaAsignacion TareaAsignacion[]
   Catedra         Catedra           @relation(fields: [catedraId], references: [id])
+  unidadPlanId    Int?
+  UnidadPlan      UnidadPlan?       @relation(fields: [unidadPlanId], references: [id])
 }
 
 model UnidadPlan {
@@ -452,6 +456,8 @@ model UnidadPlan {
   created_at                   DateTime     @default(now())
   updated_at                   DateTime     @updatedAt
   PlanDeClases                 PlanDeClases @relation(fields: [planDeClasesId], references: [id])
+  tareas                       TareaMaestra[]
+  evaluaciones                 Evaluacion[]
 }
 
 enum RoleType {

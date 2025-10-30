@@ -112,6 +112,9 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
       <div className="mt-4 text-gray-300">
         {publicacion.tipo === 'TAREA' && publicacion.tareaMaestraId ? (
           <div className="space-y-2">
+            {publicacion.planDeClasesTitulo && publicacion.unidadPlanNombre && (
+              <p className="text-sm text-gray-500">Pertenece a: <span className="font-semibold">{publicacion.planDeClasesTitulo}</span> / Unidad: <span className="font-semibold">{publicacion.unidadPlanNombre}</span></p>
+            )}
             <div dangerouslySetInnerHTML={{ __html: publicacion.contenido }}></div>
             {publicacion.tareaMaestra?.fecha_entrega && (
               <p><strong>Fecha de Entrega:</strong> {format(new Date(publicacion.tareaMaestra.fecha_entrega), 'dd/MM/yyyy HH:mm')}</p>
@@ -147,6 +150,9 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
         ) : publicacion.tipo === 'EVALUACION' && publicacion.evaluacionAsignacionId ? (
           <div className="space-y-2">
             <p><strong>Evaluación:</strong> {publicacion.evaluacionMaestraTitulo}</p>
+            {publicacion.planDeClasesTitulo && publicacion.unidadPlanNombre && (
+              <p className="text-sm text-gray-500">Pertenece a: <span className="font-semibold">{publicacion.planDeClasesTitulo}</span> / Unidad: <span className="font-semibold">{publicacion.unidadPlanNombre}</span></p>
+            )}
             <div dangerouslySetInnerHTML={{ __html: publicacion.contenido }}></div>
             {publicacion.fecha_entrega && (
               <p><strong>Fecha Límite:</strong> {format(new Date(publicacion.fecha_entrega), 'dd/MM/yyyy HH:mm')}</p>
