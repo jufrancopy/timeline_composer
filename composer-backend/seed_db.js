@@ -56,11 +56,18 @@ async function main() {
   // Eliminar alumnos, docentes y usuarios para un "clean slate"
   console.log('Eliminando calificaciones de evaluación existentes...');
   await prisma.calificacionEvaluacion.deleteMany({}).catch(e => console.log("No calificaciones de evaluación to delete or error:", e.message));
-  // Eliminada la línea de EvaluacionAsignacion aquí
+  console.log('Eliminando asignaciones de evaluación existentes...');
+  await prisma.evaluacionAsignacion.deleteMany({}).catch(e => console.log("No asignaciones de evaluación to delete or error:", e.message));
   console.log('Eliminando respuestas de alumno existentes...');
   await prisma.respuestaAlumno.deleteMany({}).catch(e => console.log("No respuestas de alumno to delete or error:", e.message));
   console.log('Eliminando tareas asignadas existentes...');
   await prisma.tareaAsignacion.deleteMany({}).catch(e => console.log("No tareas asignadas to delete or error:", e.message));
+  console.log('Eliminando publicaciones existentes...');
+  await prisma.publicacion.deleteMany({}).catch(e => console.log("No publicaciones to delete or error:", e.message));
+  console.log('Eliminando evaluaciones existentes...');
+  await prisma.evaluacion.deleteMany({}).catch(e => console.log("No evaluaciones to delete or error:", e.message));
+  console.log('Eliminando tareas maestras existentes...');
+  await prisma.tareaMaestra.deleteMany({}).catch(e => console.log("No tareas maestras to delete or error:", e.message));
   console.log('Eliminando asistencias existentes...');
   await prisma.asistencia.deleteMany({}).catch(e => console.log("No asistencias to delete or error:", e.message));
   console.log('Eliminando puntuaciones existentes...');
@@ -133,6 +140,58 @@ async function main() {
     console.log('Docente Julio Franco ya existe.');
   }
 
+  // Crear la Cátedra 'Introducción a la Filosofía'
+  let filosofiaCatedra = await prisma.catedra.findFirst({
+    where: { nombre: 'Introducción a la Filosofía' },
+  });
+
+  if (!filosofiaCatedra) {
+    filosofiaCatedra = await prisma.catedra.create({
+      data: {
+        nombre: 'Introducción a la Filosofía',
+        anio: 2025,
+        institucion: 'Conservatorio Nacional de Música',
+        turno: 'Tarde',
+        aula: 'Aula 201',
+        dias: 'Jueves',
+        docenteId: julioFrancoDocente.id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+    console.log('Cátedra Introducción a la Filosofía creada.');
+  } else {
+    console.log('Cátedra Introducción a la Filosofía ya existe.');
+  }
+
+  // Asociar días y horarios para Introducción a la Filosofía
+  let catedraDiaHorarioFilosofia = await prisma.catedraDiaHorario.findFirst({
+    where: {
+      catedraId: filosofiaCatedra.id,
+      dia_semana: 'Jueves',
+    },
+  });
+
+  if (catedraDiaHorarioFilosofia) {
+    await prisma.catedraDiaHorario.update({
+      where: { id: catedraDiaHorarioFilosofia.id },
+      data: { hora_inicio: '16:00', hora_fin: '17:00', updated_at: new Date() },
+    });
+    console.log('Horario para Introducción a la Filosofía actualizado.');
+  } else {
+    await prisma.catedraDiaHorario.create({
+      data: {
+        catedraId: filosofiaCatedra.id,
+        dia_semana: 'Jueves',
+        hora_inicio: '16:00',
+        hora_fin: '17:00',
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+    console.log('Horario para Introducción a la Filosofía creado.');
+  }
+
   // Crear la Cátedra 'Historia de la Música del Paraguay'
   let historiaMusicaCatedra = await prisma.catedra.findFirst({
     where: { nombre: 'Historia de la Música del Paraguay' },
@@ -183,6 +242,113 @@ async function main() {
     }
   }
   console.log('Alumnos asociados a la cátedra.');
+
+  // Alumnos para Introducción a la Filosofía
+  const alumnosFilosofia = [
+    { nombre: 'Leandro Esteban', apellido: 'Lugo Ruiz', email: 'leandrolugo129@gmail.com' },
+    { nombre: 'Liz Vanessa', apellido: 'Britez Gomez', email: 'lizvanesabritezgomez@gmail.com' },
+    { nombre: 'Lourdes Natalia', apellido: 'Meza Escurra', email: 'loumeza85@gmail.com' },
+    { nombre: 'Carmina Araceli', apellido: 'Colman Martinez', email: 'carminacolman@gmail.com' },
+    { nombre: 'Bruno Matias', apellido: 'Monges Arias', email: 'brunomonges0@gmail.com' },
+  ];
+
+  for (const alumnoData of alumnosFilosofia) {
+    let alumno = await prisma.alumno.findUnique({
+      where: { email: alumnoData.email },
+    });
+    if (!alumno) {
+      alumno = await prisma.alumno.create({
+        data: {
+          nombre: alumnoData.nombre,
+          apellido: alumnoData.apellido,
+          email: alumnoData.email,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      console.log(`Alumno ${alumnoData.nombre} ${alumnoData.apellido} creado.`);
+    } else {
+      console.log(`Alumno ${alumnoData.nombre} ${alumnoData.apellido} ya existe.`);
+    }
+
+    const existingCatedraAlumno = await prisma.catedraAlumno.findUnique({
+      where: {
+        catedraId_alumnoId: {
+          catedraId: filosofiaCatedra.id,
+          alumnoId: alumno.id,
+        },
+      },
+    }).catch(() => null);
+
+    if (!existingCatedraAlumno) {
+      await prisma.catedraAlumno.create({
+        data: {
+          catedraId: filosofiaCatedra.id,
+          alumnoId: alumno.id,
+          assignedBy: julioFrancoDocente.nombre + ' ' + julioFrancoDocente.apellido,
+          fecha_inscripcion: new Date(),
+        },
+      });
+      console.log(`Alumno ${alumno.nombre} ${alumno.apellido} asociado a Introducción a la Filosofía.`);
+    } else {
+      console.log(`Alumno ${alumno.nombre} ${alumno.apellido} ya asociado a Introducción a la Filosofía.`);
+    }
+  }
+
+  // Alumnos adicionales para Historia de la Música del Paraguay
+  const alumnosHistoriaMusica = [
+    { nombre: 'Jacqueline', apellido: 'Ibañez Escurra', email: 'ibanezjacqueline11@gmail.com' },
+    { nombre: 'Sebastian', apellido: 'Mendoza', email: 'mendozanseb@gmail.com' },
+  ];
+
+  for (const alumnoData of alumnosHistoriaMusica) {
+    let alumno = await prisma.alumno.findUnique({
+      where: { email: alumnoData.email },
+    });
+    if (!alumno) {
+      alumno = await prisma.alumno.create({
+        data: {
+          nombre: alumnoData.nombre,
+          apellido: alumnoData.apellido,
+          email: alumnoData.email,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      console.log(`Alumno ${alumnoData.nombre} ${alumnoData.apellido} creado.`);
+    } else {
+      console.log(`Alumno ${alumnoData.nombre} ${alumnoData.apellido} ya existe.`);
+    }
+
+    const existingCatedraAlumno = await prisma.catedraAlumno.findUnique({
+      where: {
+        catedraId_alumnoId: {
+          catedraId: historiaMusicaCatedra.id,
+          alumnoId: alumno.id,
+        },
+      },
+    }).catch(() => null);
+
+    if (!existingCatedraAlumno) {
+      await prisma.catedraAlumno.create({
+        data: {
+          catedraId: historiaMusicaCatedra.id,
+          alumnoId: alumno.id,
+          assignedBy: julioFrancoDocente.nombre + ' ' + julioFrancoDocente.apellido,
+          fecha_inscripcion: new Date(),
+        },
+      });
+      console.log(`Alumno ${alumno.nombre} ${alumno.apellido} asociado a Historia de la Música del Paraguay.`);
+    } else {
+      console.log(`Alumno ${alumno.nombre} ${alumno.apellido} ya asociado a Historia de la Música del Paraguay.`);
+    }
+  }
+
+  // Obtener todos los alumnos asociados a la Cátedra Historia de la Música del Paraguay
+  const alumnosHistoriaMusicaIds = (await prisma.catedraAlumno.findMany({
+    where: { catedraId: historiaMusicaCatedra.id },
+    select: { alumnoId: true },
+  })).map(ca => ca.alumnoId);
 
   // === Fin de la sección de Docente, Cátedra y Alumnos ===
 
@@ -289,7 +455,7 @@ async function main() {
       "Año de nacimiento": "N/A",
       "Año de muerte": "N/A",
       "biografia_resumida": "Nacido en Carapeguá. Uno de los más hábiles intérpretes de la guitarra y cantor popular posterior a la Independencia (1811). Formó parte de la banda de músicos del Batallón Escolta.",
-      "obras_mas_important es": "Se le atribuye la creación de la polca 'Campamento Cerro León' y la canción 'Che lucero aguai’y'."
+      "obras_mas_importantes": "Se le atribuye la creación de la polca 'Campamento Cerro León' y la canción 'Che lucero aguai’y'."
     },
     {
       "Nombre": "Rufino López",
@@ -561,7 +727,7 @@ async function main() {
       "Año de nacimiento": "N/A",
       "Año de muerte": "N/A",
       "biografia_resumida": "Compositor que creó varias composiciones dentro del género 'Avanzada'.",
-      "obras_mas_important es": "Composiciones en género Avanzada."
+      "obras_mas_importantes": "Composiciones en género Avanzada."
     },
     {
       "Nombre": "Vicente Castillo",
@@ -569,7 +735,7 @@ async function main() {
       "Año de nacimiento": "N/A",
       "Año de muerte": "N/A",
       "biografia_resumida": "Compositor que creó varias composiciones dentro del género 'Avanzada'.",
-      "obras_mas_important es": "Composiciones en género Avanzada."
+      "obras_mas_importantes": "Composiciones en género Avanzada."
     },
     {
       "Nombre": "Luis Bordón",
@@ -577,7 +743,7 @@ async function main() {
       "Año de nacimiento": "N/A",
       "Año de muerte": "N/A",
       "biografia_resumida": "Compositor que creó varias composiciones dentro del género 'Avanzada'.",
-      "obras_mas_important es": "Composiciones en género Avanzada."
+      "obras_mas_importantes": "Composiciones en género Avanzada."
     },
     {
       "Nombre": "Carlos Noguera",
@@ -654,14 +820,856 @@ async function main() {
     });
   }
 
-  console.log('¡Seeding completado con éxito!');
-  await prisma.$disconnect(); // 👈 AGREGA ESTA LÍNEA AQUÍ
+  // Crear el Plan de Clases
+  const planAnual = await prisma.planDeClases.create({
+    data: {
+      titulo: 'PLAN ANUAL DE ESTUDIOS 2024',
+      tipoOrganizacion: 'MES',
+      docenteId: julioFrancoDocente.id,
+      catedraId: historiaMusicaCatedra.id,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  });
+  console.log('Plan de Clases "PLAN ANUAL DE ESTUDIOS 2024" creado.');
 
+  // Crear Unidades de Plan de Clases
+  const unidadesData = [
+    {
+      periodo: 'Marzo (2ª Quincena)',
+      contenido: 'UNIDAD 1: INTRODUCCIÓN (El Paraguay, Una provincia gigante, Integración política y cultural).',
+      capacidades: 'Comprender el proceso de consolidación, origen y antecedentes históricos de la música paraguaya.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Clase introductoria (Exposición oral). Presentación del programa.',
+      mediosVerificacionEvaluacion: 'Tareas y Trabajos prácticos.',
+    },
+    {
+      periodo: 'Abril (1ª Quincena)',
+      contenido: 'UNIDAD 2: LOS INDÍGENAS Y SU MÚSICA (El prejuicio de lo estético, Análisis Morfológico).',
+      capacidades: 'Conocer y analizar características sociales y culturales de cada familia lingüística de la población indígena.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Clases magistrales. Uso de medios auxiliares (pizarra, folletos).',
+      mediosVerificacionEvaluacion: 'Evaluación continua del progreso.',
+    },
+    {
+      periodo: 'Abril (2ª Quincena)',
+      contenido: 'UNIDAD 2 (Continuación) (Instrumentos musicales, Descripción más amplia de instrumentos étnicos).',
+      capacidades: 'Analizar la música desde la perspectiva del canto, los instrumentos, las danzas y los rituales.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Análisis de material bibliográfico (Ej: BOETTNER, MELIÁ).',
+      mediosVerificacionEvaluacion: 'Tareas y Trabajos prácticos sobre instrumentos.',
+    },
+    {
+      periodo: 'Mayo (1ª Quincena)',
+      contenido: 'UNIDAD 3: LA MÚSICA DURANTE LA COLONIA. UNIDAD 4: LAS MISIONES JESUÍTICAS (Los jesuitas y la música).',
+      capacidades: 'Conocer las características culturales de la etapa de colonización. Analizar la labor de los misioneros y las características de la música reduccional.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Explicación detallada de los temas a trabajar (Exposición oral).',
+      mediosVerificacionEvaluacion: 'Evaluación de la comprensión y aplicación de conceptos.',
+    },
+    {
+      periodo: 'Mayo (2ª Quincena)',
+      contenido: 'UNIDAD 4 (Continuación) (Músicos jesuitas destacados: Pedro Comentale, Domenico Zipoli, etc.).',
+      capacidades: 'Conocer biografía y obras de músicos paraguayos de cada etapa.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Clases magistrales enfocadas en personajes históricos.',
+      mediosVerificacionEvaluacion: 'Seguimiento del progreso en el estudio.',
+    },
+    {
+      periodo: 'Junio (1ª Quincena)',
+      contenido: 'UNIDAD 5: LA INDEPENDENCIA (Música y la dictadura de Francia, El auténtico himno paraguayo, Músicos destacados).',
+      capacidades: 'Conocer las manifestaciones culturales de este periodo (1811-1840).',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Enfoque en el estudio temático seleccionado.',
+      mediosVerificacionEvaluacion: 'Evaluación del progreso y dominio de los conceptos.',
+    },
+    {
+      periodo: 'Junio (2ª Quincena)',
+      contenido: 'EVALUACIÓN 1ER. CUATRIMESTRE (Unidades 1 a 5).',
+      capacidades: 'Demostrar dominio y comprensión de los contenidos del primer cuatrimestre.',
+      horasTeoricas: 0,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Prueba escrita cuatrimestral.',
+      mediosVerificacionEvaluacion: 'Prueba escrita cuatrimestral (Suma Tareas/Trabajos Prácticos).',
+    },
+    {
+      periodo: 'Julio (1ª Quincena)',
+      contenido: 'UNIDAD 6: LOS LÓPEZ (Progreso material y cultural, Primeras referencias sobre Música Popular Paraguaya).',
+      capacidades: 'Analizar los procesos a través de las etapas históricas (Los López).',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Se facilitarán materiales bibliográficos para el desarrollo de las lecciones.',
+      mediosVerificacionEvaluacion: 'Tareas y Trabajos prácticos.',
+    },
+    {
+      periodo: 'Julio (2ª Quincena)',
+      contenido: 'UNIDAD 7: HIMNO NACIONAL PARAGUAYO. UNIDAD 8: LA GUERRA DE LA TRIPLE ALIANZA.',
+      capacidades: 'Conocer la historia del Himno y analizar el impacto cultural de la guerra.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Uso de textos específicos (Ej: CALZADA MACHO).',
+      mediosVerificacionEvaluacion: 'Seguimiento del progreso y aplicación de conceptos.',
+    },
+    {
+      periodo: 'Agosto (1ª Quincena)',
+      contenido: 'UNIDAD 9: DANZAS PARAGUAYAS (Origen, Tipos, Trajes típicos).',
+      capacidades: 'Conocer rasgos culturales propios del paraguayo y las manifestaciones de su identidad.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Repaso y ampliación de las unidades trabajadas (Exposición oral).',
+      mediosVerificacionEvaluacion: 'Evaluación de la mejora en la comprensión y aplicación.',
+    },
+    {
+      periodo: 'Agosto (2ª Quincena)',
+      contenido: 'UNIDAD 10: EL COMPUESTO. UNIDAD 11: EL JEJUVYKUE JERÁ.',
+      capacidades: 'Analizar estos géneros como expresiones musicales de los habitantes de esta tierra.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Práctica de técnicas de análisis.',
+      mediosVerificacionEvaluacion: 'Evaluación de dominio y precisión.',
+    },
+    {
+      periodo: 'Setiembre (1ª Quincena)',
+      contenido: 'UNIDAD 12: LOS ESTACIONEROS O PASIONEROS. UNIDAD 13: MÚSICA PARAGUAYA (Popular, Géneros y Estilos: Polca, Guarania, Purahéi, Kyre’ŷ, etc.).',
+      capacidades: 'Analizar la función de las agrupaciones tradicionales. Analizar la música erudita y popular (Géneros y Estilos).',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Estudio y perfeccionamiento temático.',
+      mediosVerificacionEvaluacion: 'Evaluación del avance y dominio de los géneros.',
+    },
+    {
+      periodo: 'Octubre (1ª Quincena)',
+      contenido: 'UNIDAD 14: AGRUPACIONES TRADICIONALES (Cantores, Bandas Hyekue, Orquestas Típicas). UNIDAD 15: ZARZUELA PARAGUAYA (Generalidades).',
+      capacidades: 'Conocer la conformación de grupos tradicionales y reconocer al creador de la zarzuela (J.C. Moreno González).',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Preparación para la evaluación.',
+      mediosVerificacionEvaluacion: 'Evaluación del dominio de las unidades.',
+    },
+    {
+      periodo: 'Octubre (2ª Quincena)',
+      contenido: 'EVALUACIÓN 2DO. CUATRIMESTRE (Unidades 6 a 15).',
+      capacidades: 'Demostrar dominio y comprensión de los contenidos del segundo cuatrimestre.',
+      horasTeoricas: 0,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Prueba escrita cuatrimestral.',
+      mediosVerificacionEvaluacion: 'Prueba escrita cuatrimestral (Requisito: 80% asistencia y tareas).',
+    },
+    {
+      periodo: 'Noviembre (hasta el 9)',
+      contenido: 'UNIDAD 16: COMPOSITORES PARAGUAYOS DEL SIGLO XX (Mangoré, Flores, Giménez, etc.).',
+      capacidades: 'Analizar la música erudita y popular de compositores destacados.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Consolidación y perfeccionamiento de los temas. Exploración de bibliografía (SZARÁN, SÁNCHEZ HAASE).',
+      mediosVerificacionEvaluacion: 'Evaluación de la comprensión y aplicación de características estilísticas.',
+    },
+    {
+      periodo: 'Noviembre (10 al 14)',
+      contenido: 'SEMANA DE EVALUACIÓN DE MATERIAS TEÓRICAS',
+      capacidades: 'Obtener un Término Medio Mínimo o superior a la calificación 2 resultante de los dos cuatrimestres para habilitar el examen final.',
+      horasTeoricas: 0,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'EVALUACIÓN FINAL (Según el cronograma institucional).',
+      mediosVerificacionEvaluacion: 'Evaluación Final (Requisito previo: T.M. habilitante y 11 clases de asistencia mínima por cuatrimestre).',
+    },
+    {
+      periodo: 'Noviembre (17 al 28)',
+      contenido: 'UNIDAD 17: EL MOVIMIENTO DEL NUEVO CANCIONERO EN PARAGUAY. Cierre y Retroalimentación.',
+      capacidades: 'Reflexionar y emitir juicios de valor sobre la historia de la música paraguaya a lo largo del tiempo y en la actualidad.',
+      horasTeoricas: 4,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Preparación para una presentación final/Trabajo de reflexión.',
+      mediosVerificacionEvaluacion: 'Certificación de Desempeño (El estudiante debe tener un 70% de las tareas y trabajos prácticos exigidos).',
+    },
+  ];
+
+  const createdUnidades = [];
+  for (const unidad of unidadesData) {
+    const createdUnidad = await prisma.unidadPlan.create({
+      data: {
+        planDeClasesId: planAnual.id,
+        periodo: unidad.periodo,
+        contenido: unidad.contenido,
+        capacidades: unidad.capacidades,
+        horasTeoricas: unidad.horasTeoricas,
+        horasPracticas: unidad.horasPracticas,
+        estrategiasMetodologicas: unidad.estrategiasMetodologicas,
+        mediosVerificacionEvaluacion: unidad.mediosVerificacionEvaluacion,
+        recursos: [],
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+    createdUnidades.push(createdUnidad);
+    console.log(`Unidad Plan "${unidad.contenido}" creada.`);
+  }
+
+  // Encontrar la unidad de "Junio (2ª Quincena)" para asociar la evaluación
+  const unidadJunio2daQuincena = createdUnidades.find(u => u.periodo === 'Junio (2ª Quincena)');
+  if (unidadJunio2daQuincena) {
+    const evaluacion1erCuatrimestre = await prisma.evaluacion.create({
+      data: {
+        titulo: 'EVALUACIÓN 1ER. CUATRIMESTRE',
+        catedraId: historiaMusicaCatedra.id,
+        fecha_limite: new Date('2025-06-30T23:59:59Z'), // Fin de junio
+        isMaster: true,
+        unidadPlanId: unidadJunio2daQuincena.id,
+        created_at: new Date(),
+      },
+    });
+    // Asignar evaluación a todos los alumnos de la cátedra
+    for (const alumnoId of alumnosHistoriaMusicaIds) {
+      const evaluacionAsignacion = await prisma.evaluacionAsignacion.create({
+        data: {
+          alumnoId: alumnoId,
+          evaluacionId: evaluacion1erCuatrimestre.id,
+          fecha_entrega: evaluacion1erCuatrimestre.fecha_limite,
+          estado: 'CALIFICADA',
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      // Crear la calificación inicial (vacía o con 0 puntos)
+      await prisma.calificacionEvaluacion.create({
+        data: {
+          alumnoId: alumnoId,
+          evaluacionAsignacionId: evaluacionAsignacion.id,
+          puntos: 20, // Inicializar con 0 puntos
+          created_at: new Date(),
+        },
+      });
+      console.log(`Evaluación "EVALUACIÓN 1ER. CUATRIMESTRE" asignada al alumno ${alumnoId}.`);
+    }
+    console.log('Evaluación "EVALUACIÓN 1ER. CUATRIMESTRE" creada.');
+  } else {
+    console.error('No se encontró la unidad "Junio (2ª Quincena)" para asociar la evaluación.');
+  }
+
+  // Encontrar la unidad de "Marzo (2ª Quincena)" para asociar la primera tarea
+  const unidadMarzo2daQuincena = createdUnidades.find(u => u.periodo === 'Marzo (2ª Quincena)');
+  if (unidadMarzo2daQuincena) {
+    const nuevaTarea = await prisma.tareaMaestra.create({
+      data: {
+        titulo: 'Tarea: Prejuicios Estéticos y Análisis Morfológico',
+        descripcion: 'Investigar y analizar dos ejemplos de prejuicios estéticos en la música, y aplicar un análisis morfológico básico a una pieza musical indígena (proporcionada en clase).',
+        fecha_entrega: new Date('2025-04-15T23:59:59Z'),
+        puntos_posibles: 20,
+        recursos: ['Guía de análisis morfológico.pdf'],
+        catedraId: historiaMusicaCatedra.id,
+        unidadPlanId: unidadMarzo2daQuincena.id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+    console.log('Tarea "Prejuicios Estéticos y Análisis Morfológico" creada.');
+    // Asignar tarea a todos los alumnos de la cátedra
+    for (const alumnoId of alumnosHistoriaMusicaIds) {
+      await prisma.tareaAsignacion.create({
+        data: {
+          alumnoId: alumnoId,
+          tareaMaestraId: nuevaTarea.id,
+          estado: 'CALIFICADA',
+          submission_date: new Date(),
+          puntos_obtenidos: 20,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      console.log(`Tarea "Prejuicios Estéticos y Análisis Morfológico" asignada al alumno ${alumnoId}.`);
+    }
+  } else {
+    console.error('No se encontró la unidad "Marzo (2ª Quincena)" para asociar la tarea.');
+  }
+
+  // Encontrar la unidad de "Abril (2ª Quincena)" para asociar la segunda tarea
+  const unidadAbril2daQuincena = createdUnidades.find(u => u.periodo === 'Abril (2ª Quincena)');
+  if (unidadAbril2daQuincena) {
+    const nuevaTarea2 = await prisma.tareaMaestra.create({
+      data: {
+        titulo: 'Tarea: Instrumentos Musicales Indígenas',
+        descripcion: 'Realizar una investigación sobre 3 instrumentos musicales étnicos del Paraguay. Incluir descripción, origen, y uso en rituales o danzas. Presentar en formato de informe corto con imágenes.',
+        fecha_entrega: new Date('2025-05-10T23:59:59Z'),
+        puntos_posibles: 20,
+        recursos: ['Lista de recursos bibliográficos.pdf'],
+        catedraId: historiaMusicaCatedra.id,
+        unidadPlanId: unidadAbril2daQuincena.id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+    console.log('Tarea "Instrumentos Musicales Indígenas" creada.');
+    for (const alumnoId of alumnosHistoriaMusicaIds) {
+      await prisma.tareaAsignacion.create({
+        data: {
+          alumnoId: alumnoId,
+          tareaMaestraId: nuevaTarea2.id,
+          estado: 'CALIFICADA',
+          submission_date: new Date(),
+          puntos_obtenidos: 20,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      console.log(`Tarea "Instrumentos Musicales Indígenas" asignada al alumno ${alumnoId}.`);
+    }
+  } else {
+    console.error('No se encontró la unidad "Abril (2ª Quincena)" para asociar la tarea.');
+  }
+
+
+
+  const alumnosFilosofiaIds = (await prisma.catedraAlumno.findMany({
+    where: { catedraId: filosofiaCatedra.id },
+    select: { alumnoId: true },
+  })).map(ca => ca.alumnoId);
+
+  // Crear el Plan de Clases para Introducción a la Filosofía
+  const planFilosofia = await prisma.planDeClases.create({
+    data: {
+      titulo: 'PLAN ANUAL DE ESTUDIOS 2024',
+      tipoOrganizacion: 'MES',
+      docenteId: julioFrancoDocente.id,
+      catedraId: filosofiaCatedra.id,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  });
+  console.log('Plan de Clases "PLAN ANUAL DE ESTUDIOS 2024" para Filosofía creado.');
+
+  // Crear Unidades de Plan de Clases para Introducción a la Filosofía
+  const unidadesFilosofiaData = [
+    {
+      periodo: 'Marzo (2ª Quincena)',
+      contenido: 'UNIDAD I: CONTEXTUALIZACIÓN FILOSÓFICA DE LA ESTÉTICA (La filosofía como disciplina humanística).',
+      capacidades: 'Ubicar al estudiante en los ciclos intelectuales de sistemas filosóficos, propiciando la diversidad y pluralidad.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Exposición oral y Participación. Introducción a la bibliografía básica.',
+      mediosVerificacionEvaluacion: 'Registro anecdótico y Observación. Tareas de contextualización.',
+    },
+    {
+      periodo: 'Abril (1ª Q)',
+      contenido: 'UNIDAD I (Continuación): El mundo del arte en el pensamiento filosófico.',
+      capacidades: 'Interpretar temas y problemas de la filosofía frente a las diversas disciplinas.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Clases expositivas-participativas. Apoyo con audición de obras varias.',
+      mediosVerificacionEvaluacion: 'Mapas conceptuales y/o Trabajos prácticos.',
+    },
+    {
+      periodo: 'Abril (2ª Q)',
+      contenido: 'UNIDAD I (Cierre): La estética, crítica y teoría del arte.',
+      capacidades: 'Desarrollar lineamientos relevantes sobre la corriente estética de la filosofía.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Análisis de textos introductorios (Jiménez, Oliveras).',
+      mediosVerificacionEvaluacion: 'Evaluación continua de la comprensión.',
+    },
+    {
+      periodo: 'Mayo (1ª Q)',
+      contenido: 'UNIDAD II: LA FILOSOFÍA ANTIGUA DEL ARTE (Mitos, Tragedias y el legado de la antigua Grecia).',
+      capacidades: 'Analizar los principales pensamientos filosóficos en el ámbito de la estética.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Exposición magistral. Análisis de fragmentos de Poética (Aristóteles).',
+      mediosVerificacionEvaluacion: 'Prueba oral o escrita corta.',
+    },
+    {
+      periodo: 'Mayo (2ª Q)',
+      contenido: 'UNIDAD II (Continuación): Platón y el canon de belleza suprema; Aristóteles, el arte como vivencia e imitación.',
+      capacidades: 'Aplicar críticamente los pensamientos en el mundo del arte.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Lectura y discusión de El Banquete, Fedro (Platón).',
+      mediosVerificacionEvaluacion: 'Trabajos de investigación bibliográfica individual.',
+    },
+    {
+      periodo: 'Junio (1ª Q)',
+      contenido: 'UNIDAD III: LA FILOSOFÍA DEL ARTE EN LA EDAD MODERNA (Kant, entre lo bello y lo sublime).',
+      capacidades: 'Indagar y contraponer los diversos criterios en la formulación de propios argumentos.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Exposición enfocada en Crítica del Juicio (Kant).',
+      mediosVerificacionEvaluacion: 'Escala de actitudes (participación).',
+    },
+    {
+      periodo: 'Junio (2ª Q)',
+      contenido: 'EVALUACIÓN 1ER. CUATRIMESTRE (U. I, II, III inicio).',
+      capacidades: 'Demostrar comprensión de los sistemas filosóficos y estéticos iniciales.',
+      horasTeoricas: 0,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Examen Cuatrimestral (Prueba escrita).',
+      mediosVerificacionEvaluacion: 'Examen Cuatrimestral (Suma tareas/trabajos).',
+    },
+    {
+      periodo: 'Julio (1ª Q)',
+      contenido: 'UNIDAD III (Continuación): Hegel y el fin del arte; El idealismo alemán en la estética romántica.',
+      capacidades: 'Abordar aspectos relacionado al arte con argumentación filosófica.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Análisis de Introducción a la Estética (Hegel).',
+      mediosVerificacionEvaluacion: 'Portafolio de trabajos (recopilación de lecturas).',
+    },
+    {
+      periodo: 'Julio (2ª Q)',
+      contenido: 'UNIDAD III (Cierre): Nietzsche y la voluntad de poder como arte.',
+      capacidades: 'Valorar la condición humana estética ante los cambios en el mundo de la técnica.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Discusión sobre El nacimiento de la tragedia (Nietzsche).',
+      mediosVerificacionEvaluacion: 'Tareas de análisis y reflexión.',
+    },
+    {
+      periodo: 'Agosto (1ª Q)',
+      contenido: 'UNIDAD IV: PENSAMIENTO DEL SIGLO XX SOBRE EL ARTE (Heidegger, verdad y arte; Benjamín y el aura del arte).',
+      capacidades: 'Reflexionar sobre el impacto de la reproductibilidad técnica en la estética.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Clases expositivas. Apoyo con medios visuales (películas/videos). Análisis de La obra de arte... (Benjamín).',
+      mediosVerificacionEvaluacion: 'Trabajos de investigación bibliográfica (individual y/o grupal).',
+    },
+    {
+      periodo: 'Agosto (2ª Q)',
+      contenido: 'UNIDAD IV (Continuación): Merleau-Ponty y la experiencia estética.',
+      capacidades: 'Interpretar la experiencia estética a través de la fenomenología.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Presentaciones de los alumnos sobre temas específicos.',
+      mediosVerificacionEvaluacion: 'Pruebas prácticas sobre aplicación de conceptos.',
+    },
+    {
+      periodo: 'Setiembre (1ª Q)',
+      contenido: 'UNIDAD V: CONTEMPORANEIDAD EN LA ESTÉTICA FILOSÓFICA (Jameson y la playa estética).',
+      capacidades: 'Analizar el pensamiento posmoderno en relación al arte.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Discusión sobre Posmodernismo o la lógica cultural... (Jameson).',
+      mediosVerificacionEvaluacion: 'Evaluación continua basada en la participación en debates.',
+    },
+    {
+      periodo: 'Setiembre (2ª Q)',
+      contenido: 'UNIDAD V (Continuación): Chul Han y la salvación de lo bello; Vattimo, en el crepúsculo del arte.',
+      capacidades: 'Analizar las corrientes estéticas actuales.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Exposición sobre La salvación de lo bello (Chul-Han) y El fin de la modernidad (Vattimo).',
+      mediosVerificacionEvaluacion: 'Elaboración de un argumento filosófico propio.',
+    },
+    {
+      periodo: 'Octubre (1ª Q)',
+      contenido: 'UNIDAD V (Cierre): Gadamer como justificación del arte. Repaso e Integración.',
+      capacidades: 'Integrar críticamente los diversos criterios en la formulación de argumentos propios.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Clases de repaso y resolución de dudas.',
+      mediosVerificacionEvaluacion: 'Preparación para el examen cuatrimestral.',
+    },
+    {
+      periodo: 'Octubre (2ª Q)',
+      contenido: 'EVALUACIÓN 2DO. CUATRIMESTRE (U. III cierre, IV, V).',
+      capacidades: 'Demostrar dominio de las corrientes estéticas modernas y contemporáneas.',
+      horasTeoricas: 0,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Examen Cuatrimestral (Prueba escrita).',
+      mediosVerificacionEvaluacion: 'Examen Cuatrimestral. El conservatorio establece que la participación en conciertos vale puntaje adicional.',
+    },
+    {
+      periodo: 'Noviembre (hasta el 9)',
+      contenido: 'CONSOLIDACIÓN Y PREPARACIÓN FINAL (Integración de los 5 ejes).',
+      capacidades: 'Habilitarse para la evaluación final obteniendo el término medio mínimo.',
+      horasTeoricas: 2,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Preparación de la defensa de trabajos finales o proyectos de investigación.',
+      mediosVerificacionEvaluacion: 'Revisión de Portafolio.',
+    },
+    {
+      periodo: 'Noviembre (10 al 14)',
+      contenido: 'SEMANA DE EVALUACIÓN DE MATERIAS TEÓRICAS',
+      capacidades: 'N/A',
+      horasTeoricas: 0,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'N/A',
+      mediosVerificacionEvaluacion: 'EVALUACIÓN FINAL (Según cronograma).',
+    },
+    {
+      periodo: 'Noviembre (17 al 28)',
+      contenido: 'UNIDAD 17: EL MOVIMIENTO DEL NUEVO CANCIONERO EN PARAGUAY. Cierre y Retroalimentación.',
+      capacidades: 'Reflexionar y emitir juicios de valor sobre la historia de la música paraguaya a lo largo del tiempo y en la actualidad.',
+      horasTeoricas: 4,
+      horasPracticas: 0,
+      estrategiasMetodologicas: 'Preparación para una presentación final/Trabajo de reflexión.',
+      mediosVerificacionEvaluacion: 'Certificación de Desempeño (El estudiante debe tener un 70% de las tareas y trabajos prácticos exigidos).',
+    },
+  ];
+
+  for (const unidad of unidadesFilosofiaData) {
+    await prisma.unidadPlan.create({
+      data: {
+        planDeClasesId: planFilosofia.id,
+        periodo: unidad.periodo,
+        contenido: unidad.contenido,
+        capacidades: unidad.capacidades,
+        horasTeoricas: unidad.horasTeoricas,
+        horasPracticas: unidad.horasPracticas,
+        estrategiasMetodologicas: unidad.estrategiasMetodologicas,
+        mediosVerificacionEvaluacion: unidad.mediosVerificacionEvaluacion,
+        recursos: [],
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+    console.log(`Unidad Plan para Filosofía "${unidad.contenido}" creada.`);
+  }
+
+  const unidadFilosofiaJunio2daQuincena = createdUnidades.find(u => u.planDeClasesId === planFilosofia.id && u.periodo === 'Junio (2ª Q)');
+  if (unidadFilosofiaJunio2daQuincena) {
+    await prisma.evaluacion.create({
+      data: {
+        titulo: 'EVALUACIÓN 1ER. CUATRIMESTRE Filosofía',
+        catedraId: filosofiaCatedra.id,
+        fecha_limite: new Date('2025-06-30T23:59:59Z'),
+        isMaster: true,
+        unidadPlanId: unidadFilosofiaJunio2daQuincena.id,
+        created_at: new Date(),
+      },
+    });
+    console.log('Evaluación "EVALUACIÓN 1ER. CUATRIMESTRE Filosofía" creada.');
+  } else {
+    console.error('No se encontró la unidad "Junio (2ª Q)" para Filosofía para asociar la evaluación.');
+  }
+
+
+  // === Adición de Evaluaciones y Tareas para Historia de la Música del Paraguay ===
+  
+  const unidadHistoriaMusicaJulio1raQuincena = createdUnidades.find(u => u.planDeClasesId === planAnual.id && u.periodo === 'Julio (1ª Quincena)');
+  if (unidadHistoriaMusicaJulio1raQuincena) {
+    const evaluacionLosLopez = await prisma.evaluacion.create({
+      data: {
+        titulo: 'Evaluación sobre el Periodo de Los López',
+        catedraId: historiaMusicaCatedra.id,
+        fecha_limite: new Date('2025-07-15T23:59:59Z'),
+        isMaster: true,
+        unidadPlanId: unidadHistoriaMusicaJulio1raQuincena.id,
+        created_at: new Date(),
+      },
+    });
+    // Asignar evaluación a todos los alumnos de la cátedra
+    for (const alumnoId of alumnosHistoriaMusicaIds) {
+      const evaluacionAsignacion = await prisma.evaluacionAsignacion.create({
+        data: {
+          alumnoId: alumnoId,
+          evaluacionId: evaluacionLosLopez.id,
+          fecha_entrega: evaluacionLosLopez.fecha_limite,
+          estado: 'CALIFICADA',
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      await prisma.calificacionEvaluacion.create({
+        data: {
+          alumnoId: alumnoId,
+          evaluacionAsignacionId: evaluacionAsignacion.id,
+          puntos: 0,
+          created_at: new Date(),
+        },
+      });
+      console.log(`Evaluación "Evaluación sobre el Periodo de Los López" asignada al alumno ${alumnoId}.`);
+    }
+    console.log('Evaluación "Evaluación sobre el Periodo de Los López" creada.');
+  } else {
+    console.error('No se encontró la unidad "Julio (1ª Quincena)" para Historia de la Música para asociar la evaluación.');
+  }
+
+  // === Fin de Adición de Evaluaciones y Tareas para Historia de la Música del Paraguay ===
+
+
+  // === Adición de Evaluaciones y Tareas para Introducción a la Filosofía ===
+  const unidadFilosofiaAbril1raQ = unidadesFilosofiaData.find(u => u.periodo === 'Abril (1ª Q)');
+  if (unidadFilosofiaAbril1raQ) {
+    const evaluacionFilosofiaArte = await prisma.evaluacion.create({
+      data: {
+        titulo: 'Evaluación: El mundo del arte en el pensamiento filosófico',
+        catedraId: filosofiaCatedra.id,
+        fecha_limite: new Date('2025-04-30T23:59:59Z'),
+        isMaster: true,
+        unidadPlanId: unidadFilosofiaAbril1raQ.id,
+        created_at: new Date(),
+      },
+    });
+    // Asignar evaluación a todos los alumnos de la cátedra
+    for (const alumnoId of alumnosFilosofiaIds) {
+      const evaluacionAsignacion = await prisma.evaluacionAsignacion.create({
+        data: {
+          alumnoId: alumnoId,
+          evaluacionId: evaluacionFilosofiaArte.id,
+          fecha_entrega: evaluacionFilosofiaArte.fecha_limite,
+          estado: 'CALIFICADA',
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      await prisma.calificacionEvaluacion.create({
+        data: {
+          alumnoId: alumnoId,
+          evaluacionAsignacionId: evaluacionAsignacion.id,
+          puntos: 0,
+          created_at: new Date(),
+        },
+      });
+      console.log(`Evaluación "El mundo del arte en el pensamiento filosófico" asignada al alumno ${alumnoId}.`);
+    }
+    console.log('Evaluación "El mundo del arte en el pensamiento filosófico" creada.');
+  } else {
+    console.error('No se encontró la unidad "Abril (1ª Q)" para Filosofía para asociar la evaluación.');
+  }
+
+  const unidadFilosofiaJulio2daQ = unidadesFilosofiaData.find(u => u.periodo === 'Julio (2ª Q)');
+  if (unidadFilosofiaJulio2daQ) {
+    const evaluacionNietzsche = await prisma.evaluacion.create({
+      data: {
+        titulo: 'Evaluación: Nietzsche y la voluntad de poder como arte',
+        catedraId: filosofiaCatedra.id,
+        fecha_limite: new Date('2025-07-30T23:59:59Z'),
+        isMaster: true,
+        unidadPlanId: unidadFilosofiaJulio2daQ.id,
+        created_at: new Date(),
+      },
+    });
+    // Asignar evaluación a todos los alumnos de la cátedra
+    for (const alumnoId of alumnosFilosofiaIds) {
+      const evaluacionAsignacion = await prisma.evaluacionAsignacion.create({
+        data: {
+          alumnoId: alumnoId,
+          evaluacionId: evaluacionNietzsche.id,
+          fecha_entrega: evaluacionNietzsche.fecha_limite,
+          estado: 'CALIFICADA',
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      await prisma.calificacionEvaluacion.create({
+        data: {
+          alumnoId: alumnoId,
+          evaluacionAsignacionId: evaluacionAsignacion.id,
+          puntos: 0,
+          created_at: new Date(),
+        },
+      });
+      console.log(`Evaluación "Nietzsche y la voluntad de poder como arte" asignada al alumno ${alumnoId}.`);
+    }
+    console.log('Evaluación "Nietzsche y la voluntad de poder como arte" creada.');
+  } else {
+    console.error('No se encontró la unidad "Julio (2ª Q)" para Filosofía para asociar la evaluación.');
+  }
+
+  const unidadFilosofiaMarzo2daQuincena = unidadesFilosofiaData.find(u => u.periodo === 'Marzo (2ª Quincena)');
+  if (unidadFilosofiaMarzo2daQuincena) {
+    const tareaFilosofiaEstetica = await prisma.tareaMaestra.create({
+      data: {
+        titulo: 'Tarea: Contextualización Filosófica de la Estética',
+        descripcion: 'Realizar un breve ensayo sobre la filosofía como disciplina humanística y su relación con la estética.',
+        fecha_entrega: new Date('2025-03-30T23:59:59Z'),
+        puntos_posibles: 10,
+        catedraId: filosofiaCatedra.id,
+        unidadPlanId: unidadFilosofiaMarzo2daQuincena.id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+    for (const alumnoId of alumnosFilosofiaIds) {
+      await prisma.tareaAsignacion.create({
+        data: {
+          alumnoId: alumnoId,
+          tareaMaestraId: tareaFilosofiaEstetica.id,
+          estado: 'ENTREGADA',
+          submission_date: new Date(),
+          puntos_obtenidos: tareaFilosofiaEstetica.puntos_posibles,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      console.log(`Tarea "Contextualización Filosófica de la Estética" asignada al alumno ${alumnoId}.`);
+    }
+    console.log('Tarea "Contextualización Filosófica de la Estética" creada.');
+  } else {
+    console.error('No se encontró la unidad "Marzo (2ª Quincena)" para Filosofía para asociar la tarea.');
+  }
+
+  const unidadFilosofiaMayo1raQ = unidadesFilosofiaData.find(u => u.periodo === 'Mayo (1ª Q)');
+  if (unidadFilosofiaMayo1raQ) {
+    const tareaFilosofiaAntigua = await prisma.tareaMaestra.create({
+      data: {
+        titulo: 'Tarea: Análisis de la Filosofía Antigua del Arte',
+        descripcion: 'Analizar un mito o tragedia griega y relacionarlo con el pensamiento filosófico de la época sobre el arte.',
+        fecha_entrega: new Date('2025-05-10T23:59:59Z'),
+        puntos_posibles: 10,
+        catedraId: filosofiaCatedra.id,
+        unidadPlanId: unidadFilosofiaMayo1raQ.id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+    for (const alumnoId of alumnosFilosofiaIds) {
+      await prisma.tareaAsignacion.create({
+        data: {
+          alumnoId: alumnoId,
+          tareaMaestraId: tareaFilosofiaAntigua.id,
+          estado: 'ENTREGADA',
+          submission_date: new Date(),
+          puntos_obtenidos: tareaFilosofiaAntigua.puntos_posibles,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      console.log(`Tarea "Análisis de la Filosofía Antigua del Arte" asignada al alumno ${alumnoId}.`);
+    }
+    console.log('Tarea "Análisis de la Filosofía Antigua del Arte" creada.');
+  } else {
+    console.error('No se encontró la unidad "Mayo (1ª Q)" para Filosofía para asociar la tarea.');
+  }
+
+  // === Fin de Adición de Evaluaciones y Tareas para Introducción a la Filosofía ===
+
+
+  // === Fin de Adición de Evaluaciones y Tareas para Introducción a la Filosofía ===
+
+  // === Asignar puntuaciones máximas a alumnos para tareas y evaluaciones ===
+  console.log('Asignando puntuaciones máximas a alumnos...');
+
+
+
+  // Obtener todas las tareas de Historia de la Música del Paraguay
+  const tareasHistoriaMusica = await prisma.tareaMaestra.findMany({
+    where: { catedraId: historiaMusicaCatedra.id },
+  });
+
+  // Asignar puntuaciones de tareas para Historia de la Música del Paraguay
+  for (const tarea of tareasHistoriaMusica) {
+    for (const alumnoId of alumnosHistoriaMusicaIds) {
+      if (alumnoId) {
+        await prisma.puntuacion.create({
+          data: {
+            alumnoId: alumnoId,
+            catedraId: historiaMusicaCatedra.id,
+            puntos: tarea.puntos_posibles,
+            motivo: `Tarea: ${tarea.titulo}`,
+            tipo: 'TAREA',
+            created_at: new Date(),
+          },
+        }).catch(e => {
+          if (e.code === 'P2002') {
+            console.log(`Puntuación para tarea "${tarea.titulo}" para alumno ${alumnoId} ya existe. Saltando.`);
+          } else {
+            console.error(`Error al crear puntuación para tarea "${tarea.titulo}" para alumno ${alumnoId}:`, e.message);
+          }
+        });
+      }
+    }
+  }
+
+  // Obtener todas las evaluaciones de Historia de la Música del Paraguay
+  const evaluacionesHistoriaMusica = await prisma.evaluacion.findMany({
+    where: { catedraId: historiaMusicaCatedra.id },
+  });
+
+  // Asignar puntuaciones de evaluaciones para Historia de la Música del Paraguay
+  for (const evaluacion of evaluacionesHistoriaMusica) {
+    for (const alumnoId of alumnosHistoriaMusicaIds) {
+      if (alumnoId) {
+        await prisma.puntuacion.create({
+          data: {
+            alumnoId: alumnoId,
+            catedraId: historiaMusicaCatedra.id,
+            puntos: 20, // Puntaje máximo para evaluaciones
+            motivo: `Evaluación: ${evaluacion.titulo}`,
+            tipo: 'EVALUACION',
+            created_at: new Date(),
+          },
+        }).catch(e => {
+          if (e.code === 'P2002') {
+            console.log(`Puntuación para evaluación "${evaluacion.titulo}" para alumno ${alumnoId} ya existe. Saltando.`);
+          } else {
+            console.error(`Error al crear puntuación para evaluación "${evaluacion.titulo}" para alumno ${alumnoId}:`, e.message);
+          }
+        });
+      }
+    }
+  }
+
+
+  // Obtener todas las tareas de Introducción a la Filosofía
+  const tareasFilosofia = await prisma.tareaMaestra.findMany({
+    where: { catedraId: filosofiaCatedra.id },
+  });
+
+  // Asignar puntuaciones de tareas para Introducción a la Filosofía
+  for (const tarea of tareasFilosofia) {
+    for (const alumnoId of alumnosFilosofiaIds) {
+      if (alumnoId) {
+        await prisma.puntuacion.create({
+          data: {
+            alumnoId: alumnoId,
+            catedraId: filosofiaCatedra.id,
+            puntos: tarea.puntos_posibles,
+            motivo: `Tarea: ${tarea.titulo}`,
+            tipo: 'TAREA',
+            created_at: new Date(),
+          },
+        }).catch(e => {
+          if (e.code === 'P2002') {
+            console.log(`Puntuación para tarea "${tarea.titulo}" para alumno ${alumnoId} ya existe. Saltando.`);
+          } else {
+            console.error(`Error al crear puntuación para tarea "${tarea.titulo}" para alumno ${alumnoId}:`, e.message);
+          }
+        });
+      }
+    }
+  }
+
+  // Obtener todas las evaluaciones de Introducción a la Filosofía
+  const evaluacionesFilosofia = await prisma.evaluacion.findMany({
+    where: { catedraId: filosofiaCatedra.id },
+  });
+
+  // Asignar puntuaciones de evaluaciones para Introducción a la Filosofía
+  for (const evaluacion of evaluacionesFilosofia) {
+    for (const alumnoId of alumnosFilosofiaIds) {
+      if (alumnoId) {
+        await prisma.puntuacion.create({
+          data: {
+            alumnoId: alumnoId,
+            catedraId: filosofiaCatedra.id,
+            puntos: 20, // Puntaje máximo para evaluaciones
+            motivo: `Evaluación: ${evaluacion.titulo}`,
+            tipo: 'EVALUACION',
+            created_at: new Date(),
+          },
+        }).catch(e => {
+          if (e.code === 'P2002') {
+            console.log(`Puntuación para evaluación "${evaluacion.titulo}" para alumno ${alumnoId} ya existe. Saltando.`);
+          } else {
+            console.error(`Error al crear puntuación para evaluación "${evaluacion.titulo}" para alumno ${alumnoId}:`, e.message);
+          }
+        });
+      }
+    }
+  }
+  // === Fin de Asignar puntuaciones máximas ===
+
+  console.log('¡Seeding completado con éxito!');
+  await prisma.$disconnect();
 }
+
 
 main()
   .catch((e) => {
     console.error('Error durante el proceso de seeding:', e);
     process.exit(1);
   });
-  

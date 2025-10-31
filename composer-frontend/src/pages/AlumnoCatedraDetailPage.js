@@ -458,7 +458,7 @@ const AlumnoCatedraDetailPage = () => {
         {/* Pestañas */}
         <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
           <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 border-b border-slate-700/50">
-            <nav className="flex space-x-8 px-6" aria-label="Tabs">
+            <nav className="flex space-x-4 overflow-x-auto px-4 sm:space-x-8 sm:px-6" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab('tablon')}
                 className={`${activeTab === 'tablon'
