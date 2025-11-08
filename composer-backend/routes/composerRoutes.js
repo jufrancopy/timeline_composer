@@ -453,7 +453,7 @@ module.exports = (prisma, transporter) => {
     });
 
     // Añadir nuevo compositor (Requiere usuario/alumno)
-    router.post('/', requireUser, async (req, res) => {
+        router.post('/', async (req, res) => {
         try {
             const { email: userEmail, role } = req.user || {};
 
@@ -541,6 +541,7 @@ module.exports = (prisma, transporter) => {
                     student_last_name: is_student_contribution ? student_last_name?.trim() : null,
                     status: calculatedStatus,
                     created_at: new Date(),
+                    updated_at: new Date(),
                 },
             });
 
@@ -784,6 +785,8 @@ module.exports = (prisma, transporter) => {
                 youtube_link: youtube_link || null,
                 references: references || null,
                 photo_url: photo_url || null,
+                created_at: new Date(),
+                updated_at: new Date(),
             };
 
             console.log('Datos a guardar:', suggestionData);

@@ -63,7 +63,7 @@ const api = {
   resubmitContribution: (id, data) => apiClient.put(`/composers/resubmit/${id}`, data),
 
   // ==== Endpoints para Sugerencias de Edición ====
-  submitEditSuggestion: (id, data) => apiClient.post(`/composers/${id}/suggestions`, data),
+  submitEditSuggestion: (id, data) => apiClient.post(`/${id}/suggestions`, data),
   getPendingSuggestions: () => apiClient.get('/composers/admin/suggestions'),
   approveSuggestion: (id) => apiClient.post(`/composers/admin/suggestions/${id}/approve`),
   rejectSuggestion: (id, data) => apiClient.post(`/composers/admin/suggestions/${id}/reject`, data),
