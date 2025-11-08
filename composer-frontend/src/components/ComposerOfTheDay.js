@@ -1,29 +1,8 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Award } from 'lucide-react';
 
-const ComposerOfTheDay = ({ composers, onComposerClick }) => {
-  const composer = useMemo(() => {
-    if (!composers || composers.length === 0) return null;
-    
-    // Logic to select a deterministic composer based on the day of the year
-    const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 0);
-    const diff = now - startOfYear;
-    const oneDay = 1000 * 60 * 60 * 24;
-    const dayOfYear = Math.floor(diff / oneDay);
-    
-    const index = dayOfYear % composers.length;
-    return composers[index];
-  }, [composers]);
-
-  if (!composer) {
-    return (
-      <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10">
-        <h2 className="text-2xl font-bold text-white mb-4">Compositor del Día</h2>
-        <p className="text-gray-300">No hay compositores disponibles.</p>
-      </div>
-    );
-  }
+const ComposerOfTheDay = ({ composer, onComposerClick }) => {
+  if (!composer) return null;
 
   return (
     <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10">

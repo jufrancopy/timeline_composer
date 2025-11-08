@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import {
   ArrowLeft, BookOpen, FileText, Brain, MessageSquare,
   CheckCircle, Clock, AlertCircle, Calendar, User,
-  Plus, Edit3, Trash2, TrendingUp, Award, Target
+  Plus, Edit3, Trash2, TrendingUp, Award, Target, X
 } from 'lucide-react';
 import PublicacionCard from '../components/PublicacionCard';
 import PublicacionForm from '../components/PublicacionForm';
@@ -29,11 +29,11 @@ const AlumnoCatedraDetailPage = () => {
   const [editingPublicacion, setEditingPublicacion] = useState(null);
   const [publicationLoading, setPublicationLoading] = useState(false);
 
-  // Estados para Tareas
+  // Estados para Tareas - MODIFICADO PARA MÚLTIPLES ARCHIVOS
   const [tareas, setTareas] = useState([]);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [taskToSubmit, setTaskToSubmit] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]); // CAMBIO: Array en lugar de un solo archivo
 
   // Estados para Evaluaciones
   const [evaluaciones, setEvaluaciones] = useState([]);
@@ -72,14 +72,22 @@ const AlumnoCatedraDetailPage = () => {
     fetchCatedraData();
   }, [catedraId, location.state]);
 
-  // Handlers para Tareas
+  // Handlers para Tareas - MODIFICADO PARA MÚLTIPLES ARCHIVOS
   const handleOpenSubmitModal = (task) => {
     setTaskToSubmit(task);
+    setSelectedFiles([]); // CAMBIO: Limpiar array de archivos
     setIsSubmitModalOpen(true);
   };
 
+  // NUEVO: Handler para múltiples archivos
   const handleFileChange = (event) => {
-    setSelectedFile(event.target.files[0]);
+    const files = Array.from(event.target.files);
+    setSelectedFiles(files);
+  };
+
+  // NUEVO: Handler para eliminar un archivo específico
+  const handleRemoveFile = (indexToRemove) => {
+    setSelectedFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
   };
 
   // Handlers para Publicaciones
@@ -307,25 +315,38 @@ const AlumnoCatedraDetailPage = () => {
     }
   };
 
+  // MODIFICADO: Handler para enviar múltiples archivos
   const handleSubmitDelivery = async () => {
-    if (!selectedFile || !taskToSubmit) {
-      toast.error('Por favor selecciona un archivo');
+    if (selectedFiles.length === 0 || !taskToSubmit) {
+      toast.error('Por favor selecciona al menos un archivo');
       return;
     }
 
     try {
       setLoading(true);
-      const formData = new FormData();
-      formData.append('file', selectedFile);
+      
+      // DEBUG: Ver la estructura completa de la tarea
+      console.log('=== DEBUG TASK SUBMIT ===');
+      console.log('Full taskToSubmit object:', taskToSubmit);
+      console.log('taskToSubmit.id:', taskToSubmit.id);
+      console.log('taskToSubmit.tareaId:', taskToSubmit.tareaId);
+      console.log('taskToSubmit.TareaMaestraId:', taskToSubmit.TareaMaestraId);
+      console.log('taskToSubmit.TareaMaestra?.id:', taskToSubmit.TareaMaestra?.id);
+      console.log('Selected files:', selectedFiles);
+      console.log('========================');
+      
+      // La función api.submitTaskDelivery espera (tareaAsignacionId, files[])
+      // donde files es un array de archivos
+      await api.submitTaskDelivery(taskToSubmit.id, selectedFiles);
 
-      await api.submitTaskDelivery(taskToSubmit.id, selectedFile);
-      toast.success('Entrega subida exitosamente');
+      toast.success(`${selectedFiles.length} archivo(s) subido(s) exitosamente`);
       setIsSubmitModalOpen(false);
-      setSelectedFile(null);
+      setSelectedFiles([]);
       fetchCatedraData();
     } catch (error) {
       console.error('Error al subir entrega:', error);
-      toast.error('Error al subir la entrega');
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Error al subir la entrega');
     } finally {
       setLoading(false);
     }
@@ -346,12 +367,20 @@ const AlumnoCatedraDetailPage = () => {
   };
 
   const getTaskStatusDisplay = (task) => {
-    console.log('getTaskStatusDisplay received task.estado:', task.estado);
     if (task.estado === 'CALIFICADA') return 'Calificada';
     if (task.estado === 'ENTREGADA') return 'Entregada';
     if (task.estado === 'VENCIDA') return task.submission_path ? 'Vencida (Entregada)' : 'Vencida';
     if (task.estado === 'ASIGNADA') return 'Asignada';
-    return task.estado || 'Desconocido'; // Añadir un valor por defecto
+    return task.estado || 'Desconocido';
+  };
+
+  // NUEVO: Función para formatear tamaño de archivo
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
   if (loading) {
@@ -698,16 +727,17 @@ const AlumnoCatedraDetailPage = () => {
         />
       </Modal>
 
+      {/* MODAL MODIFICADO PARA MÚLTIPLES ARCHIVOS */}
       <Modal
         isOpen={isSubmitModalOpen}
         onClose={() => {
           setIsSubmitModalOpen(false);
-          setSelectedFile(null);
+          setSelectedFiles([]);
         }}
         title="Subir Entrega"
         onSubmit={handleSubmitDelivery}
         submitText="Subir Entrega"
-        submitDisabled={!selectedFile || loading}
+        submitDisabled={selectedFiles.length === 0 || loading}
       >
         <div className="p-6 space-y-6">
           {/* Información de la tarea */}
@@ -759,26 +789,54 @@ const AlumnoCatedraDetailPage = () => {
             )}
           </div>
 
-          {/* Sección de carga de archivo */}
+          {/* Sección de carga de archivos - MODIFICADA PARA MÚLTIPLES */}
           <div className="bg-slate-800/30 rounded-xl p-5 border border-slate-700/50 space-y-4">
             <p className="text-slate-300 font-medium flex items-center gap-2">
               <FileText size={20} className="text-purple-400" />
-              Selecciona el archivo para tu entrega
+              Selecciona los archivos para tu entrega
             </p>
             <input
               type="file"
+              multiple
               onChange={handleFileChange}
               className="w-full p-3 border border-slate-600/50 rounded-xl bg-slate-700/50 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-purple-600 file:text-white hover:file:bg-purple-700 transition-colors cursor-pointer"
             />
-            {selectedFile && (
-              <div className="p-4 bg-green-900/20 border border-green-500/30 rounded-lg animate-in fade-in duration-200">
-                <p className="text-green-300 flex items-center gap-2 font-medium">
-                  <CheckCircle size={18} />
-                  Archivo seleccionado: <span className="font-bold">{selectedFile.name}</span>
+            
+            {/* Lista de archivos seleccionados */}
+            {selectedFiles.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-slate-400 font-medium">
+                  {selectedFiles.length} archivo(s) seleccionado(s):
                 </p>
-                <p className="text-green-400/70 text-xs mt-1 ml-6">
-                  Tamaño: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                </p>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {selectedFiles.map((file, index) => (
+                    <div 
+                      key={index}
+                      className="p-3 bg-green-900/20 border border-green-500/30 rounded-lg flex items-center justify-between gap-3 animate-in fade-in duration-200"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <CheckCircle size={18} className="text-green-400 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-green-300 font-medium truncate">{file.name}</p>
+                          <p className="text-green-400/70 text-xs">{formatFileSize(file.size)}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(index)}
+                        className="p-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
+                        title="Eliminar archivo"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-2 border-t border-slate-700/50">
+                  <p className="text-sm text-slate-400">
+                    <strong>Tamaño total:</strong> {formatFileSize(selectedFiles.reduce((acc, file) => acc + file.size, 0))}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -788,7 +846,7 @@ const AlumnoCatedraDetailPage = () => {
             <AlertCircle size={20} className="text-blue-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-slate-300">
               <p className="font-medium text-blue-300 mb-1">Importante:</p>
-              <p>Asegúrate de que el archivo sea el correcto antes de subirlo. Una vez enviado, no podrás modificar tu entrega sin la autorización del docente.</p>
+              <p>Asegúrate de que todos los archivos sean correctos antes de subirlos. Una vez enviados, no podrás modificar tu entrega sin la autorización del docente.</p>
             </div>
           </div>
         </div>

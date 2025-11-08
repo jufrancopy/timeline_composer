@@ -3,14 +3,14 @@ const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy');
 const { generateQuestionsWithAI } = require('../ai');
 const requireDocente = require('../middlewares/requireDocente');
-const upload = require('../utils/multerConfig'); // Import multer configuration
+const { uploadSingle } = require('../utils/multerConfig'); // Import multer configuration
 const path = require('path');
 
 module.exports = (prisma, transporter) => {
   const router = express.Router();
 
   // Route for multimedia file upload
-  router.post('/docente/upload/multimedia', requireDocente, upload.single('file'), (req, res) => {
+  router.post('/docente/upload/multimedia', requireDocente, uploadSingle.single('file'), (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: 'No se proporcionó ningún archivo.' });
     }
@@ -31,17 +31,11 @@ module.exports = (prisma, transporter) => {
     }
 
     try {
-      let docente = await prisma.docente.findUnique({ where: { email } });
+      const docente = await prisma.docente.findUnique({ where: { email } });
+      console.log('[DOCENTE OTP DEBUG] Resultado de findUnique para email', email, ':', docente);
 
       if (!docente) {
-        docente = await prisma.docente.create({
-          data: {
-            email,
-            nombre: email.split('@')[0],
-            apellido: 'Docente',
-            otpEnabled: false,
-          },
-        });
+        return res.status(404).json({ message: 'No se encontró un docente con este email.', error: 'No se encontró un docente con este email.' });
       }
 
       const secret = speakeasy.generateSecret({ length: 20 }).base32;
@@ -186,7 +180,21 @@ module.exports = (prisma, transporter) => {
           },
           CatedraAlumno: {
             include: {
-              Alumno: true,
+              Alumno: {
+                include: {
+                  TareaAsignacion: {
+                    include: {
+                      TareaMaestra: {
+                        select: {
+                          id: true,
+                          titulo: true,
+                          puntos_posibles: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
               Composer: true,
             },
           },
@@ -767,6 +775,7 @@ module.exports = (prisma, transporter) => {
           multimedia_path,
           Catedra: { connect: { id: parseInt(catedraId) } },
           UnidadPlan: unidadPlanId ? { connect: { id: unidadPlanId } } : undefined,
+          updated_at: new Date(),
         },
       });
 
@@ -789,6 +798,7 @@ module.exports = (prisma, transporter) => {
           autorDocenteId: docenteId,
           visibleToStudents: false, // Correctly set to false initially
           tareaMaestraId: newTareaMaestra.id, // Establish the crucial link here
+          updated_at: new Date(),
         },
       });
 
@@ -863,16 +873,19 @@ module.exports = (prisma, transporter) => {
               tareaMaestraId: parseInt(tareaMaestraId),
             },
           },
-          update: {},
+          update: {
+          updated_at: new Date(),
+        },
           create: {
             alumnoId: alumnoIdInt,
             tareaMaestraId: parseInt(tareaMaestraId),
-            estado: 'ASIGNADA', // Default state for new assignment
+            estado: 'ASIGNADA',
+          updated_at: new Date(), // Default state for new assignment
           },
         });
         assignedTasks.push(asignacion);
 
-        // Send email notification to student
+        // Send email notification to student (BLOCKED BY USER)
         if (alumno.email) {
           const mailOptions = {
             from: `"HMPY (Historia de la Música PY - Academia)" <${process.env.EMAIL_USER}>`,
@@ -1398,6 +1411,37 @@ module.exports = (prisma, transporter) => {
       res.status(500).json({ error: 'Failed to delete evaluation.', details: error.message });
     }
   });
+
+  // GET /docente/catedra/:catedraId/tareas-maestras/:tareaMaestraId/assignments - Obtener los alumnos asignados a una tarea
+  router.get('/docente/catedra/:catedraId/tareas-maestras/:tareaMaestraId/assignments', requireDocente, async (req, res) => {
+    const { catedraId, tareaMaestraId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      const assignments = await prisma.tareaAsignacion.findMany({
+        where: {
+          tareaMaestraId: parseInt(tareaMaestraId),
+          TareaMaestra: {
+            catedraId: parseInt(catedraId),
+            Catedra: {
+              docenteId: docenteId,
+            },
+          },
+        },
+        select: {
+          alumnoId: true,
+        },
+      });
+
+      res.status(200).json({
+        assignedAlumnoIds: assignments.map(a => a.alumnoId),
+      });
+
+    } catch (error) {
+      console.error('Error fetching assigned students for task:', error);
+      res.status(500).json({ error: 'Error al obtener los alumnos asignados para la tarea.', details: error.message });
+    }
+  });
   
   // GET /docentes/planes/:planId - Obtener un plan de clases específico
   router.get('/docente/me/planes/:planId', requireDocente, async (req, res) => {
@@ -1421,7 +1465,7 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Plan de clases no encontrado.' });
       }
 
-      if (planDeClases.catedra.docenteId !== docenteId) {
+      if (planDeClases.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para ver este plan de clases.' });
       }
 
@@ -1438,23 +1482,29 @@ module.exports = (prisma, transporter) => {
     const { titulo, tipoOrganizacion } = req.body;
     const docenteId = req.docente.docenteId;
 
+    console.log(`[BACKEND] Recibido planId: ${planId}, docenteId del token: ${docenteId}`); // <-- Nuevo log
+
     try {
       const planDeClases = await prisma.planDeClases.findUnique({
         where: {
           id: parseInt(planId),
         },
         include: {
-          catedra: {
+          Catedra: {
             select: { docenteId: true },
           },
         },
       });
 
+      console.log(`[BACKEND] Resultado de búsqueda de planDeClases (ID: ${planId}):`, planDeClases); // <-- Nuevo log
+
       if (!planDeClases) {
+        console.log(`[BACKEND] Plan de clases con ID ${planId} no encontrado.`); // <-- Nuevo log
         return res.status(404).json({ error: 'Plan de clases no encontrado.' });
       }
 
-      if (planDeClases.catedra.docenteId !== docenteId) {
+      if (planDeClases.Catedra.docenteId !== docenteId) {
+        console.log(`[BACKEND] Docente ${docenteId} intentó actualizar plan ${planId} pero no tiene permisos (propietario: ${planDeClases.Catedra.docenteId}).`); // <-- Nuevo log
         return res.status(403).json({ error: 'No tiene permiso para actualizar este plan de clases.' });
       }
 
@@ -1466,9 +1516,10 @@ module.exports = (prisma, transporter) => {
         },
       });
 
+      console.log(`[BACKEND] Plan de clases ${planId} actualizado exitosamente.`); // <-- Nuevo log
       res.status(200).json(updatedPlanDeClases);
     } catch (error) {
-      console.error('Error al actualizar plan de clases:', error);
+      console.error('[BACKEND] Error al actualizar plan de clases:', error); // <-- Modificado
       res.status(500).json({ error: 'Error al actualizar el plan de clases.', details: error.message });
     }
   });
@@ -1484,7 +1535,7 @@ module.exports = (prisma, transporter) => {
           id: parseInt(planId),
         },
         include: {
-          catedra: {
+          Catedra: {
             select: { docenteId: true },
           },
           UnidadPlan: true, // Para verificar si hay unidades asociadas
@@ -1495,7 +1546,7 @@ module.exports = (prisma, transporter) => {
         return res.status(404).json({ error: 'Plan de clases no encontrado.' });
       }
 
-      if (planDeClases.catedra.docenteId !== docenteId) {
+      if (planDeClases.Catedra.docenteId !== docenteId) {
         return res.status(403).json({ error: 'No tiene permiso para eliminar este plan de clases.' });
       }
 
@@ -1955,7 +2006,15 @@ module.exports = (prisma, transporter) => {
             catedraId: parseInt(catedraId),
           },
         },
-        include: {
+        select: {
+          id: true,
+          alumnoId: true,
+          tareaMaestraId: true,
+          estado: true,
+          puntos_obtenidos: true,
+          submission_path: true,
+          submission_date: true,
+          comentario_docente: true,
           TareaMaestra: {
             include: {
               UnidadPlan: {
@@ -1986,6 +2045,7 @@ module.exports = (prisma, transporter) => {
         submission_path: asignacion.submission_path,
         submission_date: asignacion.submission_date,
         puntos_obtenidos: asignacion.puntos_obtenidos,
+        comentario_docente: asignacion.comentario_docente,
         catedraId: asignacion.TareaMaestra.catedraId,
         alumnoId: asignacion.alumnoId,
         tareaMaestraId: asignacion.tareaMaestraId,
@@ -2008,8 +2068,8 @@ module.exports = (prisma, transporter) => {
     const { puntos_obtenidos, comentario_docente } = req.body;
     const docenteId = req.docente.docenteId;
 
-    if (puntos_obtenidos === undefined) {
-      return res.status(400).json({ error: 'Los puntos obtenidos son requeridos.' });
+    if (puntos_obtenidos === undefined || puntos_obtenidos === null) {
+      return res.status(400).json({ error: 'Los puntos obtenidos son obligatorios para calificar la tarea.' });
     }
 
     const puntos = parseInt(puntos_obtenidos);
@@ -2036,8 +2096,8 @@ module.exports = (prisma, transporter) => {
         return res.status(403).json({ error: 'No tiene permiso para calificar esta asignación de tarea.' });
       }
 
-      if (puntos > asignacion.TareaMaestra.puntos_posibles) {
-        return res.status(400).json({ error: `La calificación no puede exceder los ${asignacion.TareaMaestra.puntos_posibles} puntos posibles.` });
+      if (isNaN(puntos) || puntos < 0 || puntos > asignacion.TareaMaestra.puntos_posibles) {
+        return res.status(400).json({ error: `La calificación debe estar entre 0 y ${asignacion.TareaMaestra.puntos_posibles} puntos.` });
       }
 
       // 3. Update the task assignment with the grade and set status to CALIFICADA
@@ -2045,8 +2105,9 @@ module.exports = (prisma, transporter) => {
         where: { id: parseInt(tareaAsignacionId) },
         data: {
           puntos_obtenidos: puntos,
+          comentario_docente: comentario_docente || null,
           estado: 'CALIFICADA',
-          // Add comentario_docente here if you add it to the prisma schema
+          updated_at: new Date(),
         },
       });
 

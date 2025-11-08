@@ -210,12 +210,12 @@ const Header = ({ isAdmin, isDocente, isStudent, handleLogout }) => {
 
               {userData && userData.role === 'Alumno' && (
                 <Link 
-                  to="/my-contributions" 
+                  to="/alumnos/dashboard" 
                   className="group relative px-4 py-2.5 text-slate-300 hover:text-white transition-all duration-300 rounded-lg hover:bg-white/5"
                 >
                   <span className="relative z-10 flex items-center gap-2">
                     <BarChart3 size={16} />
-                    Mis Aportes
+                    Dashboard Alumno
                   </span>
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </Link>
@@ -417,12 +417,12 @@ const Header = ({ isAdmin, isDocente, isStudent, handleLogout }) => {
                 
                 {userData && userData.role === 'Alumno' && (
                   <Link 
-                    to="/my-contributions" 
+                    to="/alumnos/dashboard" 
                     className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <BarChart3 size={20} />
-                    Mis Aportes
+                    Dashboard Alumno
                   </Link>
                 )}
 

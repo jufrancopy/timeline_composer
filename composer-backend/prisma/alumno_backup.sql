@@ -88,7 +88,7 @@ COPY public."Alumno" (id, nombre, apellido, email, telefono, direccion, instrume
 5	Santiago Josué	Cruz Valdez	santiagojosuevaldezcruz2011@gmail.com	0976120549	Isla Aranda - Limpio	Piano Clásico	Teoría I, Instrumento, Ensamble	2025-10-02 20:08:14.321	2025-10-02 20:08:14.321	Carolina Arce 	09814293925	f
 6	Ricardo Antonio 	Frutos Sánchez	ricardofrutos86@gmail.com	0981215311	7ma Pyda 825 c/ Ayolas	Guitarra Eléctrica	Teoría I, Informática, Instrumento, Ensamble de Jazz	2025-10-02 20:09:53.021	2025-10-02 20:09:53.021	\N	\N	f
 7	Fabrizio Maxiliano 	Ruíz Ortega	fabroj777@gmail.com	0991995951	Tte Rojas Silva y 21 Proyectadas	Guitarra Eléctrica	Teoría I, Informática, Ensamble de Jazz, Instrumento	2025-10-02 20:14:06.766	2025-10-02 20:14:06.766	\N	\N	f
-8	Kathia Verenize	González Amarilla	kathiayiya@gmaoil.com	0984200962	Urundey c/ Concepción - Barrio Hipódromo 	Piano Clásico	Teoría I, Instrumento, Ensamble	2025-10-02 20:16:49.709	2025-10-02 20:16:49.709	\N	\N	f
+8	Kathia Verenize	González Amarilla	kathiayiya@gmail.com	0984200962	Urundey c/ Concepción - Barrio Hipódromo 	Piano Clásico	Teoría I, Instrumento, Ensamble	2025-10-02 20:16:49.709	2025-10-02 20:16:49.709	\N	\N	f
 9	Iván Lorenzo	Domaniczky	ivandomaniczky@hotmail.com	0994281941	Mcal Estigarribia c/ Mayor Fleitas	Piano Clásico	Tteoria I, Instrumento, Coro Polifónico	2025-10-02 20:19:10.919	2025-10-02 20:19:10.919	\N	\N	f
 10	Angel Gabriel 	Rodríguez Galeano	anglrodga@gmai.com	0981854219	Estados Unidos, 16 e/ 17 Pyda	Guitarra Clásica	Instrumento, Teoría I, Coro Polifónico	2025-10-02 20:22:07.626	2025-10-02 20:22:07.626	\N	\N	f
 2	Julio	Franco	jucfra23@gmail.com	0981574711	Laurelty 4565, Luque - Paraguay	Cello	Usuario de prueba (docente y alumno).	2025-10-02 15:01:19.677	2025-10-04 00:12:12.585	\N	\N	f

@@ -34,8 +34,8 @@ const CatedraForm = ({ onSubmit, initialData, onCancel }) => {
   useEffect(() => {
     if (initialData) {
       setFormData({ ...initialData, docenteId: initialData.docenteId || '' });
-      if (initialData.horariosPorDia && initialData.horariosPorDia.length > 0) {
-        setSchedules(initialData.horariosPorDia);
+      if (initialData.CatedraDiaHorario && initialData.CatedraDiaHorario.length > 0) {
+        setSchedules(initialData.CatedraDiaHorario);
       } else {
         setSchedules([{ dia_semana: 'Lunes', hora_inicio: '', hora_fin: '' }]);
       }

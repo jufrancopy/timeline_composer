@@ -82,6 +82,7 @@ const AlumnoTareaDetailPage = () => {
 
   const { TareaMaestra, estado, submission_path, submission_date, puntos_obtenidos } = tareaAsignacion;
 
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -176,7 +177,7 @@ const AlumnoTareaDetailPage = () => {
           )}
 
           {/* Sección de Entrega (solo si la tarea no ha sido entregada o está en estado pendiente) */}
-          {estado === 'ASIGNADA' || estado === 'PENDIENTE' || estado === 'RECHAZADA' ? (
+          {tareaAsignacion.estado?.toUpperCase() === 'ASIGNADA' && puntos_obtenidos === null ? (
             <div className="mt-8 text-center">
               <Link 
                 to={`/alumno/submit-tarea/${tareaAsignacionId}`} // Ruta para subir la entrega
@@ -192,18 +193,27 @@ const AlumnoTareaDetailPage = () => {
                 <p className="text-white">Estado: <span className="font-bold">{estado}</span></p>
                 {submission_date && <p className="text-white">Fecha de Entrega: {new Date(submission_date).toLocaleDateString()}</p>}
                 {puntos_obtenidos !== null && <p className="text-white">Puntos Obtenidos: <span className="font-bold">{puntos_obtenidos}</span></p>}
-                {submission_path && (
-                  <p className="text-white">Archivo Entregado: 
-                    <a 
-                      href={`${STATIC_ASSET_BASE_URL}${submission_path}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 ml-2"
-                    >
-                      <FileText size={16} />
-                      Ver Archivo
-                    </a>
-                  </p>
+                {(submission_path && submission_path.length > 0) && (
+                  <div className="text-white">
+                    <h5 className="font-semibold mb-2">Archivos Entregados:</h5>
+                    <div className="grid gap-2">
+                      {submission_path.map((path, index) => {
+                        const fileName = path.split('/').pop();
+                        return (
+                          <a
+                            key={index}
+                            href={`${STATIC_ASSET_BASE_URL}${path}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                          >
+                            <FileText size={16} />
+                            {fileName}
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

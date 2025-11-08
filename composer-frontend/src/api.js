@@ -54,6 +54,7 @@ const api = {
   deleteComposer: (id) => apiClient.delete(`/composers/${id}`),
   searchComposers: (query) => apiClient.get(`/composers/search?query=${query}`),
   getRandomComposer: () => apiClient.get('/composers/random'),
+  getRandomComposer: () => apiClient.get('/composers/random'),
   getComposerBySlug: (slug) => apiClient.get(`/composers/slug/${slug}`),
   addComposerAsAdmin: (data) => apiClient.post('/composers/admin-create', data),
   updateComposerStatus: (id, data) => apiClient.put(`/composers/${id}/status`, data),
@@ -74,16 +75,18 @@ const api = {
   requestOtp: (email) => apiClient.post('/request-otp', { email }),
   verifyOtp: (email, otp) => apiClient.post('/alumnos/verify-otp', { email, otp }),
   getAlumnoMe: () => apiClient.get('/alumnos/me'),
-  getMyStudentContributions: () => apiClient.get('/alumnos/me/contributions'),
+
   getStudentCatedras: () => apiClient.get('/alumnos/me/catedras'),
 
   // ==== Endpoints para Tareas de Alumnos ====
   getAlumnoTareas: () => apiClient.get('/alumnos/me/tareas'),
   getTareaAsignacionById: (tareaAsignacionId) => apiClient.get(`/tareas/${tareaAsignacionId}`),
-  submitTaskDelivery: (tareaAsignacionId, file) => {
+  submitTaskDelivery: (tareaAsignacionId, files) => {
     const formData = new FormData();
-    formData.append('file', file);
-    return apiClient.post(`/tareas/${tareaAsignacionId}/submit`, formData, {
+    files.forEach((file) => {
+      formData.append('files', file); // Usa 'files' como nombre de campo para el backend
+    });
+    return apiClient.post(`tareas/${tareaAsignacionId}/submit`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
@@ -91,7 +94,7 @@ const api = {
   getMyEvaluations: () => apiClient.get('/alumnos/me/evaluaciones'),
   getEvaluationForStudent: (evaluationId) => apiClient.get(`/alumnos/me/evaluaciones/${evaluationId}`),
   submitEvaluation: (evaluationId, data) => apiClient.post(`/alumnos/me/evaluaciones/${evaluationId}/submit`, data),
-  getEvaluationResultsForStudent: (evaluationId) => apiClient.get(`/alumnos/me/evaluaciones/${evaluationId}/results`),
+  getAlumnoEvaluationResults: (catedraId, evaluationId) => apiClient.get(`/alumnos/me/evaluaciones/${evaluationId}/results`),
 
   // ==== Endpoints para Publicaciones (Tablón) ====
   getPublicaciones: (catedraId) => apiClient.get(`/publicaciones/catedra/${catedraId}`),
@@ -170,6 +173,7 @@ const api = {
 
   // ==== Endpoints para Docentes (Asignacion de Tarea Maestra) ====
   assignTareaToAlumnos: (catedraId, tareaMaestraId, data) => apiClient.post(`/docente/catedra/${catedraId}/tareas-maestras/${tareaMaestraId}/assign`, data),
+  getAssignedTaskStudents: (catedraId, tareaMaestraId) => apiClient.get(`/docente/catedra/${catedraId}/tareas-maestras/${tareaMaestraId}/assignments`),
 
 
   // ==== Endpoints para Docentes (Alumno Detalles y Entregas) ====

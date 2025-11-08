@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Mail, Shield } from 'lucide-react';
+import { Mail, Shield, Users } from 'lucide-react';
+import { handleRequestError } from '../utils/errorUtils';
+
 
 function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -22,7 +24,10 @@ function LoginPage({ onLogin }) {
       toast.success('Código enviado a tu email. Revisa tu bandeja de entrada.');
     } catch (err) {
       console.error('Error requesting OTP:', err);
-      toast.error(err.response?.data?.error || 'Error al solicitar el código. Intenta de nuevo.');
+      handleRequestError(err, setError, {
+        notFound: 'El correo que ingresaste no existe.',
+        forbidden: 'Este correo es de docente o admin. Por favor, usa el portal correspondiente.'
+      });
     } finally {
       setLoading(false);
     }
@@ -40,8 +45,7 @@ function LoginPage({ onLogin }) {
       navigate('/my-contributions'); // Redirigir al dashboard de contribuciones
     } catch (err) {
       console.error('Error verifying OTP:', err);
-      toast.error(err.response?.data?.error || 'Código inválido o expirado. Intenta de nuevo.');
-    } finally {
+      handleRequestError(err, setError, { unauthorized: 'Código inválido o expirado. Intenta de nuevo.' }); finally {
       setLoading(false);
     }
   };

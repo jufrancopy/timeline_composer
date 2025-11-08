@@ -205,7 +205,7 @@ async function main() {
         institucion: 'Conservatorio Nacional de Música',
         turno: 'Mañana',
         aula: 'Aula 101',
-        dias: 'Lunes, Miércoles',
+        dias: 'Jueves',
         docenteId: julioFrancoDocente.id,
         created_at: new Date(),
         updated_at: new Date(),
@@ -214,6 +214,34 @@ async function main() {
     console.log('Cátedra Historia de la Música del Paraguay creada.');
   } else {
     console.log('Cátedra Historia de la Música del Paraguay ya existe.');
+  }
+
+  // Asociar días y horarios para Historia de la Música del Paraguay
+  let catedraDiaHorarioHistoria = await prisma.catedraDiaHorario.findFirst({
+    where: {
+      catedraId: historiaMusicaCatedra.id,
+      dia_semana: 'Jueves',
+    },
+  });
+
+  if (catedraDiaHorarioHistoria) {
+    await prisma.catedraDiaHorario.update({
+      where: { id: catedraDiaHorarioHistoria.id },
+      data: { hora_inicio: '17:00', hora_fin: '18:00', updated_at: new Date() },
+    });
+    console.log('Horario para Historia de la Música del Paraguay actualizado.');
+  } else {
+    await prisma.catedraDiaHorario.create({
+      data: {
+        catedraId: historiaMusicaCatedra.id,
+        dia_semana: 'Jueves',
+        hora_inicio: '17:00',
+        hora_fin: '18:00',
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+    console.log('Horario para Historia de la Música del Paraguay creado.');
   }
 
   // Asociar todos los alumnos existentes a la nueva cátedra
@@ -298,7 +326,7 @@ async function main() {
   // Alumnos adicionales para Historia de la Música del Paraguay
   const alumnosHistoriaMusica = [
     { nombre: 'Jacqueline', apellido: 'Ibañez Escurra', email: 'ibanezjacqueline11@gmail.com' },
-    { nombre: 'Sebastian', apellido: 'Mendoza', email: 'mendozanseb@gmail.com' },
+    { nombre: 'Sebastian', apellido: 'Mendoza', email: 'mendosanseb@gmail.com' }
   ];
 
   for (const alumnoData of alumnosHistoriaMusica) {
@@ -810,6 +838,7 @@ async function main() {
       quality: 'A',
       email: `seed_user_${index}_${Date.now()}@example.com`, // Correo único para cada registro
       ip_address: '127.0.0.1',
+      updated_at: new Date(),
     };
   });
 
@@ -820,10 +849,10 @@ async function main() {
     });
   }
 
-  // Crear el Plan de Clases
+  // Crear el Plan de Clases para Historia de la Música del Paraguay
   const planAnual = await prisma.planDeClases.create({
     data: {
-      titulo: 'PLAN ANUAL DE ESTUDIOS 2024',
+      titulo: `PLAN ANUAL DE ESTUDIOS 2025 - ${historiaMusicaCatedra.nombre}`,
       tipoOrganizacion: 'MES',
       docenteId: julioFrancoDocente.id,
       catedraId: historiaMusicaCatedra.id,
@@ -831,7 +860,7 @@ async function main() {
       updated_at: new Date(),
     },
   });
-  console.log('Plan de Clases "PLAN ANUAL DE ESTUDIOS 2024" creado.');
+  console.log(`Plan de Clases "PLAN ANUAL DE ESTUDIOS 2025 - ${historiaMusicaCatedra.nombre}" creado.`);
 
   // Crear Unidades de Plan de Clases
   const unidadesData = [
@@ -1036,12 +1065,11 @@ async function main() {
           updated_at: new Date(),
         },
       });
-      // Crear la calificación inicial (vacía o con 0 puntos)
       await prisma.calificacionEvaluacion.create({
         data: {
           alumnoId: alumnoId,
           evaluacionAsignacionId: evaluacionAsignacion.id,
-          puntos: 20, // Inicializar con 0 puntos
+          puntos: 80, // Asignar un puntaje para que aparezca como calificada
           created_at: new Date(),
         },
       });
@@ -1133,7 +1161,7 @@ async function main() {
   // Crear el Plan de Clases para Introducción a la Filosofía
   const planFilosofia = await prisma.planDeClases.create({
     data: {
-      titulo: 'PLAN ANUAL DE ESTUDIOS 2024',
+      titulo: `PLAN ANUAL DE ESTUDIOS 2025 - ${filosofiaCatedra.nombre}`,
       tipoOrganizacion: 'MES',
       docenteId: julioFrancoDocente.id,
       catedraId: filosofiaCatedra.id,
@@ -1141,7 +1169,7 @@ async function main() {
       updated_at: new Date(),
     },
   });
-  console.log('Plan de Clases "PLAN ANUAL DE ESTUDIOS 2024" para Filosofía creado.');
+  console.log(`Plan de Clases "PLAN ANUAL DE ESTUDIOS 2025 - ${filosofiaCatedra.nombre}" para Filosofía creado.`);
 
   // Crear Unidades de Plan de Clases para Introducción a la Filosofía
   const unidadesFilosofiaData = [
@@ -1309,8 +1337,9 @@ async function main() {
     },
   ];
 
+  const createdUnidadesFilosofia = [];
   for (const unidad of unidadesFilosofiaData) {
-    await prisma.unidadPlan.create({
+    const createdUnidad = await prisma.unidadPlan.create({
       data: {
         planDeClasesId: planFilosofia.id,
         periodo: unidad.periodo,
@@ -1325,10 +1354,12 @@ async function main() {
         updated_at: new Date(),
       },
     });
+    createdUnidadesFilosofia.push(createdUnidad);
     console.log(`Unidad Plan para Filosofía "${unidad.contenido}" creada.`);
   }
 
-  const unidadFilosofiaJunio2daQuincena = createdUnidades.find(u => u.planDeClasesId === planFilosofia.id && u.periodo === 'Junio (2ª Q)');
+
+  const unidadFilosofiaJunio2daQuincena = createdUnidadesFilosofia.find(u => u.periodo === 'Junio (2ª Q)');
   if (unidadFilosofiaJunio2daQuincena) {
     await prisma.evaluacion.create({
       data: {
@@ -1391,7 +1422,7 @@ async function main() {
 
 
   // === Adición de Evaluaciones y Tareas para Introducción a la Filosofía ===
-  const unidadFilosofiaAbril1raQ = unidadesFilosofiaData.find(u => u.periodo === 'Abril (1ª Q)');
+  const unidadFilosofiaAbril1raQ = createdUnidadesFilosofia.find(u => u.periodo === 'Abril (1ª Q)');
   if (unidadFilosofiaAbril1raQ) {
     const evaluacionFilosofiaArte = await prisma.evaluacion.create({
       data: {
@@ -1430,7 +1461,7 @@ async function main() {
     console.error('No se encontró la unidad "Abril (1ª Q)" para Filosofía para asociar la evaluación.');
   }
 
-  const unidadFilosofiaJulio2daQ = unidadesFilosofiaData.find(u => u.periodo === 'Julio (2ª Q)');
+  const unidadFilosofiaJulio2daQ = createdUnidadesFilosofia.find(u => u.periodo === 'Julio (2ª Q)');
   if (unidadFilosofiaJulio2daQ) {
     const evaluacionNietzsche = await prisma.evaluacion.create({
       data: {
@@ -1469,7 +1500,7 @@ async function main() {
     console.error('No se encontró la unidad "Julio (2ª Q)" para Filosofía para asociar la evaluación.');
   }
 
-  const unidadFilosofiaMarzo2daQuincena = unidadesFilosofiaData.find(u => u.periodo === 'Marzo (2ª Quincena)');
+  const unidadFilosofiaMarzo2daQuincena = createdUnidadesFilosofia.find(u => u.periodo === 'Marzo (2ª Quincena)');
   if (unidadFilosofiaMarzo2daQuincena) {
     const tareaFilosofiaEstetica = await prisma.tareaMaestra.create({
       data: {
@@ -1502,7 +1533,7 @@ async function main() {
     console.error('No se encontró la unidad "Marzo (2ª Quincena)" para Filosofía para asociar la tarea.');
   }
 
-  const unidadFilosofiaMayo1raQ = unidadesFilosofiaData.find(u => u.periodo === 'Mayo (1ª Q)');
+  const unidadFilosofiaMayo1raQ = createdUnidadesFilosofia.find(u => u.periodo === 'Mayo (1ª Q)');
   if (unidadFilosofiaMayo1raQ) {
     const tareaFilosofiaAntigua = await prisma.tareaMaestra.create({
       data: {

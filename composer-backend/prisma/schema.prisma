@@ -8,75 +8,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Composer {
-  id                      Int              @id @default(autoincrement())
-  bio                     String
-  birth_day               Int?
-  birth_month             Int?
-  birth_year              Int
-  created_at              DateTime         @default(now())
-  death_day               Int?
-  death_month             Int?
-  death_year              Int?
-  email                   String
-  first_name              String
-  ip_address              String?
-  last_name               String
-  notable_works           String
-  photo_url               String?
-  quality                 String?
-  references              String?
-  status                  String           @default("PENDING_REVIEW")
-  updated_at              DateTime         @updatedAt
-  youtube_link            String?
-  period                  String
-  mainRole                RoleType[]
-  completeness_score      Int?
-  rejection_reason        String?
-  is_student_contribution Boolean          @default(false)
-  student_first_name      String?
-  student_last_name       String?
-  suggestion_reason       String?
-  CatedraAlumno           CatedraAlumno[]
-  comments                Comment[]
-  EditSuggestion          EditSuggestion[]
-  ratings                 Rating[]
-}
-
-model Comment {
-  id         Int      @id @default(autoincrement())
-  text       String
-  composerId Int
-  created_at DateTime @default(now())
-  ip_address String?
-  name       String
-  composer   Composer @relation(fields: [composerId], references: [id])
-}
-
-model Rating {
-  id           Int      @id @default(autoincrement())
-  rating_value Int
-  ip_address   String?
-  created_at   DateTime @default(now())
-  composerId   Int
-  composer     Composer @relation(fields: [composerId], references: [id])
-
-  @@unique([composerId, ip_address])
-}
-
-model Otp {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  code      String
-  expiresAt DateTime
-}
-
-model User {
-  id       Int    @id @default(autoincrement())
-  username String @unique
-  password String
-}
-
 model Alumno {
   id                     Int                      @id @default(autoincrement())
   nombre                 String
@@ -87,7 +18,7 @@ model Alumno {
   instrumento            String?
   detalles_adicionales   String?
   created_at             DateTime                 @default(now())
-  updated_at             DateTime                 @updatedAt
+  updated_at             DateTime
   nombre_tutor           String?
   telefono_tutor         String?
   vive_con_padres        Boolean?                 @default(false)
@@ -136,7 +67,7 @@ model Catedra {
   aula              String
   dias              String
   created_at        DateTime            @default(now())
-  updated_at        DateTime            @updatedAt
+  updated_at        DateTime
   docenteId         Int?
   modalidad_pago    ModalidadPago       @default(PARTICULAR)
   Docente           Docente?            @relation(fields: [docenteId], references: [id])
@@ -160,7 +91,7 @@ model CatedraAlumno {
   id                Int       @id @default(autoincrement())
   dia_cobro         Int?
   fecha_inscripcion DateTime  @default(now())
-  Alumno            Alumno?   @relation(fields: [alumnoId], references: [id])
+  Alumno            Alumno?   @relation(fields: [alumnoId], references: [id], onDelete: Restrict)
   Catedra           Catedra   @relation(fields: [catedraId], references: [id])
   Composer          Composer? @relation(fields: [composerId], references: [id])
   Pago              Pago[]
@@ -176,7 +107,7 @@ model CatedraDiaHorario {
   hora_fin    String
   catedraId   Int
   created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  updated_at  DateTime
   Catedra     Catedra  @relation(fields: [catedraId], references: [id])
 }
 
@@ -187,10 +118,55 @@ model ComentarioPublicacion {
   autorAlumnoId  Int?
   autorDocenteId Int?
   created_at     DateTime    @default(now())
-  updated_at     DateTime    @updatedAt
+  updated_at     DateTime
   Alumno         Alumno?     @relation(fields: [autorAlumnoId], references: [id])
   Docente        Docente?    @relation(fields: [autorDocenteId], references: [id])
   Publicacion    Publicacion @relation(fields: [publicacionId], references: [id])
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  text       String
+  composerId Int
+  created_at DateTime @default(now())
+  ip_address String?
+  name       String
+  Composer   Composer @relation(fields: [composerId], references: [id])
+}
+
+model Composer {
+  id                      Int              @id @default(autoincrement())
+  bio                     String
+  birth_day               Int?
+  birth_month             Int?
+  birth_year              Int
+  created_at              DateTime         @default(now())
+  death_day               Int?
+  death_month             Int?
+  death_year              Int?
+  email                   String
+  first_name              String
+  ip_address              String?
+  last_name               String
+  notable_works           String
+  photo_url               String?
+  quality                 String?
+  references              String?
+  status                  String           @default("PENDING_REVIEW")
+  updated_at              DateTime
+  youtube_link            String?
+  period                  String
+  mainRole                RoleType[]
+  completeness_score      Int?
+  rejection_reason        String?
+  is_student_contribution Boolean          @default(false)
+  student_first_name      String?
+  student_last_name       String?
+  suggestion_reason       String?
+  CatedraAlumno           CatedraAlumno[]
+  Comment                 Comment[]
+  EditSuggestion          EditSuggestion[]
+  Rating                  Rating[]
 }
 
 model CostoCatedra {
@@ -200,7 +176,7 @@ model CostoCatedra {
   monto_cuota     Float?
   es_gratuita     Boolean  @default(false)
   created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  updated_at      DateTime
   Catedra         Catedra  @relation(fields: [catedraId], references: [id])
 }
 
@@ -209,7 +185,7 @@ model DiaClase {
   fecha      DateTime
   dia_semana String
   created_at DateTime     @default(now())
-  updated_at DateTime     @updatedAt
+  updated_at DateTime
   catedraId  Int
   Asistencia Asistencia[]
   Catedra    Catedra      @relation(fields: [catedraId], references: [id])
@@ -223,7 +199,7 @@ model Docente {
   otpSecret              String?
   otpEnabled             Boolean                  @default(false)
   created_at             DateTime                 @default(now())
-  updated_at             DateTime                 @updatedAt
+  updated_at             DateTime
   direccion              String?
   telefono               String?
   Catedra                Catedra[]
@@ -249,19 +225,19 @@ model EditSuggestion {
   period                  String?
   references              String?
   youtube_link            String?
-  photo_url               String?
   mainRole                RoleType[]
   reason                  String
   status                  String     @default("PENDING_REVIEW")
   suggester_email         String
   suggester_ip            String?
   created_at              DateTime   @default(now())
-  updated_at              DateTime   @updatedAt
+  updated_at              DateTime
   composerId              Int
   is_student_contribution Boolean?   @default(false)
   student_first_name      String?
   student_last_name       String?
   points                  Int        @default(0)
+  photo_url               String?
   Composer                Composer   @relation(fields: [composerId], references: [id])
 }
 
@@ -272,12 +248,12 @@ model Evaluacion {
   catedraId            Int
   fecha_limite         DateTime?
   isMaster             Boolean                @default(true)
+  unidadPlanId         Int?
   Catedra              Catedra                @relation(fields: [catedraId], references: [id])
+  UnidadPlan           UnidadPlan?            @relation(fields: [unidadPlanId], references: [id])
   EvaluacionAsignacion EvaluacionAsignacion[]
   Pregunta             Pregunta[]
   Publicacion          Publicacion?
-  unidadPlanId         Int?
-  UnidadPlan           UnidadPlan?        @relation(fields: [unidadPlanId], references: [id])
 }
 
 model EvaluacionAsignacion {
@@ -285,7 +261,7 @@ model EvaluacionAsignacion {
   estado                 EstadoEvaluacionAsignacion @default(PENDIENTE)
   fecha_entrega          DateTime?
   created_at             DateTime                   @default(now())
-  updated_at             DateTime                   @updatedAt
+  updated_at             DateTime
   alumnoId               Int
   evaluacionId           Int
   publicacionId          Int?                       @unique
@@ -304,6 +280,13 @@ model Opcion {
   preguntaId      Int
   Pregunta        Pregunta          @relation(fields: [preguntaId], references: [id])
   RespuestaAlumno RespuestaAlumno[]
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  code      String
+  expiresAt DateTime
 }
 
 model Pago {
@@ -328,7 +311,7 @@ model PlanDeClases {
   docenteId        Int
   catedraId        Int
   created_at       DateTime             @default(now())
-  updated_at       DateTime             @updatedAt
+  updated_at       DateTime
   Catedra          Catedra              @relation(fields: [catedraId], references: [id])
   Docente          Docente              @relation(fields: [docenteId], references: [id])
   UnidadPlan       UnidadPlan[]
@@ -352,7 +335,7 @@ model Publicacion {
   autorAlumnoId          Int?
   autorDocenteId         Int?
   created_at             DateTime                 @default(now())
-  updated_at             DateTime                 @updatedAt
+  updated_at             DateTime
   tareaMaestraId         Int?                     @unique
   visibleToStudents      Boolean                  @default(false)
   evaluacionAsignacionId Int?                     @unique
@@ -390,8 +373,19 @@ model Puntuacion {
   alumnoId   Int
   catedraId  Int?
   tipo       TipoPuntuacion
-  Alumno     Alumno         @relation(fields: [alumnoId], references: [id])
+  Alumno     Alumno         @relation(fields: [alumnoId], references: [id], onDelete: SetNull)
   Catedra    Catedra?       @relation(fields: [catedraId], references: [id])
+}
+
+model Rating {
+  id           Int      @id @default(autoincrement())
+  rating_value Int
+  ip_address   String?
+  created_at   DateTime @default(now())
+  composerId   Int
+  Composer     Composer @relation(fields: [composerId], references: [id])
+
+  @@unique([composerId, ip_address])
 }
 
 model RespuestaAlumno {
@@ -408,17 +402,18 @@ model RespuestaAlumno {
 }
 
 model TareaAsignacion {
-  id               Int          @id @default(autoincrement())
-  estado           EstadoTarea  @default(ASIGNADA)
-  submission_path  String?
-  submission_date  DateTime?
-  puntos_obtenidos Int?
-  created_at       DateTime     @default(now())
-  updated_at       DateTime     @updatedAt
-  alumnoId         Int
-  tareaMaestraId   Int
-  Alumno           Alumno       @relation(fields: [alumnoId], references: [id])
-  TareaMaestra     TareaMaestra @relation(fields: [tareaMaestraId], references: [id])
+  id                 Int          @id @default(autoincrement())
+  estado             EstadoTarea  @default(ASIGNADA)
+  submission_path    String[] @default([])
+  submission_date    DateTime?
+  puntos_obtenidos   Int?
+  created_at         DateTime     @default(now())
+  updated_at         DateTime
+  alumnoId           Int
+  tareaMaestraId     Int
+  comentario_docente String?
+  Alumno             Alumno       @relation(fields: [alumnoId], references: [id])
+  TareaMaestra       TareaMaestra @relation(fields: [tareaMaestraId], references: [id])
 
   @@unique([alumnoId, tareaMaestraId])
 }
@@ -432,18 +427,18 @@ model TareaMaestra {
   recursos        String[]          @default([])
   multimedia_path String?
   created_at      DateTime          @default(now())
-  updated_at      DateTime          @updatedAt
+  updated_at      DateTime
   catedraId       Int
   publicacionId   Int?              @unique
+  unidadPlanId    Int?
   Publicacion     Publicacion?
   TareaAsignacion TareaAsignacion[]
   Catedra         Catedra           @relation(fields: [catedraId], references: [id])
-  unidadPlanId    Int?
   UnidadPlan      UnidadPlan?       @relation(fields: [unidadPlanId], references: [id])
 }
 
 model UnidadPlan {
-  id                           Int          @id @default(autoincrement())
+  id                           Int            @id @default(autoincrement())
   planDeClasesId               Int
   periodo                      String
   contenido                    String
@@ -452,22 +447,18 @@ model UnidadPlan {
   horasPracticas               Int
   estrategiasMetodologicas     String
   mediosVerificacionEvaluacion String
-  recursos                     Json[]       @default([])
-  created_at                   DateTime     @default(now())
-  updated_at                   DateTime     @updatedAt
-  PlanDeClases                 PlanDeClases @relation(fields: [planDeClasesId], references: [id])
-  tareas                       TareaMaestra[]
-  evaluaciones                 Evaluacion[]
+  created_at                   DateTime       @default(now())
+  updated_at                   DateTime
+  recursos                     Json[]         @default([])
+  Evaluacion                   Evaluacion[]
+  TareaMaestra                 TareaMaestra[]
+  PlanDeClases                 PlanDeClases   @relation(fields: [planDeClasesId], references: [id])
 }
 
-enum RoleType {
-  COMPOSER
-  POET
-  CONDUCTOR
-  ARRANGER
-  PERFORMER
-  ENSEMBLE_ORCHESTRA
-  STUDENT
+model User {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  password String
 }
 
 enum EstadoEvaluacionAsignacion {
@@ -487,6 +478,16 @@ enum EstadoTarea {
 enum ModalidadPago {
   PARTICULAR
   INSTITUCIONAL
+}
+
+enum RoleType {
+  COMPOSER
+  POET
+  CONDUCTOR
+  ARRANGER
+  PERFORMER
+  STUDENT
+  ENSEMBLE_ORCHESTRA
 }
 
 enum TipoInteraccionPublicacion {

@@ -18,9 +18,10 @@ const requireUser = (prismaClient) => {
 
       if (decoded.role.toLowerCase() === 'alumno' && userEmail) {
         let alumno = await prismaClient.alumno.findUnique({ where: { email: userEmail } });
-        if (alumno) {
-          req.user.alumnoId = alumno.id; // Asegura que alumnoId esté en req.user
+        if (!alumno) {
+          return res.status(403).json({ error: 'Acceso denegado: El correo electrónico no está registrado como alumno.' });
         }
+        req.user.alumnoId = alumno.id; // Asegura que alumnoId esté en req.user
 
         const composer = await prismaClient.composer.findFirst({
           where: { email: userEmail, is_student_contribution: true },

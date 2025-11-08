@@ -8,39 +8,36 @@ import {
   AlertCircle, Target, Crown, Trophy, Medal, Star,
   Sparkles, Edit3, LogOut, ChevronRight, BookMarked
 } from 'lucide-react';
+import ComposerOfTheDay from '../components/ComposerOfTheDay';
 
 // Helper para niveles de gamificación
-const getContributorLevel = (score) => {
-  if (score >= 100) return { level: 'Nivel 6: Guardián del Patrimonio', color: 'from-yellow-400 to-orange-500', icon: Crown };
-  if (score >= 50) return { level: 'Nivel 5: Curador de la Memoria Sonora', color: 'from-purple-400 to-pink-500', icon: Trophy };
-  if (score >= 20) return { level: 'Nivel 4: Investigador Musical', color: 'from-blue-400 to-cyan-500', icon: Medal };
-  if (score >= 10) return { level: 'Nivel 3: Colaborador Avanzado', color: 'from-green-400 to-emerald-500', icon: Award };
-  if (score >= 5) return { level: 'Nivel 2: Colaborador Activo', color: 'from-indigo-400 to-purple-500', icon: Star };
-  if (score >= 1) return { level: 'Nivel 1: Colaborador Inicial', color: 'from-cyan-400 to-blue-500', icon: Sparkles };
-  return { level: 'Nivel 0: Explorador', color: 'from-gray-400 to-slate-500', icon: Target };
-};
-
 const AlumnoDashboardPage = () => {
   const [alumno, setAlumno] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userType, setUserType] = useState(null); // 'contributor' | 'student' | 'both'
-  
-  // Estados para aportantes
-  const [contributions, setContributions] = useState([]);
-  const [userLevel, setUserLevel] = useState({});
-  const [userScore, setUserScore] = useState(0);
+  const [userType, setUserType] = useState(null);
   
   // Estados para estudiantes de cátedras
   const [catedras, setCatedras] = useState([]);
   const [tareasPendientes, setTareasPendientes] = useState([]);
   const [evaluacionesPendientes, setEvaluacionesPendientes] = useState([]);
   const [publicaciones, setPublicaciones] = useState([]);
+  const [randomComposer, setRandomComposer] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+
+  const handleComposerClick = (composerId) => {
+    window.location.href = `/timeline/${composerId}`;
+  };
+
   const fetchDashboardData = async () => {
+    const allComposers = await api.getComposers();
+    if (allComposers.data && allComposers.data.length > 0) {
+      const randomIndex = Math.floor(Math.random() * allComposers.data.length);
+      setRandomComposer(allComposers.data[randomIndex]);
+    }
     try {
       setLoading(true);
       
@@ -49,30 +46,15 @@ const AlumnoDashboardPage = () => {
       const userData = alumnoResponse.data;
       setAlumno(userData);
       
-      // Fetch contribuciones al Timeline
-      const contribResponse = await api.getMyStudentContributions().catch(() => ({ data: [] }));
-      const contributionsData = contribResponse.data;
-      setContributions(contributionsData);
-      
-      // Calcular puntos y nivel de contribuciones
-      const contributionScore = userData.totalPuntos || 0;
-      setUserScore(contributionScore);
-      setUserLevel(getContributorLevel(contributionScore));
-      
       // Fetch cátedras inscritas
       const catedrasResponse = await api.getStudentCatedras().catch(() => ({ data: [] }));
       const catedrasData = catedrasResponse.data;
       setCatedras(catedrasData);
       
       // Determinar tipo de usuario
-      const hasContributions = contributionsData.length > 0;
       const hasCatedras = catedrasData.length > 0;
       
-      if (hasContributions && hasCatedras) {
-        setUserType('both');
-      } else if (hasContributions) {
-        setUserType('contributor');
-      } else if (hasCatedras) {
+      if (hasCatedras) {
         setUserType('student');
       } else {
         setUserType('new'); // Usuario nuevo sin actividad
@@ -117,13 +99,7 @@ const AlumnoDashboardPage = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('userToken');
-    window.location.href = '/';
-    toast.success('Sesión cerrada');
-  };
+  }; // This is the missing closing brace for fetchDashboardData
 
   const getStatusColor = (status) => {
     const colors = {
@@ -170,6 +146,11 @@ const AlumnoDashboardPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
+      {randomComposer && (
+        <div className="fixed top-20 right-4 z-50 w-72">
+          <ComposerOfTheDay composer={randomComposer} onComposerClick={handleComposerClick} />
+        </div>
+      )}
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header Principal */}
         <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6 sm:p-8">
@@ -179,120 +160,15 @@ const AlumnoDashboardPage = () => {
                 ¡Bienvenido, {alumno.nombre || 'Usuario'}!
               </h1>
               <p className="text-slate-400 text-lg">
-                {userType === 'both' && 'Estudiante y Colaborador del Timeline'}
                 {userType === 'student' && 'Estudiante Activo'}
-                {userType === 'contributor' && 'Colaborador del Timeline'}
                 {userType === 'new' && 'Comienza tu viaje musical'}
               </p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-300 hover:bg-red-600/30 rounded-lg transition-all"
-            >
-              <LogOut size={20} />
-              Cerrar Sesión
-            </button>
+
           </div>
         </div>
 
-        {/* Sección de Aportes al Timeline */}
-        {(userType === 'contributor' || userType === 'both') && (
-          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6 sm:p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <div className={`w-16 h-16 rounded-full bg-gradient-to-r ${userLevel.color} flex items-center justify-center`}>
-                  {userLevel.icon && <userLevel.icon className="text-white" size={28} />}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">{userLevel.level}</h2>
-                  <p className="text-slate-400">
-                    Puntos: <span className="text-purple-400 font-semibold">{userScore}</span>
-                  </p>
-                </div>
-              </div>
-              <Link
-                to="/my-contributions"
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all"
-              >
-                Ver Todos
-                <ChevronRight size={18} />
-              </Link>
-            </div>
 
-            {/* Mini resumen de contribuciones */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="text-yellow-400" size={24} />
-                  <div>
-                    <p className="text-slate-400 text-sm">En Revisión</p>
-                    <p className="text-white text-2xl font-bold">
-                      {contributions.filter(c => c.status === 'PENDING_REVIEW').length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="text-green-400" size={24} />
-                  <div>
-                    <p className="text-slate-400 text-sm">Publicados</p>
-                    <p className="text-white text-2xl font-bold">
-                      {contributions.filter(c => c.status === 'PUBLISHED' || c.status === 'APPLIED').length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <Edit3 className="text-blue-400" size={24} />
-                  <div>
-                    <p className="text-slate-400 text-sm">Necesitan Mejora</p>
-                    <p className="text-white text-2xl font-bold">
-                      {contributions.filter(c => c.status === 'NEEDS_IMPROVEMENT').length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Últimas contribuciones */}
-            {contributions.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-white mb-3">Últimos Aportes</h3>
-                <div className="space-y-2">
-                  {contributions.slice(0, 3).map((contrib) => (
-                    <div
-                      key={contrib.id}
-                      className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg border border-slate-700/50 hover:bg-slate-800/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                          {contrib.first_name?.[0]}{contrib.last_name?.[0]}
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">
-                            {contrib.first_name} {contrib.last_name}
-                          </p>
-                          <p className="text-slate-400 text-sm">
-                            {new Date(contrib.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs border ${getStatusColor(contrib.status)}`}>
-                        {contrib.status === 'PENDING_REVIEW' && 'En Revisión'}
-                        {contrib.status === 'PUBLISHED' && 'Publicado'}
-                        {contrib.status === 'APPLIED' && 'Aprobado'}
-                        {contrib.status === 'NEEDS_IMPROVEMENT' && 'Necesita Mejora'}
-                        {contrib.status === 'REJECTED' && 'Rechazado'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Sección de Cátedras */}
         {(userType === 'student' || userType === 'both') && (

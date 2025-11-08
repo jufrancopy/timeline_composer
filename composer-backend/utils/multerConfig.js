@@ -23,4 +23,4 @@ const upload = multer({
   },
 });
 
-module.exports = upload;
+module.exports = { uploadSingle: upload, uploadArray: multer({ storage: storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: (req, file, cb) => { cb(null, true); }, }).array('files', 10) };

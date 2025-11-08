@@ -76,7 +76,7 @@ function TaskTable({ title, tasks, getStatusColor, getTaskStatusDisplay, handleO
                     {showPoints && <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-400">{task.puntos_obtenidos !== null ? task.puntos_obtenidos : 'N/A'}</td>}
                     {showActions && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {(task.estado === 'ASIGNADA' || task.estado === 'VENCIDA') && !task.submission_path && !docenteView && (
+                        {(task.estado === 'ASIGNADA' || task.estado === 'VENCIDA') && (!task.submission_path || task.submission_path.length === 0) && !docenteView && (
                           <button
                             onClick={() => handleOpenSubmitModal(task)}
                             className="text-indigo-400 hover:text-indigo-500 mr-4"

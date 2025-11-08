@@ -1,0 +1,522 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["groupBy"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Composer {
+  id                      Int              @id @default(autoincrement())
+  bio                     String
+  birth_day               Int?
+  birth_month             Int?
+  birth_year              Int
+  created_at              DateTime         @default(now())
+  death_day               Int?
+  death_month             Int?
+  death_year              Int?
+  email                   String
+  first_name              String
+  ip_address              String?
+  last_name               String
+  notable_works           String
+  photo_url               String?
+  quality                 String?
+  references              String?
+  status                  String           @default("PENDING_REVIEW")
+  updated_at              DateTime         @updatedAt
+  youtube_link            String?
+  period                  String
+  mainRole                RoleType[]
+  completeness_score      Int?
+  rejection_reason        String?
+  is_student_contribution Boolean          @default(false)
+  student_first_name      String?
+  student_last_name       String?
+  suggestion_reason       String?
+  CatedraAlumno           CatedraAlumno[]
+  comments                Comment[]
+  EditSuggestion          EditSuggestion[]
+  ratings                 Rating[]
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  text       String
+  composerId Int
+  created_at DateTime @default(now())
+  ip_address String?
+  name       String
+  composer   Composer @relation(fields: [composerId], references: [id])
+}
+
+model Rating {
+  id           Int      @id @default(autoincrement())
+  rating_value Int
+  ip_address   String?
+  created_at   DateTime @default(now())
+  composerId   Int
+  composer     Composer @relation(fields: [composerId], references: [id])
+
+  @@unique([composerId, ip_address])
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  code      String
+  expiresAt DateTime
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  password String
+}
+
+model Alumno {
+  id                     Int                      @id @default(autoincrement())
+  nombre                 String
+  apellido               String
+  email                  String                   @unique
+  telefono               String?
+  direccion              String?
+  instrumento            String?
+  detalles_adicionales   String?
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime                 @updatedAt
+  nombre_tutor           String?
+  telefono_tutor         String?
+  vive_con_padres        Boolean?                 @default(false)
+  Asistencia             Asistencia[]
+  CalificacionEvaluacion CalificacionEvaluacion[]
+  CatedraAlumno          CatedraAlumno[]
+  ComentarioPublicacion  ComentarioPublicacion[]
+  EvaluacionAsignacion   EvaluacionAsignacion[]
+  Publicacion            Publicacion[]
+  PublicacionInteraccion PublicacionInteraccion[]
+  Puntuacion             Puntuacion[]
+  RespuestaAlumno        RespuestaAlumno[]
+  TareaAsignacion        TareaAsignacion[]
+}
+
+model Asistencia {
+  id         Int      @id @default(autoincrement())
+  presente   Boolean
+  created_at DateTime @default(now())
+  alumnoId   Int
+  diaClaseId Int
+  Alumno     Alumno   @relation(fields: [alumnoId], references: [id])
+  DiaClase   DiaClase @relation(fields: [diaClaseId], references: [id])
+
+  @@unique([alumnoId, diaClaseId])
+}
+
+model CalificacionEvaluacion {
+  id                     Int                  @id @default(autoincrement())
+  puntos                 Int
+  created_at             DateTime             @default(now())
+  alumnoId               Int
+  evaluacionAsignacionId Int                  @unique
+  Alumno                 Alumno               @relation(fields: [alumnoId], references: [id])
+  EvaluacionAsignacion   EvaluacionAsignacion @relation(fields: [evaluacionAsignacionId], references: [id])
+
+  @@unique([alumnoId, evaluacionAsignacionId])
+}
+
+model Catedra {
+  id                Int                 @id @default(autoincrement())
+  nombre            String
+  anio              Int
+  institucion       String
+  turno             String
+  aula              String
+  dias              String
+  created_at        DateTime            @default(now())
+  updated_at        DateTime            @updatedAt
+  docenteId         Int?
+  modalidad_pago    ModalidadPago       @default(PARTICULAR)
+  Docente           Docente?            @relation(fields: [docenteId], references: [id])
+  CatedraAlumno     CatedraAlumno[]
+  CatedraDiaHorario CatedraDiaHorario[]
+  CostoCatedra      CostoCatedra?
+  DiaClase          DiaClase[]
+  Evaluacion        Evaluacion[]
+  PlanDeClases      PlanDeClases[]
+  Publicacion       Publicacion[]
+  Puntuacion        Puntuacion[]
+  TareaMaestra      TareaMaestra[]
+}
+
+model CatedraAlumno {
+  catedraId         Int
+  alumnoId          Int?
+  assignedAt        DateTime  @default(now())
+  assignedBy        String
+  composerId        Int?
+  id                Int       @id @default(autoincrement())
+  dia_cobro         Int?
+  fecha_inscripcion DateTime  @default(now())
+  Alumno            Alumno?   @relation(fields: [alumnoId], references: [id], onDelete: Restrict)
+  Catedra           Catedra   @relation(fields: [catedraId], references: [id])
+  Composer          Composer? @relation(fields: [composerId], references: [id])
+  Pago              Pago[]
+
+  @@unique([catedraId, alumnoId])
+  @@unique([catedraId, composerId])
+}
+
+model CatedraDiaHorario {
+  id          Int      @id @default(autoincrement())
+  dia_semana  String
+  hora_inicio String
+  hora_fin    String
+  catedraId   Int
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  Catedra     Catedra  @relation(fields: [catedraId], references: [id])
+}
+
+model ComentarioPublicacion {
+  id             Int         @id @default(autoincrement())
+  texto          String
+  publicacionId  Int
+  autorAlumnoId  Int?
+  autorDocenteId Int?
+  created_at     DateTime    @default(now())
+  updated_at     DateTime    @updatedAt
+  Alumno         Alumno?     @relation(fields: [autorAlumnoId], references: [id])
+  Docente        Docente?    @relation(fields: [autorDocenteId], references: [id])
+  Publicacion    Publicacion @relation(fields: [publicacionId], references: [id])
+}
+
+model CostoCatedra {
+  id              Int      @id @default(autoincrement())
+  catedraId       Int      @unique
+  monto_matricula Float?
+  monto_cuota     Float?
+  es_gratuita     Boolean  @default(false)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  Catedra         Catedra  @relation(fields: [catedraId], references: [id])
+}
+
+model DiaClase {
+  id         Int          @id @default(autoincrement())
+  fecha      DateTime
+  dia_semana String
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
+  catedraId  Int
+  Asistencia Asistencia[]
+  Catedra    Catedra      @relation(fields: [catedraId], references: [id])
+}
+
+model Docente {
+  id                     Int                      @id @default(autoincrement())
+  nombre                 String
+  apellido               String
+  email                  String                   @unique
+  otpSecret              String?
+  otpEnabled             Boolean                  @default(false)
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime                 @updatedAt
+  direccion              String?
+  telefono               String?
+  Catedra                Catedra[]
+  ComentarioPublicacion  ComentarioPublicacion[]
+  Pago                   Pago[]
+  PlanDeClases           PlanDeClases[]
+  Publicacion            Publicacion[]
+  PublicacionInteraccion PublicacionInteraccion[]
+}
+
+model EditSuggestion {
+  id                      Int        @id @default(autoincrement())
+  first_name              String?
+  last_name               String?
+  birth_year              Int?
+  birth_month             Int?
+  birth_day               Int?
+  death_year              Int?
+  death_month             Int?
+  death_day               Int?
+  bio                     String?
+  notable_works           String?
+  period                  String?
+  references              String?
+  youtube_link            String?
+  mainRole                RoleType[]
+  reason                  String
+  status                  String     @default("PENDING_REVIEW")
+  suggester_email         String
+  suggester_ip            String?
+  created_at              DateTime   @default(now())
+  updated_at              DateTime   @updatedAt
+  composerId              Int
+  is_student_contribution Boolean?   @default(false)
+  student_first_name      String?
+  student_last_name       String?
+  points                  Int        @default(0)
+  photo_url               String?
+  Composer                Composer   @relation(fields: [composerId], references: [id])
+}
+
+model Evaluacion {
+  id                   Int                    @id @default(autoincrement())
+  titulo               String
+  created_at           DateTime               @default(now())
+  catedraId            Int
+  fecha_limite         DateTime?
+  isMaster             Boolean                @default(true)
+  unidadPlanId         Int?
+  Catedra              Catedra                @relation(fields: [catedraId], references: [id])
+  UnidadPlan           UnidadPlan?            @relation(fields: [unidadPlanId], references: [id])
+  EvaluacionAsignacion EvaluacionAsignacion[]
+  Pregunta             Pregunta[]
+  Publicacion          Publicacion?
+}
+
+model EvaluacionAsignacion {
+  id                     Int                        @id @default(autoincrement())
+  estado                 EstadoEvaluacionAsignacion @default(PENDIENTE)
+  fecha_entrega          DateTime?
+  created_at             DateTime                   @default(now())
+  updated_at             DateTime                   @updatedAt
+  alumnoId               Int
+  evaluacionId           Int
+  publicacionId          Int?                       @unique
+  CalificacionEvaluacion CalificacionEvaluacion?
+  Alumno                 Alumno                     @relation(fields: [alumnoId], references: [id])
+  Evaluacion             Evaluacion                 @relation(fields: [evaluacionId], references: [id], onDelete: Cascade)
+  Publicacion            Publicacion?
+
+  @@unique([alumnoId, evaluacionId])
+}
+
+model Opcion {
+  id              Int               @id @default(autoincrement())
+  texto           String
+  es_correcta     Boolean           @default(false)
+  preguntaId      Int
+  Pregunta        Pregunta          @relation(fields: [preguntaId], references: [id])
+  RespuestaAlumno RespuestaAlumno[]
+}
+
+model Pago {
+  id               Int           @id @default(autoincrement())
+  catedraAlumnoId  Int
+  fecha_pago       DateTime      @default(now())
+  monto_pagado     Float
+  tipo_pago        TipoPago
+  periodo_cubierto String?
+  confirmadoPorId  Int?
+  created_at       DateTime      @default(now())
+  CatedraAlumno    CatedraAlumno @relation(fields: [catedraAlumnoId], references: [id])
+  Docente          Docente?      @relation(fields: [confirmadoPorId], references: [id])
+
+  @@unique([catedraAlumnoId, tipo_pago, periodo_cubierto])
+}
+
+model PlanDeClases {
+  id               Int                  @id @default(autoincrement())
+  titulo           String
+  tipoOrganizacion TipoOrganizacionPlan
+  docenteId        Int
+  catedraId        Int
+  created_at       DateTime             @default(now())
+  updated_at       DateTime             @updatedAt
+  Catedra          Catedra              @relation(fields: [catedraId], references: [id])
+  Docente          Docente              @relation(fields: [docenteId], references: [id])
+  UnidadPlan       UnidadPlan[]
+}
+
+model Pregunta {
+  id              Int               @id @default(autoincrement())
+  texto           String
+  evaluacionId    Int
+  Opcion          Opcion[]
+  Evaluacion      Evaluacion        @relation(fields: [evaluacionId], references: [id])
+  RespuestaAlumno RespuestaAlumno[]
+}
+
+model Publicacion {
+  id                     Int                      @id @default(autoincrement())
+  titulo                 String
+  contenido              String
+  tipo                   TipoPublicacion
+  catedraId              Int
+  autorAlumnoId          Int?
+  autorDocenteId         Int?
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime                 @updatedAt
+  tareaMaestraId         Int?                     @unique
+  visibleToStudents      Boolean                  @default(false)
+  evaluacionAsignacionId Int?                     @unique
+  evaluacionMaestraId    Int?                     @unique
+  ComentarioPublicacion  ComentarioPublicacion[]
+  Alumno                 Alumno?                  @relation(fields: [autorAlumnoId], references: [id])
+  Docente                Docente?                 @relation(fields: [autorDocenteId], references: [id])
+  Catedra                Catedra                  @relation(fields: [catedraId], references: [id])
+  EvaluacionAsignacion   EvaluacionAsignacion?    @relation(fields: [evaluacionAsignacionId], references: [id])
+  Evaluacion             Evaluacion?              @relation(fields: [evaluacionMaestraId], references: [id])
+  TareaMaestra           TareaMaestra?            @relation(fields: [tareaMaestraId], references: [id])
+  PublicacionInteraccion PublicacionInteraccion[]
+}
+
+model PublicacionInteraccion {
+  id            Int                        @id @default(autoincrement())
+  publicacionId Int
+  alumnoId      Int?
+  docenteId     Int?
+  tipo          TipoInteraccionPublicacion @default(ME_GUSTA)
+  created_at    DateTime                   @default(now())
+  Alumno        Alumno?                    @relation(fields: [alumnoId], references: [id])
+  Docente       Docente?                   @relation(fields: [docenteId], references: [id])
+  Publicacion   Publicacion                @relation(fields: [publicacionId], references: [id])
+
+  @@unique([publicacionId, alumnoId])
+  @@unique([publicacionId, docenteId])
+}
+
+model Puntuacion {
+  id         Int            @id @default(autoincrement())
+  puntos     Int
+  motivo     String
+  created_at DateTime       @default(now())
+  alumnoId   Int
+  catedraId  Int?
+  tipo       TipoPuntuacion
+  Alumno     Alumno         @relation(fields: [alumnoId], references: [id], onDelete: SetNull)
+  Catedra    Catedra?       @relation(fields: [catedraId], references: [id])
+}
+
+model RespuestaAlumno {
+  id              Int      @id @default(autoincrement())
+  created_at      DateTime @default(now())
+  alumnoId        Int
+  preguntaId      Int
+  opcionElegidaId Int
+  Alumno          Alumno   @relation(fields: [alumnoId], references: [id])
+  Opcion          Opcion   @relation(fields: [opcionElegidaId], references: [id])
+  Pregunta        Pregunta @relation(fields: [preguntaId], references: [id])
+
+  @@unique([alumnoId, preguntaId])
+}
+
+model TareaAsignacion {
+  id                 Int          @id @default(autoincrement())
+  estado             EstadoTarea  @default(ASIGNADA)
+  submission_path    String?
+  submission_date    DateTime?
+  puntos_obtenidos   Int?
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @updatedAt
+  alumnoId           Int
+  tareaMaestraId     Int
+  comentario_docente String?
+  Alumno             Alumno       @relation(fields: [alumnoId], references: [id])
+  TareaMaestra       TareaMaestra @relation(fields: [tareaMaestraId], references: [id])
+
+  @@unique([alumnoId, tareaMaestraId])
+}
+
+model TareaMaestra {
+  id              Int               @id @default(autoincrement())
+  titulo          String
+  descripcion     String
+  fecha_entrega   DateTime?
+  puntos_posibles Int
+  recursos        String[]          @default([])
+  multimedia_path String?
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  catedraId       Int
+  publicacionId   Int?              @unique
+  unidadPlanId    Int?
+  Publicacion     Publicacion?
+  TareaAsignacion TareaAsignacion[]
+  Catedra         Catedra           @relation(fields: [catedraId], references: [id])
+  UnidadPlan      UnidadPlan?       @relation(fields: [unidadPlanId], references: [id])
+}
+
+model UnidadPlan {
+  id                           Int            @id @default(autoincrement())
+  planDeClasesId               Int
+  periodo                      String
+  contenido                    String
+  capacidades                  String
+  horasTeoricas                Int
+  horasPracticas               Int
+  estrategiasMetodologicas     String
+  mediosVerificacionEvaluacion String
+  created_at                   DateTime       @default(now())
+  updated_at                   DateTime       @updatedAt
+  recursos                     Json[]         @default([])
+  evaluaciones                 Evaluacion[]
+  tareas                       TareaMaestra[]
+  PlanDeClases                 PlanDeClases   @relation(fields: [planDeClasesId], references: [id])
+}
+
+enum RoleType {
+  COMPOSER
+  POET
+  CONDUCTOR
+  ARRANGER
+  PERFORMER
+  STUDENT
+  ENSEMBLE_ORCHESTRA
+}
+
+enum EstadoEvaluacionAsignacion {
+  PENDIENTE
+  REALIZADA
+  CALIFICADA
+  VENCIDA
+}
+
+enum EstadoTarea {
+  ASIGNADA
+  ENTREGADA
+  CALIFICADA
+  VENCIDA
+}
+
+enum ModalidadPago {
+  PARTICULAR
+  INSTITUCIONAL
+}
+
+enum TipoInteraccionPublicacion {
+  ME_GUSTA
+}
+
+enum TipoOrganizacionPlan {
+  MES
+  MODULO
+}
+
+enum TipoPago {
+  MATRICULA
+  CUOTA
+  OTRO
+}
+
+enum TipoPublicacion {
+  ANUNCIO
+  TAREA
+  EVALUACION
+  OTRO
+  TAREA_ASIGNADA
+}
+
+enum TipoPuntuacion {
+  TAREA
+  EVALUACION
+  APORTE
+}
+
+

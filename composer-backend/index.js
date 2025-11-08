@@ -1,5 +1,6 @@
 console.log('[CRUSH DEBUG] Backend index.js cargado.');
 const path = require('path');
+const { uploadSingle, uploadArray } = require('./utils/multerConfig');
 const fs = require('fs');
 
 process.on('uncaughtException', (err) => {
@@ -244,9 +245,30 @@ app.post('/api/request-otp', async (req, res) => {
 
   // Buscar si el email corresponde a un alumno
   const alumno = await prisma.Alumno.findUnique({ where: { email } });
-  if (!alumno) {
-    return res.status(404).json({ error: 'No se encontró un usuario con ese email.' });
+
+  // Si no es un alumno, verificar si es un docente
+  let userRole = 'unknown';
+  if (alumno) {
+    userRole = 'alumno';
+  } else {
+    const docente = await prisma.Docente.findUnique({ where: { email } });
+    if (docente) {
+      userRole = 'docente';
+    }
   }
+
+  console.log('DEBUG: userRole for email', email, 'is', userRole);
+  if (userRole === 'unknown') {
+    return res.status(404).json({ message: 'Su correo no está inscripto en ninguna Cátedra o no se encontró un usuario con ese email.' });
+  }
+
+  if (userRole === 'docente') {
+    // Si el usuario es un docente, podríamos querer manejarlo de manera diferente
+    // Por ahora, simplemente retornamos un error o redirigimos a un flujo de docente
+    return res.status(403).json({ message: 'Acceso denegado: Este correo corresponde a un docente. Por favor, use el portal de docentes.' });
+  }
+
+  // Continuar con el flujo de alumno si userRole es 'alumno'
 
   const otp = crypto.randomInt(100000, 999999).toString(); // Generar un OTP de 6 dígitos
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP expira en 10 minutos
@@ -517,50 +539,7 @@ app.get('/api/tareas/:tareaAsignacionId', requireUser(prisma), async (req, res) 
   }
 });
 
-// Subir entrega de tarea
-app.post('/api/tareas/:tareaAsignacionId/submit', requireUser(prisma), upload.single('file'), async (req, res) => {
-  try {
-    const tareaAsignacionId = parseInt(req.params.tareaAsignacionId);
-    const { alumnoId, role } = req.user;
 
-    if (!req.file) {
-      return res.status(400).json({ error: 'No se adjuntó ningún archivo para la entrega.' });
-    }
-
-    const submissionPath = `/uploads/entregas/${req.file.filename}`;
-
-    const tareaAsignacion = await prisma.tareaAsignacion.findUnique({ where: { id: tareaAsignacionId } });
-
-    if (!tareaAsignacion) {
-      // Eliminar el archivo si la asignación de tarea no existe
-      fs.unlinkSync(req.file.path);
-      return res.status(404).json({ error: 'Asignación de Tarea no encontrada.' });
-    }
-
-    // Verificar que el alumno que entrega es el asignado a la tarea o un admin
-    if (role !== 'admin' && tareaAsignacion.alumnoId !== alumnoId) {
-      fs.unlinkSync(req.file.path); // Eliminar el archivo si no está autorizado
-      return res.status(403).json({ error: 'Acceso denegado: No autorizado para entregar esta tarea.' });
-    }
-
-    const updatedTareaAsignacion = await prisma.tareaAsignacion.update({
-      where: { id: tareaAsignacionId },
-      data: {
-        estado: 'ENTREGADA',
-        submission_path: submissionPath,
-        submission_date: new Date(),
-      },
-    });
-
-    res.status(200).json({ message: 'Entrega subida con éxito', tareaAsignacion: updatedTareaAsignacion });
-  } catch (error) {
-    console.error('Error al subir entrega de tarea:', error);
-    if (req.file) {
-      fs.unlinkSync(req.file.path); // Asegurarse de eliminar el archivo en caso de error
-    }
-    res.status(500).json({ error: 'Error al procesar la entrega de la tarea', details: error.message });
-  }
-});
 
 app.get('/api/admin/tareas/entregadas', requireAdmin, async (req, res) => {
   try {

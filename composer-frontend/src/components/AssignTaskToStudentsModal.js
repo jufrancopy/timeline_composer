@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api';
 import Modal from './Modal';
@@ -6,6 +6,26 @@ import Modal from './Modal';
 const AssignTaskToStudentsModal = ({ catedraId, task, students, onTaskAssigned, onClose, isOpen }) => {
   const [selectedAlumnoIds, setSelectedAlumnoIds] = useState([]);
   const [loadingAssignment, setLoadingAssignment] = useState(false);
+
+  // Efecto para cargar alumnos ya asignados cuando el modal se abre o la tarea/cátedra cambia
+  useEffect(() => {
+    const fetchAssignedStudents = async () => {
+      if (isOpen && catedraId && task?.id) {
+        try {
+          const response = await api.getAssignedTaskStudents(catedraId, task.id);
+          setSelectedAlumnoIds(response.data.assignedAlumnoIds);
+        } catch (error) {
+          toast.error('Error al cargar alumnos asignados.');
+          console.error('Error fetching assigned task students:', error);
+        }
+      } else if (!isOpen) {
+        // Resetear el estado cuando el modal se cierra
+        setSelectedAlumnoIds([]);
+      }
+    };
+
+    fetchAssignedStudents();
+  }, [isOpen, catedraId, task?.id]);
 
   const alumnosInscritos = useMemo(() => {
     return (students || [])

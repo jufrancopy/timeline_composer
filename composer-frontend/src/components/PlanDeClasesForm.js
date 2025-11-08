@@ -32,6 +32,7 @@ const PlanDeClasesForm = ({ catedraId, onPlanCreated, onPlanUpdated, onCancel, i
 
     try {
       if (isEditMode) {
+        console.log("Intentando actualizar plan de clases con ID:", initialData.id); // <-- Nueva línea
         await api.updatePlanDeClases(initialData.id, { titulo, tipoOrganizacion });
         Swal.fire('Actualizado!', 'El plan de clases ha sido actualizado.', 'success');
         onPlanUpdated();

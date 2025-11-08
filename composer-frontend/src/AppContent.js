@@ -4,7 +4,7 @@ import TimelinePage from './pages/TimelinePage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminEvaluationPage from './pages/AdminEvaluationPage';
-import MyContributionsPage from './pages/MyContributionsPage';
+
 import RealizarEvaluacionPage from './pages/RealizarEvaluacionPage';
 import MyEvaluationsPage from './pages/MyEvaluationsPage';
 import GamificationPage from './pages/GamificationPage';
@@ -26,7 +26,8 @@ import DocenteTareaPage from './pages/DocenteTareaPage';
 import DocenteEvaluationPage from './pages/DocenteEvaluationPage';
 import DocenteGenerateEvaluationPage from './pages/DocenteGenerateEvaluationPage';
 import DocenteEvaluationResultsPage from './pages/DocenteEvaluationResultsPage';
-import AlumnoTareaDetailPage from './pages/AlumnoTareaDetailPage'; // Import new page
+import AlumnoTareaDetailPage from './pages/AlumnoTareaDetailPage';
+import AlumnoEvaluationResultsPage from './pages/AlumnoEvaluationResultsPage';
 import Footer from './components/Footer';
 import Header from './components/Header';
 import PrivateRoute from './components/PrivateRoute';
@@ -49,6 +50,7 @@ function AppContent() {
 
   const handleStudentLogin = () => {
     setIsStudent(true);
+    navigate('/alumnos/dashboard');
   };
 
   const handleLogout = () => {
@@ -85,7 +87,7 @@ function AppContent() {
               </PrivateRoute>
             } 
           />
-          <Route path="/my-contributions" element={<MyContributionsPage handleLogout={handleLogout} onLogin={handleStudentLogin} />} />
+
           <Route 
             path="/alumno/tareas" 
             element={
@@ -222,10 +224,10 @@ function AppContent() {
             } 
           />
           <Route 
-            path="/alumno/publicaciones" 
+            path="/alumno/catedra/:catedraId/evaluaciones/:evaluationId/results" 
             element={
               <PrivateRoute>
-                <AlumnoPublicacionesPage />
+                <AlumnoEvaluationResultsPage />
               </PrivateRoute>
             } 
           />

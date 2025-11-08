@@ -291,7 +291,7 @@ module.exports = (prisma, transporter) => {
                 skip,
                 take: parseInt(limit),
                 include: {
-                    ratings: {
+                    Rating: {
                         select: {
                             rating_value: true,
                         },
@@ -301,8 +301,8 @@ module.exports = (prisma, transporter) => {
             console.log('[Backend] Compositores recuperados de la DB (antes de procesar): ', composers);
 
             const composersWithRatings = composers.map(composer => {
-                const totalRatings = composer.ratings.length;
-                const sumRatings = composer.ratings.reduce((sum, r) => sum + r.rating_value, 0);
+                const totalRatings = composer.ratings ? composer.ratings.length : 0;
+                const sumRatings = (composer.ratings || []).reduce((sum, r) => sum + r.rating_value, 0);
                 const rating_avg = totalRatings > 0 ? parseFloat((sumRatings / totalRatings).toFixed(1)) : 0.0;
 
                 return {
@@ -329,6 +329,51 @@ module.exports = (prisma, transporter) => {
         } catch (error) {
             console.error('Error al obtener compositores:', error);
             res.status(500).json({ error: 'Error al obtener compositores', details: error.message });
+        }
+    });
+
+    // Obtener compositor destacado (Público)
+    router.get('/featured', async (req, res) => {});
+
+    // Obtener un compositor aleatorio (Público)
+    router.get('/random', async (req, res) => {
+        try {
+            const count = await prisma.Composer.count({ where: { status: 'PUBLISHED' } });
+            if (count === 0) {
+                return res.status(404).json({ error: 'No hay compositores publicados para seleccionar.' });
+            }
+            const skip = Math.floor(Math.random() * count);
+            const [randomComposer] = await prisma.Composer.findMany({
+                where: { status: 'PUBLISHED' },
+                take: 1,
+                skip: skip,
+                include: {
+                    Rating: {
+                        select: {
+                            rating_value: true,
+                        },
+                    },
+                },
+            });
+
+            if (!randomComposer) {
+                return res.status(404).json({ error: 'No se pudo obtener un compositor aleatorio.' });
+            }
+
+            const totalRatings = randomComposer.ratings.length;
+            const sumRatings = randomComposer.ratings.reduce((sum, r) => sum + r.rating_value, 0);
+            const rating_avg = totalRatings > 0 ? parseFloat((sumRatings / totalRatings).toFixed(1)) : 0.0;
+
+            res.json({
+                ...randomComposer,
+                rating_avg,
+                rating_count: totalRatings,
+                ratings: undefined, // Eliminar la array de ratings crudos
+            });
+
+        } catch (error) {
+            console.error('Error al obtener compositor aleatorio:', error);
+            res.status(500).json({ error: 'Error al obtener compositor aleatorio', details: error.message });
         }
     });
 

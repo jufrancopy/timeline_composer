@@ -10,8 +10,8 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
   const [puntos_posibles, setPuntosPosibles] = useState('');
   const [fecha_entrega, setFechaEntrega] = useState('');
   const [externalUrls, setExternalUrls] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [multimediaPath, setMultimediaPath] = useState(null); // To store existing multimedia path
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [existingMultimediaPaths, setExistingMultimediaPaths] = useState([]); // To store existing multimedia paths
   const [planesDeClases, setPlanesDeClases] = useState([]);
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [unidadesPlan, setUnidadesPlan] = useState([]);
@@ -36,10 +36,10 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
         : '';
       setExternalUrls(currentExternalUrls);
 
-      const currentMultimediaPath = initialData.recursos
-        ? initialData.recursos.find(url => url.startsWith('uploads/'))
-        : null;
-      setMultimediaPath(currentMultimediaPath);
+      const currentMultimediaPaths = initialData.recursos
+        ? initialData.recursos.filter(url => url.startsWith('uploads/'))
+        : [];
+      setExistingMultimediaPaths(currentMultimediaPaths);
       
       // Si initialData ya tiene unidadPlanId, úsala
       if (initialData.unidadPlanId) {
@@ -54,8 +54,8 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
       setPuntosPosibles('');
       setFechaEntrega('');
       setExternalUrls('');
-      setSelectedFile(null);
-      setMultimediaPath(null);
+      setSelectedFiles([]);
+      setExistingMultimediaPaths([]);
       // Si se pasa una unidadPlanId para creación (ej. desde UnidadContentManagement),
       // asegúrate de que se preseleccione.
       if (initialData?.unidadPlanId) {
@@ -68,7 +68,7 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
 
 
   const handleFileChange = (e) => {
-    setSelectedFile(e.target.files[0]);
+    setSelectedFiles(Array.from(e.target.files));
   };
 
   const handleSubmit = async (e) => {
@@ -78,27 +78,24 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
       return;
     }
 
-    let finalMultimediaPath = multimediaPath; // Start with existing path
-
-    if (selectedFile) {
+    let uploadedMultimediaPaths = [];
+    if (selectedFiles.length > 0) {
       try {
-        const response = await api.uploadTareaMultimedia(selectedFile);
-        finalMultimediaPath = response.data.filePath; // Use filePath from backend
+        for (const file of selectedFiles) {
+          const response = await api.uploadTareaMultimedia(file);
+          uploadedMultimediaPaths.push(response.data.filePath);
+        }
       } catch (error) {
-        toast.error('Error al subir el archivo multimedia.');
+        toast.error('Error al subir uno o más archivos multimedia.');
         return;
       }
-    } else if (isEditMode && !multimediaPath) {
-        // If in edit mode and no new file selected, but there was an old one,
-        // assume the old one was cleared if multimediaPath is null.
-        // If a file was previously there and user clears it, multimediaPath will be null.
-        // If user doesn't touch it, it should retain its value.
-        // For now, if no new file and no old path, it remains null.
     }
+
+    const allMultimediaPaths = [...existingMultimediaPaths, ...uploadedMultimediaPaths];
 
 
     const externalUrlsArray = externalUrls.split('\n').filter(url => url.trim() !== '');
-    const finalRecursos = finalMultimediaPath ? [...externalUrlsArray, finalMultimediaPath] : externalUrlsArray;
+    const finalRecursos = allMultimediaPaths.length > 0 ? [...externalUrlsArray, ...allMultimediaPaths] : externalUrlsArray;
 
     const tareaData = {
       titulo,
@@ -106,7 +103,7 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
       puntos_posibles: parseInt(puntos_posibles, 10),
       fecha_entrega: fecha_entrega || null,
       recursos: finalRecursos,
-      multimedia_path: finalMultimediaPath,
+      multimedia_path: allMultimediaPaths,
       unidadPlanId: selectedUnidadId ? parseInt(selectedUnidadId, 10) : null,
     };
 
@@ -173,11 +170,12 @@ const TareaForm = ({ catedraId, onTareaCreated, onTareaUpdated, userType = 'admi
         />
       </div>
       <div>
-        <label htmlFor="multimedia_file" className="block text-sm font-medium text-gray-300">Subir Archivo (PDF, imagen, etc.) {multimediaPath && <span className="text-sm text-gray-400"> (Actual: {multimediaPath.split('/').pop()})</span>}</label>
+        <label htmlFor="multimedia_file" className="block text-sm font-medium text-gray-300">Subir Archivos (PDF, imagen, etc.) {existingMultimediaPaths.length > 0 && <span className="text-sm text-gray-400"> (Actuales: {existingMultimediaPaths.map(path => path.split('/').pop()).join(', ')})</span>}</label>
         <input
           type="file"
           id="multimedia_file"
           onChange={handleFileChange}
+          multiple
           className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm text-white"
         />
       </div>

@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
+import { handleRequestError } from '../utils/errorUtils';
 import { Mail, Shield, AlertCircle, ArrowRight } from 'lucide-react';
+
 
 const AlumnoLoginPage = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -21,8 +23,10 @@ const AlumnoLoginPage = ({ onLogin }) => {
       setOtpSent(true);
       toast.success('Código enviado a tu email.');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error al solicitar OTP.');
-      setError(err.response?.data?.message || 'Error al solicitar OTP.');
+      handleRequestError(err, setError, { 
+        notFound: 'El correo que ingresaste no existe.',
+        forbidden: 'Este correo es de docente. Por favor, usa el portal de docentes.'
+      });
     } finally {
       setLoading(false);
     }
@@ -39,8 +43,7 @@ const AlumnoLoginPage = ({ onLogin }) => {
       toast.success('¡Sesión iniciada con éxito!');
       navigate('/alumnos/dashboard'); // Redirect to student dashboard
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error al verificar OTP.');
-      setError(err.response?.data?.message || 'Error al verificar OTP.');
+      handleRequestError(err, setError, { unauthorized: 'El código OTP es incorrecto o ha expirado.' });
     } finally {
       setLoading(false);
     }

@@ -16,6 +16,7 @@ import AssignTaskToStudentsModal from '../components/AssignTaskToStudentsModal';
 import AssignEvaluationToStudentsModal from '../components/AssignEvaluationToStudentsModal';
 import Swal from 'sweetalert2';
 import { format, parseISO } from 'date-fns';
+import { Tooltip as TooltipComponent } from 'react-tooltip';
 import { es } from 'date-fns/locale';
 import { Toaster, toast } from 'react-hot-toast';
 import { 
@@ -277,6 +278,57 @@ const DocenteCatedraDetailPage = () => {
     }
   };
 
+  const getTareaStatusBadge = (status, count, titles) => {
+    let colorClass = 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+    let statusText = 'Desconocido';
+
+    switch (status) {
+      case 'ASIGNADA':
+        colorClass = 'bg-orange-600/20 text-orange-300 border-orange-500/30';
+        statusText = 'Asignada';
+        break;
+      case 'ENTREGADA':
+        colorClass = 'bg-blue-600/20 text-blue-300 border-blue-500/30';
+        statusText = 'Entregada';
+        break;
+      case 'CALIFICADA':
+        colorClass = 'bg-green-600/20 text-green-300 border-green-500/30';
+        statusText = 'Calificada';
+        break;
+      case 'REVISION':
+        colorClass = 'bg-purple-600/20 text-purple-300 border-purple-500/30';
+        statusText = 'En Revisión';
+        break;
+      case 'PENDIENTE':
+        colorClass = 'bg-yellow-600/20 text-yellow-300 border-yellow-500/30';
+        statusText = 'Pendiente';
+        break;
+      default:
+        break;
+    }
+
+    const tooltipHtml = `
+      <div class="p-2 text-xs text-white bg-slate-700 rounded-md shadow-lg max-w-xs break-words">
+        <p class="font-semibold mb-1">${statusText} (${count}):</p>
+        <ul class="list-disc list-inside space-y-0.5">
+          ${titles.map(title => `<li>${title}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+
+    return (
+      <span
+        key={status}
+        className={`relative px-2.5 py-1 rounded-full text-xs font-medium cursor-help ${colorClass}`}
+        data-tooltip-id="task-tooltip"
+        data-tooltip-html={tooltipHtml}
+      >
+        {statusText} ({count})
+      </span>
+    );
+  };
+
+
   const handleDesinscribir = async (inscripcion) => {
     const result = await Swal.fire({
       title: '¿Estás seguro?',
@@ -507,6 +559,7 @@ const DocenteCatedraDetailPage = () => {
   return (
     <>
       <Toaster />
+      <TooltipComponent id="task-tooltip" effect="solid" html="true" className="z-50 !opacity-100" />
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950">
         {/* Header Navigation */}
         <div className="bg-slate-950/50 backdrop-blur-xl border-b border-slate-800/50">
@@ -868,6 +921,7 @@ const DocenteCatedraDetailPage = () => {
                       <tr className="border-b border-slate-700/50">
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Estudiante</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Email</th>
+                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Entregas</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Estado de Pagos</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
                       </tr>
@@ -900,6 +954,32 @@ const DocenteCatedraDetailPage = () => {
                               </div>
                             </td>
                             <td className="py-4 px-4 text-slate-300">{email}</td>
+                            <td className="py-4 px-4 text-slate-300">
+                              <div className="flex flex-wrap gap-2">
+                                {(() => {
+                                  const alumnoTareas = (inscripcion.Alumno?.TareaAsignacion || inscripcion.Composer?.TareaAsignacion || []);
+                                  if (alumnoTareas.length === 0) {
+                                    return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-600/20 text-gray-300 border border-gray-500/30">No hay tareas asignadas</span>;
+                                  }
+
+                                  const tareasAgrupadas = alumnoTareas.reduce((acc, tarea) => {
+                                    if (tarea.TareaMaestra) {
+                                      const status = tarea.estado;
+                                      if (!acc[status]) {
+                                        acc[status] = { count: 0, titles: [] };
+                                      }
+                                      acc[status].count++;
+                                      acc[status].titles.push(tarea.TareaMaestra.titulo);
+                                    }
+                                    return acc;
+                                  }, {});
+
+                                  return Object.entries(tareasAgrupadas).map(([status, data]) => (
+                                    getTareaStatusBadge(status, data.count, data.titles)
+                                  ));
+                                })()}
+                              </div>
+                            </td>
                             <td className="py-4 px-4">
                               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border ${getPaymentStatusColor(paymentStatus)}`}>
                                 <DollarSign size={14} />
