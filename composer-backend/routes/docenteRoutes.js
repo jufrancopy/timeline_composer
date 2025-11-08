@@ -772,7 +772,7 @@ module.exports = (prisma, transporter) => {
           puntos_posibles: parseInt(puntos_posibles),
           fecha_entrega: fecha_entrega ? new Date(fecha_entrega) : null,
           recursos,
-          multimedia_path,
+          multimedia_path: multimedia_path && multimedia_path.length > 0 ? multimedia_path[0] : null,
           Catedra: { connect: { id: parseInt(catedraId) } },
           UnidadPlan: unidadPlanId ? { connect: { id: unidadPlanId } } : undefined,
           updated_at: new Date(),
