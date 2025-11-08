@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Music, Palette, Camera, Pen, Award, Calendar, Star, Clock, ExternalLink, Edit, ChevronDown, ChevronUp } from 'lucide-react';
-import Rating from './Rating';
-import Comments from './Comments';
+import ComposerCard from './ComposerCard';
 
 const Timeline = ({ composers = [], loading = false, newComposer = null, onNewComposerHandled = null, onSuggestEdit, selectedComposerId }) => {
   const itemRefs = useRef(new Map());
   // Estados del componente
-  const [selectedItem, setSelectedItem] = useState(null);
+
   const [visibleItems, setVisibleItems] = useState([]);
   const [internalComposers, setInternalComposers] = useState([]);
   const [expandedPeriods, setExpandedPeriods] = useState({});
+  const [expandedComposerCards, setExpandedComposerCards] = useState({}); // Nuevo estado para ComposerCard
 
   // Datos de demostración cuando no hay composers
   const demoData = [
@@ -92,9 +92,6 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
   useEffect(() => {
     const dataToUse = composers.length > 0 ? composers : demoData;
     setInternalComposers(sortComposersByBirthYear(dataToUse));
-    if (selectedComposerId) {
-      setSelectedItem(selectedComposerId);
-    }
   }, [composers, sortComposersByBirthYear]);
 
   useEffect(() => {
@@ -109,7 +106,6 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
 
   useEffect(() => {
     if (selectedComposerId) {
-      setSelectedItem(selectedComposerId);
       const targetElement = itemRefs.current.get(selectedComposerId);
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -117,7 +113,7 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
     }
   }, [selectedComposerId]);
   
-  // --- MAPEO Y HELPERS ---
+  // --- MAPEO Y HELPERS (categoryMap se mantiene para groupedTimelineData) ---
 
   const categoryMap = useMemo(() => ({
     'COMPOSER': { icon: Music, color: "from-purple-500 to-pink-500", category: "Compositor" },
@@ -181,6 +177,13 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
     }
   }, [groupedTimelineData]);
 
+  const toggleComposerCardExpansion = useCallback((composerId) => {
+    setExpandedComposerCards(prev => ({
+      ...prev,
+      [composerId]: !prev[composerId]
+    }));
+  }, []);
+
   const togglePeriodExpansion = (period) => {
     setExpandedPeriods(prev => ({
       ...prev,
@@ -188,44 +191,7 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
     }));
   };
 
-
-
-  const getPeriodColor = (period) => {
-    const colors = {
-      'COLONIAL': 'bg-amber-100 text-amber-800 border-amber-200',
-      'INDEPENDENCIA_Y_GUERRA_GRANDE': 'bg-blue-100 text-blue-800 border-blue-200',
-      'POSGUERRA': 'bg-green-100 text-green-800 border-green-200',
-      'GUERRA_DEL_CHACO_Y_GUARANIA': 'bg-red-100 text-red-800 border-red-200',
-      'DICTADURA': 'bg-purple-100 text-purple-800 border-purple-200',
-      'TRANSICION': 'bg-pink-100 text-pink-800 border-pink-200',
-      'ACTUALIDAD': 'bg-teal-100 text-teal-800 border-teal-200',
-      'INDETERMINADO': 'bg-gray-100 text-gray-800 border-gray-200',
-      'UNKNOWN': 'bg-gray-100 text-gray-800 border-gray-200',
-    };
-    return colors[period] || 'bg-gray-100 text-gray-800 border-gray-200';
-  };
-
-  const getQualityColor = (quality) => {
-    const colors = {
-      'A': 'text-green-500', 'B': 'text-yellow-500', 'C': 'text-orange-500', 'D': 'text-red-500'
-    };
-    return colors[quality] || 'text-gray-500';
-  };
-  
-  const getYouTubeEmbedUrl = (url) => {
-    if (!url) return null;
-    const videoIdMatch = url.match(/(?:v=)([^&?]+)/);
-    return videoIdMatch ? `https://www.youtube.com/embed/${videoIdMatch[1]}` : null;
-  };
-
-  const formatLifespan = (composer) => {
-    const birth = `${composer.birth_day || ''}/${composer.birth_month || ''}/${composer.birth_year || ''}`;
-    const death = composer.death_year ? `${composer.death_day || ''}/${composer.death_month || ''}/${composer.death_year}` : 'Presente';
-    return `${birth} - ${death}`;
-  };
-
   // --- LÓGICA DE DATOS ---
-
 
 
   const stats = useMemo(() => {
@@ -299,105 +265,67 @@ const Timeline = ({ composers = [], loading = false, newComposer = null, onNewCo
                 </div>
                 
                 {expandedPeriods[period] && items.map((item, index) => {
-              const isExpanded = selectedItem === item.id;
-              const embedUrl = getYouTubeEmbedUrl(item.youtube_link);
-
-              return (
-                <div
-                  key={item.id}
-                  ref={node => {
-                    if (node) {
-                      itemRefs.current.set(item.id, node);
-                    } else {
-                      itemRefs.current.delete(item.id);
-                    }
-                  }}
-                  className={`flex items-center ${
-                    // En móvil siempre columna, en desktop alternado
-                    'flex-col sm:flex-row'
-                  } ${
-                    // Solo en desktop aplicar el reverse
-                    index % 2 === 0 ? 'sm:flex-row' : 'sm:flex-row-reverse'
-                  } transition-all duration-700 transform ${
-                    visibleItems.includes(item.id) ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'
-                  }`}
-                  style={{ transitionDelay: `${visibleItemsMap[item.id] * 100}ms` }}
-                >
-                  {/* Contenido */}
-                  <div className={`w-full sm:w-5/12 ${
-                    index % 2 === 0 ? 'sm:text-right sm:pr-8' : 'sm:text-left sm:pl-8'
-                  } mb-4 sm:mb-0`}>
+                  return (
                     <div
-                      className={`bg-white/5 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border border-white/10 hover:border-white/20 transition-all duration-300 cursor-pointer hover:shadow-2xl ${
-                        isExpanded ? 'ring-2 ring-purple-500 scale-105' : 'hover:scale-105'
+                      key={item.id}
+                      ref={node => {
+                        if (node) {
+                          itemRefs.current.set(item.id, node);
+                        } else {
+                          itemRefs.current.delete(item.id);
+                        }
+                      }}
+                      className={`flex items-center ${
+                        // En móvil siempre columna, en desktop alternado
+                        'flex-col sm:flex-row'
+                      } ${
+                        // Solo en desktop aplicar el reverse
+                        index % 2 === 0 ? 'sm:flex-row' : 'sm:flex-row-reverse'
+                      } transition-all duration-700 transform ${
+                        visibleItems.includes(item.id) ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'
                       }`}
-                      onClick={() => setSelectedItem(isExpanded ? null : item.id)}
+                      style={{ transitionDelay: `${visibleItemsMap[item.id] * 100}ms` }}
                     >
-                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                        {item.first_name} {item.last_name}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="text-xs sm:text-sm font-medium text-purple-300 bg-purple-500/20 px-3 py-1 rounded-full">
-                          {item.category}
-                        </span>
-                        <span className="text-sm text-gray-400 font-medium">
-                          ({item.birth_year || 'N/A'} - {item.death_year || 'Presente'})
-                        </span>
+                      {/* Contenido */}
+                      <div className={`w-full sm:w-5/12 ${
+                        index % 2 === 0 ? 'sm:text-right sm:pr-8' : 'sm:text-left sm:pl-8'
+                      } mb-4 sm:mb-0`}>
+                        <ComposerCard
+                          composer={item}
+                          onSuggestEdit={onSuggestEdit}
+                          isExpanded={!!expandedComposerCards[item.id]}
+                          onToggleExpansion={() => toggleComposerCardExpansion(item.id)}
+                        />
                       </div>
-                      
-                      {isExpanded && (
-                        <div className="mt-4 pt-4 border-t border-white/10 animate-fade-in-down">
-                          <p className="text-gray-300 text-sm sm:text-base mb-4 italic">"{item.bio}"</p>
-                          {item.notable_works && <p className="text-gray-300 text-sm mb-4"><strong className="font-semibold text-white">Obras Notables:</strong> {item.notable_works}</p>}
-                          
-                          {embedUrl && (
-                            <div className="my-4 rounded-lg overflow-hidden aspect-video">
-                              <iframe src={embedUrl} title={`Video de ${item.first_name}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full"></iframe>
+
+                      {/* Punto central */}
+                      <div className="relative z-10 mb-4 sm:mb-0">
+                        <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-r ${item.color} flex items-center justify-center shadow-2xl border-4 border-white/20 hover:scale-110 transition-transform duration-300 overflow-hidden`}>
+                          {(item.photo_url && item.photo_url.startsWith('http')) ? (
+                            <img src={item.photo_url} alt={`${item.first_name} ${item.last_name}`} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
+                              <span className="text-xl sm:text-2xl font-bold text-white">
+                                {item.first_name?.trim().charAt(0).toUpperCase()}
+                                {item.last_name?.trim().charAt(0).toUpperCase()}
+                              </span>
                             </div>
                           )}
-
-                          <Rating composerId={item.id} initialRating={item.rating_avg || 0} ratingCount={item.rating_count || 0} />
-                          <Comments composerId={item.id} />
-
-                          <div className="mt-4 flex justify-end">
-                            <button onClick={() => onSuggestEdit(item)} className="flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200 transition-colors">
-                              <Edit className="w-4 h-4" />
-                              Sugerir una mejora
-                            </button>
-                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Punto central */}
-                  <div className="relative z-10 mb-4 sm:mb-0">
-                    <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-r ${item.color} flex items-center justify-center shadow-2xl border-4 border-white/20 hover:scale-110 transition-transform duration-300 overflow-hidden`}>
-                      {(item.photo_url && item.photo_url.startsWith('http')) ? (
-                        <img src={item.photo_url} alt={`${item.first_name} ${item.last_name}`} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
-                          <span className="text-xl sm:text-2xl font-bold text-white">
-                            {item.first_name?.trim().charAt(0).toUpperCase()}
-                            {item.last_name?.trim().charAt(0).toUpperCase()}
-                          </span>
+                        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full">
+                          <span className="text-sm font-bold text-white">{item.birth_year}</span>
                         </div>
-                      )}
-                    </div>
-                    <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full">
-                      <span className="text-sm font-bold text-white">{item.birth_year}</span>
-                    </div>
-                    <div className={`absolute top-0 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-lg ${
-                      index % 2 === 0 ? 'sm:-right-2' : 'sm:-left-2'
-                    } -right-2 sm:right-auto`}>
-                      <Star className={`w-4 h-4 ${getQualityColor(item.quality)}`} />
-                    </div>
-                  </div>
+                        <div className={`absolute top-0 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-lg ${
+                           index % 2 === 0 ? 'sm:-right-2' : 'sm:-left-2'
+                        } -right-2 sm:right-auto`}>
+                          <Star className={`w-4 h-4 ${item.quality ? (item.quality === 'A' ? 'text-green-500' : item.quality === 'B' ? 'text-yellow-500' : item.quality === 'C' ? 'text-orange-500' : item.quality === 'D' ? 'text-red-500' : 'text-gray-500') : 'text-gray-500'}`} />
+                        </div>
+                      </div>
 
-                  {/* Espacio vacío del otro lado - Solo en desktop */}
-                  <div className="hidden sm:block w-5/12"></div>
-                </div>
-              );
+                      {/* Espacio vacío del otro lado - Solo en desktop */}
+                      <div className="hidden sm:block w-5/12"></div>
+                    </div>
+                  );
                 })}
               </div>
             ))}

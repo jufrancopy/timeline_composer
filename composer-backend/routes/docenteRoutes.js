@@ -1749,7 +1749,6 @@ module.exports = (prisma, transporter) => {
   });
 
 
-
   // Admin: CRUD de Docentes (solo accesible por Admin)
   router.get('/docente', requireDocente, async (req, res) => {
     try {

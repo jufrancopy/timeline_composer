@@ -49,9 +49,18 @@ module.exports = (prisma, transporter) => {
                     publicacionId: parseInt(publicacionId),
                     autorAlumnoId,
                     autorDocenteId,
+                    updated_at: new Date(), // ✅ Agregar esto
+
                 },
             });
-            res.status(201).json(comentario);
+            const comentarioConAutor = await prisma.comentarioPublicacion.findUnique({
+                where: { id: comentario.id },
+                include: {
+                    Alumno: { select: { id: true, nombre: true, apellido: true } },
+                    Docente: { select: { id: true, nombre: true, apellido: true } },
+                },
+            });
+            res.status(201).json(comentarioConAutor);
         } catch (error) {
             console.error('Error al crear comentario:', error);
             res.status(500).json({ error: 'Error interno del servidor al crear el comentario.' });

@@ -10,6 +10,7 @@ const TimelinePage = () => {
   const [composers, setComposers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newComposer, setNewComposer] = useState(null);
+  const [composerOfTheDay, setComposerOfTheDay] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [selectedComposerId, setSelectedComposerId] = useState(null);
 
@@ -108,9 +109,47 @@ const TimelinePage = () => {
       if (!response.data || !Array.isArray(response.data.data)) throw new Error('Formato de datos inválido');
 
       setComposers(prev => {
-        const existingIds = new Set(prev.map(c => c.id));
-        const newComposers = response.data.data.filter(c => !existingIds.has(c.id));
-        return sortComposersByBirthYear([...prev, ...newComposers]);
+        const newComposersMap = new Map(response.data.data.map(c => [c.id, c]));
+        let hasChanges = false;
+        
+        const updatedComposers = prev.map(oldComposer => {
+            const newComposerData = newComposersMap.get(oldComposer.id);
+            if (newComposerData) {
+                // Compara propiedades relevantes para evitar recrear el objeto innecesariamente
+                if (
+                    oldComposer.first_name !== newComposerData.first_name ||
+                    oldComposer.last_name !== newComposerData.last_name ||
+                    oldComposer.birth_year !== newComposerData.birth_year ||
+                    oldComposer.death_year !== newComposerData.death_year ||
+                    oldComposer.period !== newComposerData.period ||
+                    oldComposer.mainRole?.[0] !== newComposerData.mainRole?.[0] ||
+                    oldComposer.bio !== newComposerData.bio ||
+                    oldComposer.notable_works !== newComposerData.notable_works ||
+                    oldComposer.youtube_link !== newComposerData.youtube_link ||
+                    oldComposer.photo_url !== newComposerData.photo_url ||
+                    oldComposer.rating_avg !== newComposerData.rating_avg || // Importante para la valoración
+                    oldComposer.rating_count !== newComposerData.rating_count   // Importante para el contador
+                ) {
+                    hasChanges = true;
+                    newComposersMap.delete(oldComposer.id); // Marca como procesado
+                    return newComposerData; // Devuelve nueva referencia si hay cambios importantes
+                }
+                newComposersMap.delete(oldComposer.id); // Marca como procesado
+                return oldComposer; // No hay cambios importantes, mantiene la referencia
+            }
+            return oldComposer; // Compositor existente no está en la nueva data, lo mantiene
+        });
+
+        // Añadir nuevos compositores (los que quedan en newComposersMap)
+        newComposersMap.forEach(newC => {
+            updatedComposers.push(newC);
+            hasChanges = true;
+        });
+
+        if (hasChanges) {
+            return sortComposersByBirthYear(updatedComposers);
+        }
+        return prev; // Si no hubo cambios, devuelve la referencia anterior del array
       });
       setTotalPages(response.data.totalPages);
 
@@ -125,6 +164,18 @@ const TimelinePage = () => {
   useEffect(() => {
     fetchComposers(1);
   }, [fetchComposers]);
+
+  useEffect(() => {
+    const fetchComposerOfTheDay = async () => {
+      try {
+        const response = await apiClient.getComposerOfTheDay();
+        setComposerOfTheDay(response.data);
+      } catch (err) {
+        console.error('Error al cargar el compositor del día:', err);
+      }
+    };
+    fetchComposerOfTheDay();
+  }, []);
 
   const lastComposerElementRef = useCallback(node => {
     if (loadingMore) return;
@@ -173,7 +224,7 @@ const TimelinePage = () => {
         {/* Efemérides y Compositor del Día */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <Ephemeris composers={composers} onComposerClick={setSelectedComposerId} />
-          <ComposerOfTheDay composers={composers} onComposerClick={setSelectedComposerId} />
+          <ComposerOfTheDay composer={composerOfTheDay} onComposerClick={setSelectedComposerId} />
         </div>
       </div>
 

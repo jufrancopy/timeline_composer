@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import apiClient from '../api';
+import React, { useState, useEffect, memo } from 'react';
+import api from '../api';
 
 const Comments = ({ composerId }) => {
   const [comments, setComments] = useState([]);
@@ -12,7 +12,7 @@ const Comments = ({ composerId }) => {
     const fetchComments = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.get(`/composers/comments/${composerId}`);
+        const response = await api.getComposerComments(composerId);
         setComments(response.data);
       } catch (error) {
         setError('No se pudieron cargar los comentarios.');
@@ -25,19 +25,20 @@ const Comments = ({ composerId }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('handleSubmit triggered.');
+    console.log('Valores actuales:', { newComment, userName });
     if (!newComment.trim() || !userName.trim()) {
       setError('El nombre y el comentario no pueden estar vacíos.');
       return;
     }
     try {
-      const response = await apiClient.post(`/composers/comments/${composerId}`, {
-        text: newComment,
-        name: userName,
-      });
+      console.log('Enviando comentario:', { composerId, text: newComment, name: userName });
+      const response = await api.addComposerComment(composerId, newComment, userName);
       setComments([response.data, ...comments]);
       setNewComment('');
       setError('');
     } catch (error) {
+      console.error("Error al enviar el comentario (frontend):", error);
       setError(error.response?.data?.error || 'Error al enviar el comentario.');
     }
   };
@@ -86,4 +87,4 @@ const Comments = ({ composerId }) => {
   );
 };
 
-export default Comments;
+export default memo(Comments);

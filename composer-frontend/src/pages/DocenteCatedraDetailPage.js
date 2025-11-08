@@ -407,7 +407,7 @@ const DocenteCatedraDetailPage = () => {
   const handleAddComment = async (publicacionId, commentData) => {
     try {
       const token = localStorage.getItem('docenteToken');
-      await api.createComentario(publicacionId, commentData, { headers: { Authorization: `Bearer ${token}` } });
+      await api.createComentario(publicacionId, commentData);
       fetchPublicaciones();
       toast.success('Comentario añadido exitosamente!');
     } catch (error) {

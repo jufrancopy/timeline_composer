@@ -33,6 +33,8 @@ import Header from './components/Header';
 import PrivateRoute from './components/PrivateRoute';
 import DocentePrivateRoute from './components/DocentePrivateRoute';
 import AddComposerForm from './components/AddComposerForm';
+import SuggestedComposerFloating from './components/SuggestedComposerFloating';
+import ComposerDetailPage from './pages/ComposerDetailPage';
 
 function AppContent() {
   const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem('adminToken'));
@@ -67,6 +69,7 @@ function AppContent() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-900">
       <Header isAdmin={isAdmin} isDocente={isDocente} isStudent={isStudent} handleLogout={handleLogout} />
+      {isStudent && <SuggestedComposerFloating />}
       {/* Spacer div para compensar la altura del header fijo */}
       <div className="h-18 sm:h-20 md:h-24"></div> {/* Ajusta estas alturas según el tamaño real de tu header */}
       <main className="flex-grow">
@@ -75,6 +78,7 @@ function AppContent() {
           {/* Equivalente en Laravel->>Route::get('/about', [Controller::class, 'about']); */}
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contribute" element={<AddComposerForm />} />
+          <Route path="/composers/show/:id" element={<ComposerDetailPage />} />
           <Route path="/admin/login" element={<AdminLoginPage onLogin={handleAdminLogin} />} />
           <Route path="/docente/login" element={<DocenteLoginPage onLogin={handleDocenteLogin} />} />
           <Route path="/alumno/login" element={<AlumnoLoginPage onLogin={handleStudentLogin} />} />

@@ -92,6 +92,9 @@ app.use((req, res, next) => {
   console.log(`[GLOBAL REQUEST] ${req.method} ${req.originalUrl}`);
   next();
 });
+
+// Montar el composerRouter primero para asegurar la prioridad de sus rutas
+
 // // app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 
 
@@ -232,6 +235,7 @@ const calculateContributionScore = async (userEmail) => {
 
 // --- Endpoints de Administración ---
 app.use('/api/admin', adminRouter);
+
 
 // --- Endpoints de Autenticación de Usuario (OTP) ---
 
@@ -755,7 +759,6 @@ app.delete('/api/admin/tareas/:tareaId', requireAdmin, async (req, res) => {
   }
 });
 
-app.use('/api/composers', composerRouter);
 app.use('/api', adminRouter);
 app.use('/api', docenteRouter);
 app.use('/api', evaluationRoutes);
@@ -763,6 +766,7 @@ app.use('/api', publicacionRouter);
 
 app.use('/api/ratings', ratingRoutes);
 app.use('/api', alumnoRouter);
+app.use('/api/composers', composerRouter);
 
 app.get(/^\/(?!api).*/, (req, res) => {
     res.sendFile(path.join(__dirname, '../composer-frontend/build', 'index.html'));

@@ -54,7 +54,7 @@ const api = {
   deleteComposer: (id) => apiClient.delete(`/composers/${id}`),
   searchComposers: (query) => apiClient.get(`/composers/search?query=${query}`),
   getRandomComposer: () => apiClient.get('/composers/random'),
-  getRandomComposer: () => apiClient.get('/composers/random'),
+  getComposerOfTheDay: () => apiClient.get('/composers/day'),
   getComposerBySlug: (slug) => apiClient.get(`/composers/slug/${slug}`),
   addComposerAsAdmin: (data) => apiClient.post('/composers/admin-create', data),
   updateComposerStatus: (id, data) => apiClient.put(`/composers/${id}/status`, data),
@@ -70,6 +70,14 @@ const api = {
 
   // ==== Endpoints para Ranking ====
   getRanking: () => apiClient.get('/ranking'),
+
+  // ==== Endpoints para Ratings ====
+  postRating: (composerId, rating_value) => apiClient.post('/ratings', { composerId, rating_value }),
+  getRatingForComposer: (composerId) => apiClient.get(`/ratings/${composerId}`),
+
+  // ==== Endpoints para Comentarios de Compositores ====
+  getComposerComments: (composerId) => apiClient.get(`/composers/comments/${composerId}`),
+  addComposerComment: (composerId, text, name) => apiClient.post(`/composers/comments/${composerId}`, { text, name }),
 
   // ==== Endpoints de Autenticación de Usuario (Alumnos) ====
   requestOtp: (email) => apiClient.post('/request-otp', { email }),

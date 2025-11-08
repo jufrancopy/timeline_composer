@@ -114,8 +114,20 @@ const CatedraDetailPage = () => {
 
   const handleAddComment = async (publicacionId, commentData) => {
     try {
-      await api.createComentario(publicacionId, commentData);
-      fetchPublicaciones();
+      const response = await api.createComentario(publicacionId, commentData);
+      const newComment = response.data;
+
+      setPublicaciones(prevPublicaciones =>
+        prevPublicaciones.map(pub =>
+          pub.id === publicacionId
+            ? {
+                ...pub,
+                ComentarioPublicacion: [...(pub.ComentarioPublicacion || []), newComment],
+                _count: { ...pub._count, ComentarioPublicacion: (pub._count?.ComentarioPublicacion || 0) + 1 },
+              }
+            : pub
+        )
+      );
       toast.success('Comentario añadido exitosamente!');
     } catch (error) {
       toast.error(error.response?.data?.error || 'Error al añadir el comentario.');
