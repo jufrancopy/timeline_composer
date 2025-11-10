@@ -126,6 +126,31 @@ module.exports = (prisma, transporter) => {
     }
   });
 
+  // GET /docente/me - Obtener la información del docente autenticado
+  router.get('/docente/me', requireDocente, async (req, res) => {
+    try {
+      const docenteId = req.docente.docenteId;
+      const docente = await prisma.docente.findUnique({
+        where: { id: docenteId },
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          email: true,
+        },
+      });
+
+      if (!docente) {
+        return res.status(404).json({ error: 'Docente no encontrado.' });
+      }
+
+      res.status(200).json(docente);
+    } catch (error) {
+      console.error('Error fetching authenticated docente info:', error);
+      res.status(500).json({ error: 'Error al obtener la información del docente.' });
+    }
+  });
+
   // Get catedras assigned to the logged-in docente
   router.get('/docente/me/catedras', requireDocente, async (req, res) => {
     try {

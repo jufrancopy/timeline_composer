@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
-const ComentarioForm = ({ publicacionId, onSubmit, loading = false }) => {
+const ComentarioForm = ({ publicacionId, onSubmit, loading = false, userId, userType }) => {
   const [texto, setTexto] = useState('');
   const [error, setError] = useState('');
 
@@ -14,7 +14,7 @@ const ComentarioForm = ({ publicacionId, onSubmit, loading = false }) => {
       return;
     }
 
-    onSubmit(publicacionId, { contenido: texto });
+    onSubmit(publicacionId, { contenido: texto, userId, userType });
     setTexto(''); // Limpiar el campo después de enviar
   };
 
@@ -44,6 +44,8 @@ ComentarioForm.propTypes = {
   publicacionId: PropTypes.number.isRequired,
   onSubmit: PropTypes.func.isRequired,
   loading: PropTypes.bool,
+  userId: PropTypes.number,
+  userType: PropTypes.oneOf(['alumno', 'docente']),
 };
 
 export default ComentarioForm; 

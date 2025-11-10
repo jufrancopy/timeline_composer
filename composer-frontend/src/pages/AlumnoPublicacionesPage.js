@@ -3,29 +3,77 @@ import { useNavigate } from 'react-router-dom';
 import { MessageSquare, BookMarked, Loader2 } from 'lucide-react';
 import api from '../api'; // Asegúrate de que esta ruta sea correcta
 import PublicacionCard from '../components/PublicacionCard'; // Asegúrate de que esta ruta sea correcta
-
+import toast from 'react-hot-toast';
 const AlumnoPublicacionesPage = () => {
   const [publicaciones, setPublicaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [alumnoId, setAlumnoId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchPublicaciones = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await api.getMyPublicaciones();
-        setPublicaciones(response.data);
+        const [publicacionesResponse, alumnoMeResponse] = await Promise.all([
+          api.getMyPublicaciones(),
+          api.getAlumnoMe()
+        ]);
+        setPublicaciones(publicacionesResponse.data);
+        setAlumnoId(alumnoMeResponse.data.id);
       } catch (err) {
-        console.error('Error fetching publicaciones:', err);
-        setError('No se pudieron cargar las publicaciones. Intenta de nuevo más tarde.');
+        console.error('Error fetching data:', err);
+        setError('No se pudieron cargar las publicaciones o la información del usuario. Intenta de nuevo más tarde.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPublicaciones();
+    fetchData();
   }, []);
+
+  const handleAddComment = async (publicacionId, commentData) => {
+    try {
+      const response = await api.createComentario(publicacionId, {
+        ...commentData,
+        autorAlumnoId: alumnoId,
+        userType: 'alumno'
+      });
+      setPublicaciones(prevPublicaciones =>
+        prevPublicaciones.map(pub =>
+          pub.id === publicacionId
+            ? { ...pub, ComentarioPublicacion: [...pub.ComentarioPublicacion, response.data] }
+            : pub
+        )
+      );
+    } catch (error) {
+      console.error('Error al añadir comentario:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteComment = async (publicacionId, comentarioId) => {
+    try {
+      await api.deleteComentario(publicacionId, comentarioId);
+      setPublicaciones(prevPublicaciones =>
+        prevPublicaciones.map(pub =>
+          pub.id === publicacionId
+            ? {
+                ...pub,
+                ComentarioPublicacion: pub.ComentarioPublicacion.filter(
+                  (comment) => comment.id !== comentarioId
+                ),
+              }
+            : pub
+        )
+      );
+      toast.success('Comentario eliminado.');
+    } catch (error) {
+      console.error('Error al eliminar comentario:', error);
+      toast.error(error.response?.data?.error || 'Error al eliminar el comentario.');
+      throw error;
+    }
+  };
 
   const handlePublicacionClick = (publicacion) => {
     if (publicacion.tipo === 'TAREA' && publicacion.tareaAsignacionId) {
@@ -71,7 +119,10 @@ const AlumnoPublicacionesPage = () => {
                 <PublicacionCard
                   key={publicacion.id}
                   publicacion={publicacion}
-                  onClick={() => handlePublicacionClick(publicacion)}
+                  onAddComment={handleAddComment}
+                  onDeleteComment={handleDeleteComment}
+                  userType="alumno"
+                  userId={alumnoId}
                 />
               ))}
             </div>

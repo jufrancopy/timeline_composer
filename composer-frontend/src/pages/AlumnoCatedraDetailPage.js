@@ -21,6 +21,7 @@ const AlumnoCatedraDetailPage = () => {
   const [catedra, setCatedra] = useState(null);
   const [activeTab, setActiveTab] = useState('tablon');
   const [currentAlumnoId, setCurrentAlumnoId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const location = useLocation();
 
   // Estados para Tablón
@@ -59,6 +60,7 @@ const AlumnoCatedraDetailPage = () => {
       try {
         const decoded = JSON.parse(atob(token.split('.')[1]));
         setCurrentAlumnoId(decoded.alumnoId);
+        setUserRole(decoded.role);
       } catch (err) {
         console.error('Error decoding token:', err);
       }
@@ -724,6 +726,7 @@ const AlumnoCatedraDetailPage = () => {
             setEditingPublicacion(null);
           }}
           availableCatedras={[catedra]}
+          userRole={userRole} // Pasar el userRole al PublicacionForm
         />
       </Modal>
 

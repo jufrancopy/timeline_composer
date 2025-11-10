@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 import { MessageSquare, Heart } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDeleteComment, onEditPublication, onInteractToggle, userType, userId, docenteId, tareas, onGoToTaskTab, onGoToTab, getStatusColor, getTaskStatusDisplay }) => {
+const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDeleteComment, onEditPublication, onInteractToggle, userType, userId, docenteId, onGoToTaskTab, onGoToTab, catedraNombre }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
   const navigate = useNavigate();
@@ -78,11 +78,11 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
 
   const getCommentAuthorName = (comment) => {
     if (comment.autorAlumno) {
-      return `${comment.autorAlumno.nombre} ${comment.autorAlumno.apellido} (Alumno)`;
+      return `Por ${comment.autorAlumno.nombre} ${comment.autorAlumno.apellido} (Alumno)`;
     } else if (comment.autorDocente) {
-      return `${comment.autorDocente.nombre} ${comment.autorDocente.apellido} (Docente)`;
+      return `Por ${comment.autorDocente.nombre} ${comment.autorDocente.apellido} (Docente)`;
     } else {
-      return 'Desconocido';
+      return 'Por Desconocido';
     }
   };
 
@@ -93,7 +93,7 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
           <h4 className="text-xl font-bold text-white mb-1">
             {publicacion.titulo}
           </h4>
-          <p className="text-sm text-gray-400">Publicado por {getAuthorName(publicacion)} el {format(new Date(publicacion.created_at), 'dd/MM/yyyy HH:mm')}</p>
+          <p className="text-sm text-gray-400">Publicado por {getAuthorName(publicacion)} el {format(new Date(publicacion.created_at), 'dd/MM/yyyy HH:mm')} en <span className="font-semibold">{catedraNombre}</span></p>
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mt-2">
             {publicacion.tipo}
           </span>
@@ -120,32 +120,7 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
               <p><strong>Fecha de Entrega:</strong> {format(new Date(publicacion.tareaMaestra.fecha_entrega), 'dd/MM/yyyy HH:mm')}</p>
             )}
             {/* Mostrar el estado de la tarea asignada y el enlace a "Mis Tareas" si es un alumno */}
-            {userType === 'alumno' && publicacion.tareaAsignacionEstado && (
-              <div className="mt-3">
-                {publicacion.tareaAsignacionEstado === 'ASIGNADA' || (publicacion.tareaAsignacionEstado === 'VENCIDA' && !publicacion.tareaAsignacionSubmissionPath) ? (
-                  <button
-                    onClick={() => onGoToTaskTab(publicacion.catedraId, publicacion.tareaAsignacionId)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 mt-2"
-                  >
-                    <span className="font-semibold">Estado: Pendiente - </span>Ir a Mis Tareas
-                  </button>
-                ) : publicacion.tareaAsignacionEstado === 'ENTREGADA' || (publicacion.tareaAsignacionEstado === 'VENCIDA' && publicacion.tareaAsignacionSubmissionPath) ? (
-                  <button
-                    onClick={() => onGoToTaskTab(publicacion.catedraId, publicacion.tareaAsignacionId)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mt-2"
-                  >
-                    <span className="font-semibold">Estado: Entregada - </span>Ver Mi Entrega
-                  </button>
-                ) : publicacion.tareaAsignacionEstado === 'CALIFICADA' ? (
-                  <button
-                    onClick={() => onGoToTaskTab(publicacion.catedraId, publicacion.tareaAsignacionId)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mt-2"
-                  >
-                    <span className="font-semibold">Estado: Calificada - </span>Ver Calificación
-                  </button>
-                ) : null}
-              </div>
-            )}
+
           </div>
         ) : publicacion.tipo === 'EVALUACION' && publicacion.evaluacionAsignacionId ? (
           <div className="space-y-2">
@@ -157,32 +132,7 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
             {publicacion.fecha_entrega && (
               <p><strong>Fecha Límite:</strong> {format(new Date(publicacion.fecha_entrega), 'dd/MM/yyyy HH:mm')}</p>
             )}
-            {userType === 'alumno' && publicacion.evaluacionAsignacionEstado && (
-              <div className="mt-3">
-                {publicacion.evaluacionAsignacionEstado === 'PENDIENTE' || publicacion.evaluacionAsignacionEstado === 'VENCIDA' ? (
-                  <button
-                    onClick={() => onGoToTab('evaluaciones', publicacion.evaluacionAsignacionId)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 mt-2"
-                  >
-                    <span>Estado: {publicacion.evaluacionAsignacionEstado === 'PENDIENTE' ? 'Pendiente' : 'Vencida'} - </span>Realizar Evaluación
-                  </button>
-                ) : publicacion.evaluacionAsignacionEstado === 'REALIZADA' ? (
-                  <button
-                    onClick={() => onGoToTab('evaluaciones', publicacion.evaluacionAsignacionId)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mt-2"
-                  >
-                    <span>Estado: Realizada - </span>Ver Resultados
-                  </button>
-                ) : publicacion.evaluacionAsignacionEstado === 'CALIFICADA' ? (
-                  <button
-                    onClick={() => onGoToTab('evaluaciones', publicacion.evaluacionAsignacionId)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mt-2"
-                  >
-                    <span>Estado: Calificada - </span>Ver Calificación
-                  </button>
-                ) : null}
-              </div>
-            )}
+
           </div>
         ) : (
           <div dangerouslySetInnerHTML={{ __html: publicacion.contenido }}></div>
@@ -222,7 +172,7 @@ const PublicacionCard = ({ publicacion, onAddComment, onDeletePublication, onDel
               )}
             </div>
           ))}
-          <ComentarioForm publicacionId={publicacion.id} onSubmit={handleAddCommentSubmit} loading={commentLoading} />
+          <ComentarioForm publicacionId={publicacion.id} onSubmit={handleAddCommentSubmit} loading={commentLoading} userId={userId} userType={userType} />
         </div>
       )}
     </div>
@@ -239,8 +189,6 @@ PublicacionCard.propTypes = {
   userType: PropTypes.oneOf(['alumno', 'docente']).isRequired,
   userId: PropTypes.number,
   docenteId: PropTypes.number,
-  onGoToTaskTab: PropTypes.func,
-  onGoToTab: PropTypes.func.isRequired,
 };
 
 export default PublicacionCard;

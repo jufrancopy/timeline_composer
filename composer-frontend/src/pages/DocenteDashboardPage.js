@@ -2,11 +2,15 @@ import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { MessageSquare, BookMarked, Loader2 } from 'lucide-react';
+import PublicacionCard from '../components/PublicacionCard';
 
 const DocenteDashboardPage = () => {
   const [catedras, setCatedras] = useState([]);
+  const [publicaciones, setPublicaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [docenteId, setDocenteId] = useState(null);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -17,44 +21,126 @@ const DocenteDashboardPage = () => {
   useEffect(() => {
     const token = localStorage.getItem('docenteToken');
     if (!token) {
-      // If token is missing, redirect to login
       navigate('/docente/login');
       return;
     }
 
-    const fetchCatedras = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.getDocenteCatedras();
-        setCatedras(response.data);
+        const [docenteMeResponse, catedrasResponse] = await Promise.all([
+          api.getDocenteMe(),
+          api.getDocenteCatedras(),
+        ]);
+        setDocenteId(docenteMeResponse.data.id);
+        setCatedras(catedrasResponse.data);
+
+        // Fetch publications for each catedra
+        const allPublicaciones = [];
+        for (const catedra of catedrasResponse.data) {
+          const pubResponse = await api.getPublicaciones(catedra.id);
+          const publicacionesConCatedraNombre = pubResponse.data.map(pub => ({...pub, catedraNombre: catedra.nombre}));
+          allPublicaciones.push(...publicacionesConCatedraNombre);
+        }
+        setPublicaciones(allPublicaciones);
+
       } catch (err) {
-        console.error('Error loading assigned catedras:', err); // Log the error for debugging
-        // Check if the error is due to an expired/invalid token (401 Unauthorized)
+        console.error('Error loading docente dashboard data:', err);
         if (err.response?.status === 401) {
-          localStorage.removeItem('docenteToken'); // Clear expired token
-          navigate('/docente/login'); // Redirect to login
+          localStorage.removeItem('docenteToken');
+          navigate('/docente/login');
           toast.error('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
         } else {
-          setError(err.response?.data?.message || 'Error al cargar las cátedras asignadas.');
+          setError(err.response?.data?.message || 'Error al cargar el dashboard del docente.');
         }
       } finally {
         setLoading(false);
       }
     };
-    fetchCatedras();
+    fetchData();
   }, [navigate]);
+
+  const handleAddComment = async (publicacionId, commentData) => {
+    try {
+      const response = await api.createComentario(publicacionId, {
+        ...commentData,
+        autorDocenteId: docenteId,
+        userType: 'docente'
+      });
+      setPublicaciones(prevPublicaciones =>
+        prevPublicaciones.map(pub =>
+          pub.id === publicacionId
+            ? { ...pub, ComentarioPublicacion: [...pub.ComentarioPublicacion, response.data] }
+            : pub
+        )
+      );
+    } catch (error) {
+      console.error('Error al añadir comentario:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteComment = async (publicacionId, comentarioId) => {
+    try {
+      await api.deleteComentario(publicacionId, comentarioId);
+      setPublicaciones(prevPublicaciones =>
+        prevPublicaciones.map(pub =>
+          pub.id === publicacionId
+            ? {
+                ...pub,
+                ComentarioPublicacion: pub.ComentarioPublicacion.filter(
+                  (comment) => comment.id !== comentarioId
+                ),
+              }
+            : pub
+        )
+      );
+      toast.success('Comentario eliminado.');
+    } catch (error) {
+      console.error('Error al eliminar comentario:', error);
+      toast.error(error.response?.data?.error || 'Error al eliminar el comentario.');
+      throw error;
+    }
+  };
+
+  const onInteractToggle = async (publicacionId, hasUserInteracted) => {
+    try {
+      if (hasUserInteracted) {
+        await api.removeInteraction(publicacionId);
+        toast.success('Interacción eliminada.');
+      } else {
+        await api.addInteraction(publicacionId);
+        toast.success('Interacción añadida.');
+      }
+      // Actualizar el estado de publicaciones para reflejar el cambio
+      setPublicaciones(prevPublicaciones =>
+        prevPublicaciones.map(pub =>
+          pub.id === publicacionId
+            ? {
+                ...pub,
+                hasUserInteracted: !hasUserInteracted,
+                totalInteracciones: hasUserInteracted ? pub.totalInteracciones - 1 : pub.totalInteracciones + 1,
+              }
+            : pub
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling interaction:', error);
+      toast.error('Error al actualizar la interacción.');
+    }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-8 flex items-center justify-center">
-        <p className="text-center text-lg text-gray-300">Cargando...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <Loader2 className="w-16 h-16 text-purple-500 animate-spin" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-8 flex items-center justify-center">
-        <p className="text-center text-red-400 text-lg">Error: {error}</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <p className="text-red-500 text-xl">Error: {error}</p>
       </div>
     );
   }
@@ -78,9 +164,9 @@ const DocenteDashboardPage = () => {
           Mis Cátedras Asignadas
         </h2>
         {catedras.length === 0 ? (
-          <p className="text-center text-gray-400 text-lg">No tienes cátedras asignadas aún.</p>
+          <p className="text-center text-gray-400 text-lg mb-8">No tienes cátedras asignadas aún.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             {catedras.map((catedra) => (
               <div key={catedra.id} className="bg-gray-800/50 hover:bg-gray-700/50 transition-colors duration-300 rounded-lg shadow-lg p-6 flex flex-col justify-between">
                 <div>
@@ -99,6 +185,33 @@ const DocenteDashboardPage = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-green-400 to-teal-400 bg-clip-text text-transparent">
+          Tablón de Anuncios de Cátedras
+        </h2>
+        {publicaciones.length === 0 ? (
+          <div className="text-center py-8">
+            <BookMarked className="w-16 h-16 text-slate-600 mx-auto mb-3" />
+            <p className="text-slate-400 text-lg">No hay publicaciones disponibles en tus cátedras.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {publicaciones
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) // Sort by date, newest first
+              .map((publicacion) => (
+                <PublicacionCard
+                  key={publicacion.id}
+                  publicacion={publicacion}
+                  onAddComment={handleAddComment}
+                  onDeleteComment={handleDeleteComment}
+                  onInteractToggle={onInteractToggle}
+                  userType="docente"
+                  docenteId={docenteId}
+                  catedraNombre={publicacion.catedraNombre}
+                />
+              ))}
           </div>
         )}
       </div>

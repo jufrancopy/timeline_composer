@@ -15,8 +15,7 @@ module.exports = (prisma, transporter) => {
     router.post('/publicaciones/:publicacionId/comentarios', requireUser(prisma), async (req, res) => {
         console.log(`[DEBUG] POST /publicaciones/${req.params.publicacionId}/comentarios invoked.`);
         const { publicacionId } = req.params;
-        const { contenido } = req.body;
-        const { role, alumnoId, docenteId } = req.user;
+        const { role: authenticatedRole, alumnoId: authenticatedAlumnoId, docenteId: authenticatedDocenteId } = req.user;
 
         if (!contenido || contenido.trim() === '') {
             return res.status(400).json({ error: 'El contenido del comentario no puede estar vacío.' });
@@ -25,16 +24,16 @@ module.exports = (prisma, transporter) => {
         let autorAlumnoId = null;
         let autorDocenteId = null;
 
-        if (role === 'alumno') {
-            autorAlumnoId = alumnoId;
-        } else if (role === 'docente') {
-            autorDocenteId = docenteId;
+        // Validar que el userId y userType enviados coincidan con el usuario autenticado
+        if (userType === 'alumno' && authenticatedRole === 'alumno' && userId === authenticatedAlumnoId) {
+            autorAlumnoId = userId;
+        } else if (userType === 'docente' && authenticatedRole === 'docente' && userId === authenticatedDocenteId) {
+            autorDocenteId = userId;
         } else {
-            return res.status(403).json({ error: 'Acceso denegado: Rol no autorizado para comentar.' });
+            return res.status(403).json({ error: 'Acceso denegado: userId o userType no coinciden con el usuario autenticado.' });
         }
 
         try {
-            // Verificar que la publicación exista
             const publicacion = await prisma.publicacion.findUnique({
                 where: { id: parseInt(publicacionId) },
             });
@@ -45,12 +44,11 @@ module.exports = (prisma, transporter) => {
 
             const comentario = await prisma.comentarioPublicacion.create({
                 data: {
-                    texto: contenido,   // 👈 usar texto, no contenido
+                    texto: contenido,
                     publicacionId: parseInt(publicacionId),
                     autorAlumnoId,
                     autorDocenteId,
-                    updated_at: new Date(), // ✅ Agregar esto
-
+                    updated_at: new Date(),
                 },
             });
             const comentarioConAutor = await prisma.comentarioPublicacion.findUnique({
@@ -64,6 +62,60 @@ module.exports = (prisma, transporter) => {
         } catch (error) {
             console.error('Error al crear comentario:', error);
             res.status(500).json({ error: 'Error interno del servidor al crear el comentario.' });
+        }
+    });
+
+    // Eliminar un comentario de una publicación
+    router.delete('/publicaciones/:publicacionId/comentarios/:comentarioId', requireUser(prisma), async (req, res) => {
+        const { publicacionId, comentarioId } = req.params;
+        const { role: authenticatedRole, alumnoId: authenticatedAlumnoId, docenteId: authenticatedDocenteId } = req.user;
+
+        try {
+            const comentario = await prisma.comentarioPublicacion.findUnique({
+                where: { id: parseInt(comentarioId) },
+            });
+
+            if (!comentario) {
+                return res.status(404).json({ error: 'Comentario no encontrado.' });
+            }
+
+            // Verificar si el usuario autenticado es el autor del comentario o un ADMIN/Docente de la catedra
+            let isAuthorized = false;
+            if (authenticatedRole === 'ADMIN') {
+                isAuthorized = true;
+            } else if (authenticatedRole === 'alumno' && comentario.autorAlumnoId === authenticatedAlumnoId) {
+                isAuthorized = true;
+            } else if (authenticatedRole === 'docente' && comentario.autorDocenteId === authenticatedDocenteId) {
+                isAuthorized = true;
+            } else if (authenticatedRole === 'docente') {
+                // Un docente puede borrar cualquier comentario en una publicación de su cátedra
+                const publicacion = await prisma.publicacion.findUnique({
+                    where: { id: parseInt(publicacionId) },
+                    select: { catedraId: true },
+                });
+
+                if (publicacion) {
+                    const catedra = await prisma.catedra.findFirst({
+                        where: { id: publicacion.catedraId, docenteId: authenticatedDocenteId },
+                    });
+                    if (catedra) {
+                        isAuthorized = true;
+                    }
+                }
+            }
+
+            if (!isAuthorized) {
+                return res.status(403).json({ error: 'Acceso denegado: No tienes permiso para eliminar este comentario.' });
+            }
+
+            await prisma.comentarioPublicacion.delete({
+                where: { id: parseInt(comentarioId) },
+            });
+
+            res.status(204).send(); // No Content
+        } catch (error) {
+            console.error('Error al eliminar comentario:', error);
+            res.status(500).json({ error: 'Error interno del servidor al eliminar el comentario.' });
         }
     });
 
@@ -253,10 +305,10 @@ module.exports = (prisma, transporter) => {
         }
 
         let finalTipo = tipo;
-        if (role === 'alumno' && !['ANUNCIO', 'OTRO'].includes(finalTipo)) {
-            finalTipo = 'ANUNCIO';
+        if (role === 'alumno') {
+            finalTipo = 'ANUNCIO'; // Los alumnos solo pueden crear publicaciones de tipo ANUNCIO
         } else if (!finalTipo) {
-            finalTipo = 'ANUNCIO';
+            finalTipo = 'ANUNCIO'; // Por defecto es ANUNCIO si no se especifica y no es alumno
         }
 
         try {
@@ -268,6 +320,7 @@ module.exports = (prisma, transporter) => {
                     autorDocenteId: autorDocenteId,
                     autorAlumnoId: autorAlumnoId,
                     tipo: finalTipo,
+                    updated_at: new Date(),
                 },
             });
             res.status(201).json(publicacion);
@@ -318,8 +371,8 @@ module.exports = (prisma, transporter) => {
                     Alumno: { select: { id: true, nombre: true, apellido: true, email: true } },
                     ComentarioPublicacion: { 
                         include: { 
-                            Alumno: { select: { id: true, nombre: true, apellido: true, email: true } }, 
-                            Docente: { select: { id: true, nombre: true, apellido: true, email: true } } 
+                            Alumno: { select: { id: true, nombre: true, apellido: true } }, 
+                            Docente: { select: { id: true, nombre: true, apellido: true } } 
                         }, 
                         orderBy: { created_at: 'asc' } 
                     },
@@ -367,6 +420,14 @@ module.exports = (prisma, transporter) => {
                     hasUserInteracted: (publicacion.PublicacionInteraccion?.length || 0) > 0,
                     totalInteracciones: publicacion._count?.PublicacionInteraccion || 0,
                     PublicacionInteraccion: undefined,
+                    autorDocente: publicacion.Docente,
+                    autorAlumno: publicacion.Alumno,
+                    // Incluir comentarios y asegurar que los autores estén presentes
+                    ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                        ...comment,
+                        autorAlumno: comment.Alumno, // Asegurar que el objeto Alumno esté aquí
+                        autorDocente: comment.Docente, // Asegurar que el objeto Docente esté aquí
+                    })),
                 };
 
                 if (role === 'alumno') {
@@ -386,7 +447,11 @@ module.exports = (prisma, transporter) => {
                             unidadPlanNombre: unidadPlan?.periodo || null,
                             planDeClasesTitulo: planDeClases?.titulo || null,
                             tareaMaestra: undefined,
-                            ComentarioPublicacion: publicacion.ComentarioPublicacion, // Ensure comments are included
+                            ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                                ...comment,
+                                autorAlumno: comment.Alumno,
+                                autorDocente: comment.Docente,
+                            })),
                         };
                     } else if (publicacion.tipo === 'EVALUACION') {
                         const evaluacionAsignacion = publicacion.Evaluacion?.EvaluacionAsignacion?.[0];
@@ -411,7 +476,11 @@ module.exports = (prisma, transporter) => {
                             planDeClasesTitulo: planDeClases?.titulo || null,
                             Evaluacion: undefined,
                             evaluacionAsignacion: undefined,
-                            ComentarioPublicacion: publicacion.ComentarioPublicacion, // Ensure comments are included
+                            ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                                ...comment,
+                                autorAlumno: comment.Alumno,
+                                autorDocente: comment.Docente,
+                            })),
                         };
                     }
                 }
@@ -420,7 +489,11 @@ module.exports = (prisma, transporter) => {
                     ...basePublicacion,
                     TareaMaestra: publicacion.TareaMaestra ? { id: publicacion.TareaMaestra.id, titulo: publicacion.TareaMaestra.titulo } : undefined,
                     Evaluacion: publicacion.Evaluacion ? { id: publicacion.Evaluacion.id, titulo: publicacion.Evaluacion.titulo } : undefined,
-                    ComentarioPublicacion: publicacion.ComentarioPublicacion, // Ensure comments are included
+                    ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                        ...comment,
+                        autorAlumno: comment.Alumno,
+                        autorDocente: comment.Docente,
+                    })),
                 };
             });
 
@@ -464,8 +537,8 @@ module.exports = (prisma, transporter) => {
                     Alumno: { select: { id: true, nombre: true, apellido: true, email: true } },
                     ComentarioPublicacion: { 
                         include: { 
-                            Alumno: { select: { id: true, nombre: true, apellido: true, email: true } }, 
-                            Docente: { select: { id: true, nombre: true, apellido: true, email: true } } 
+                            Alumno: { select: { id: true, nombre: true, apellido: true } }, 
+                            Docente: { select: { id: true, nombre: true, apellido: true } } 
                         }, 
                         orderBy: { created_at: 'asc' } 
                     },
@@ -490,8 +563,8 @@ module.exports = (prisma, transporter) => {
                     Alumno: { select: { id: true, nombre: true, apellido: true, email: true } },
                     ComentarioPublicacion: { 
                         include: { 
-                            Alumno: { select: { id: true, nombre: true, apellido: true, email: true } }, 
-                            Docente: { select: { id: true, nombre: true, apellido: true, email: true } } 
+                            Alumno: { select: { id: true, nombre: true, apellido: true } }, 
+                            Docente: { select: { id: true, nombre: true, apellido: true } } 
                         }, 
                         orderBy: { created_at: 'asc' } 
                     },
@@ -529,8 +602,8 @@ module.exports = (prisma, transporter) => {
                     Alumno: { select: { id: true, nombre: true, apellido: true, email: true } },
                     ComentarioPublicacion: { 
                         include: { 
-                            Alumno: { select: { id: true, nombre: true, apellido: true, email: true } }, 
-                            Docente: { select: { id: true, nombre: true, apellido: true, email: true } } 
+                            Alumno: { select: { id: true, nombre: true, apellido: true } }, 
+                            Docente: { select: { id: true, nombre: true, apellido: true } } 
                         }, 
                         orderBy: { created_at: 'asc' } 
                     },
@@ -560,6 +633,13 @@ module.exports = (prisma, transporter) => {
                     ...publicacion,
                     hasUserInteracted: publicacion.PublicacionInteraccion.length > 0,
                     totalInteracciones: publicacion._count.PublicacionInteraccion,
+                    autorDocente: publicacion.Docente, // Incluir el objeto Docente completo
+                    autorAlumno: publicacion.Alumno,   // Incluir el objeto Alumno completo
+                    ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                        ...comment,
+                        autorAlumno: comment.Alumno, // Asegurar que el objeto Alumno esté aquí
+                        autorDocente: comment.Docente, // Asegurar que el objeto Docente esté aquí
+                    })),
                 };
 
                 if (publicacion.tipo === 'TAREA') {
@@ -577,7 +657,11 @@ module.exports = (prisma, transporter) => {
                         unidadPlanNombre: unidadPlan?.periodo || null,
                         planDeClasesTitulo: planDeClases?.titulo || null,
                         tareaMaestra: undefined,
-                        ComentarioPublicacion: publicacion.ComentarioPublicacion, // Ensure comments are included
+                        ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                            ...comment,
+                            autorAlumno: comment.Alumno,
+                            autorDocente: comment.Docente,
+                        })),
                     };
                 } else if (publicacion.tipo === 'EVALUACION') {
                     const evaluacionAsignacion = publicacion.evaluacionAsignacion?.[0];
@@ -602,10 +686,18 @@ module.exports = (prisma, transporter) => {
                         planDeClasesTitulo: planDeClases?.titulo || null,
                         Evaluacion: undefined,
                         evaluacionAsignacion: undefined,
-                        ComentarioPublicacion: publicacion.ComentarioPublicacion, // Ensure comments are included
+                        ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                            ...comment,
+                            autorAlumno: comment.Alumno,
+                            autorDocente: comment.Docente,
+                        })),
                     };
                 }
-                return { ...basePublicacion, tareaMaestra: undefined, evaluacionMaestra: undefined, evaluacionAsignacion: undefined, ComentarioPublicacion: publicacion.ComentarioPublicacion }; // Ensure comments are included
+                return { ...basePublicacion, tareaMaestra: undefined, evaluacionMaestra: undefined, evaluacionAsignacion: undefined, ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                    ...comment,
+                    autorAlumno: comment.Alumno,
+                    autorDocente: comment.Docente,
+                })) }; // Ensure comments are included
             });
 
             res.json(publicacionesConInteracciones);

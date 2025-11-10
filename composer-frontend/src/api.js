@@ -165,6 +165,7 @@ const api = {
   // ==== Endpoints para Docentes (Autenticación) ====
   requestDocenteOtp: (email) => apiClient.post('/docente/request-otp', { email }),
   verifyDocenteOtp: (email, otp) => apiClient.post('/docente/verify-otp', { email, otp }),
+  getDocenteMe: () => apiClient.get('/docente/me'),
 
   // ==== Endpoints para Docentes (Alumnos) ====
   getDocenteAlumnoPagos: (alumnoId) => apiClient.get(`/docente/alumnos/${alumnoId}/pagos`),

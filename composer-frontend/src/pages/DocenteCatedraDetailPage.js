@@ -407,7 +407,32 @@ const DocenteCatedraDetailPage = () => {
   const handleAddComment = async (publicacionId, commentData) => {
     try {
       const token = localStorage.getItem('docenteToken');
-      await api.createComentario(publicacionId, commentData);
+      let userId = null;
+      let userType = null;
+
+      if (token) {
+        try {
+          const decoded = jwtDecode(token);
+          // Determinar si es docente o alumno del token (asumiendo que 'docenteId' o 'alumnoId' existen en el token)
+          if (decoded.docenteId) {
+            userId = decoded.docenteId;
+            userType = 'docente';
+          } else if (decoded.alumnoId) {
+            userId = decoded.alumnoId;
+            userType = 'alumno';
+          }
+        } catch (error) {
+          console.error('Error decodificando el token al añadir comentario:', error);
+        }
+      }
+
+      if (!userId || !userType) {
+        toast.error('No se pudo identificar al usuario para añadir el comentario.');
+        return;
+      }
+
+      const dataWithAuthor = { ...commentData, userId, userType };
+      await api.createComentario(publicacionId, dataWithAuthor);
       fetchPublicaciones();
       toast.success('Comentario añadido exitosamente!');
     } catch (error) {
@@ -623,7 +648,8 @@ const DocenteCatedraDetailPage = () => {
                         onInteractToggle={handleInteractToggle}
                         userType="docente"
                         userId={currentDocenteId}
-                        docenteId={currentDocenteId} 
+                        docenteId={currentDocenteId}
+                        catedraNombre={catedra.nombre}
                       />
                     ))}
                   </div>
