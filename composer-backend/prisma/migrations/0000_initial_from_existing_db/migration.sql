@@ -1,1 +1,0 @@
--- Initial schema from existing database

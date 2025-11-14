@@ -19,15 +19,20 @@ import { format, parseISO } from 'date-fns';
 import { Tooltip as TooltipComponent } from 'react-tooltip';
 import { es } from 'date-fns/locale';
 import { Toaster, toast } from 'react-hot-toast';
-import { 
-  ArrowLeft, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  Eye, 
-  Users, 
-  Calendar, 
-  Clock, 
+import UnifiedAttendanceSection from '../components/UnifiedAttendanceSection';
+
+
+
+import ClassCalendar from './ClassCalendar';
+import {
+  ArrowLeft,
+  Plus,
+  Edit3,
+  Trash2,
+  Eye,
+  Users,
+  Calendar,
+  Clock,
   MapPin,
   BookOpen,
   AlertCircle,
@@ -42,7 +47,7 @@ const DocenteCatedraDetailPage = () => {
   const [catedra, setCatedra] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // State for DiaClase and Asistencia
   const [diasClase, setDiasClase] = useState([]);
   const [isDiaClaseModalOpen, setIsDiaClaseModalOpen] = useState(false);
@@ -58,6 +63,8 @@ const DocenteCatedraDetailPage = () => {
   const [isPublicacionModalOpen, setIsPublicacionModalOpen] = useState(false);
   const [editingPublicacion, setEditingPublicacion] = useState(null);
   const [publicationLoading, setPublicationLoading] = useState(false);
+  const [scheduledClassDays, setScheduledClassDays] = useState([]);
+  const [recordedClassDates, setRecordedClassDates] = useState([]);
 
   // State for Plan de Clases
   const [planesDeClase, setPlanesDeClase] = useState([]);
@@ -94,21 +101,21 @@ const DocenteCatedraDetailPage = () => {
     alumnosInscritos: 0
   });
 
+
+
   const fetchCatedra = useCallback(async () => {
     try {
       const response = await api.getDocenteCatedraDetalles(id);
       setCatedra(response.data);
-      
+
       // Calcular estadísticas
       const alumnos = response.data.CatedraAlumno || [];
-      
+
       setStats({
         alumnosInscritos: alumnos.length
       });
 
-      if (response.data.CatedraAlumno && response.data.CatedraAlumno.length > 0) {
-        fetchStudentPaymentStatuses(response.data.CatedraAlumno, response.data.id);
-      }
+
     } catch (err) {
       setError(err.response?.data?.message || 'Error al cargar los detalles de la cátedra.');
     } finally {
@@ -120,6 +127,9 @@ const DocenteCatedraDetailPage = () => {
     try {
       const response = await api.getDocenteDiasClase(id);
       setDiasClase(response.data);
+
+      const dates = response.data.map(dia => new Date(dia.fecha).toISOString().split('T')[0]);
+      setRecordedClassDates(dates);
     } catch (err) {
       console.error("Error al cargar los días de clase:", err);
       setError(err.response?.data?.message || 'Error al cargar los días de clase.');
@@ -136,37 +146,11 @@ const DocenteCatedraDetailPage = () => {
     }
   }, [id, currentYear]);
 
-  const fetchStudentPaymentStatuses = useCallback(async (alumnos, currentCatedraId) => {
-    console.log("[DOCENTE CATEDRA FRONTEND] Invocando fetchStudentPaymentStatuses.");
-    const statuses = {};
-    console.log(`[DOCENTE CATEDRA FRONTEND] Procesando ${alumnos.length} alumnos.`);
-    for (const inscripcion of alumnos) {
-      const studentIdentifier = inscripcion.alumnoId || inscripcion.composerId;
-      if (studentIdentifier) {
-        try {
-          const response = await api.getDocenteAlumnoPagos(studentIdentifier);
-          if (response.data && Array.isArray(response.data.pagosConsolidados)) {
-            response.data.pagosConsolidados.forEach(pagoCatedra => {
-              if (pagoCatedra.catedraId === currentCatedraId) {
-                statuses[studentIdentifier] = pagoCatedra.estadoActual;
-              }
-            });
-          } else {
-            console.warn(`API getDocenteAlumnoPagos did not return expected structure for student ${studentIdentifier}:`, response.data);
-          }
-        } catch (error) {
-          console.error(`Error fetching payment status for student ${studentIdentifier}:`, error);
-          statuses[studentIdentifier] = 'ERROR_CARGA';
-        }
-      }
-    }
-    setStudentPaymentStatuses(statuses);
-  }, []);
-
   const fetchPublicaciones = useCallback(async () => {
     try {
       const response = await api.getPublicaciones(id);
       setPublicaciones(response.data);
+      console.log('[DEBUG - DocenteCatedraDetailPage] Publicaciones fetched:', response.data);
     } catch (err) {
       console.error("Error al cargar publicaciones:", err);
     }
@@ -185,8 +169,79 @@ const DocenteCatedraDetailPage = () => {
     fetchCatedra();
     fetchDiasClase();
     fetchPublicaciones();
-    fetchPlanesDeClase();
+    fetchPlanesDeClase().then(() => {
+      const lastViewedPlanId = sessionStorage.getItem('lastViewedPlanId');
+      if (lastViewedPlanId) {
+        // Esperar a que los planes de clase estén realmente cargados
+        // Esto es un parche temporal, lo ideal sería un estado más robusto para planesDeClase
+        setTimeout(() => {
+          setPlanesDeClase(currentPlanes => {
+            const planToRestore = currentPlanes.find(plan => String(plan.id) === lastViewedPlanId);
+            if (planToRestore) {
+              setSelectedPlanDeClases(planToRestore);
+              sessionStorage.removeItem('lastViewedPlanId'); // Limpiar después de usar
+            }
+            return currentPlanes;
+          });
+        }, 100); // Pequeño retardo para asegurar que planesDeClase esté actualizado
+      }
+    });
   }, [fetchCatedra, fetchDiasClase, fetchPublicaciones, fetchPlanesDeClase]);
+
+  useEffect(() => {
+    // Si catedra o alumnosInscritos no están disponibles o están vacíos, no hacemos nada
+    if (!catedra || !catedra.CatedraAlumno || catedra.CatedraAlumno.length === 0) {
+      setStudentPaymentStatuses({});
+      return;
+    }
+
+    const fetchPaymentStatuses = async () => {
+      const currentCatedraId = catedra.id;
+      const statuses = {};
+      const fetchPromises = catedra.CatedraAlumno.map(async (inscripcion) => {
+        const studentIdentifier = inscripcion.alumnoId || inscripcion.composerId;
+        if (studentIdentifier) {
+          try {
+            const response = await api.getDocenteAlumnoPagos(studentIdentifier);
+            if (response.data && Array.isArray(response.data.pagosConsolidados)) {
+              response.data.pagosConsolidados.forEach(pagoCatedra => {
+                if (pagoCatedra.catedraId === currentCatedraId) {
+                  statuses[studentIdentifier] = pagoCatedra.estadoActual;
+                }
+              });
+            } else {
+              console.warn(`API getDocenteAlumnoPagos did not return expected structure for student ${studentIdentifier}:`, response.data);
+            }
+          } catch (error) {
+            console.error(`Error fetching payment status for student ${studentIdentifier}:`, error);
+            statuses[studentIdentifier] = 'ERROR_CARGA';
+          }
+        }
+      });
+
+      await Promise.all(fetchPromises);
+      setStudentPaymentStatuses(statuses);
+    };
+
+    fetchPaymentStatuses();
+  }, [catedra]);
+
+  // Extraer días de la semana programados cuando la cátedra se carga o actualiza
+  useEffect(() => {
+    if (catedra?.CatedraDiaHorario) {
+      const dayMap = {
+        'Lunes': '1',
+        'Martes': '2',
+        'Miércoles': '3',
+        'Jueves': '4',
+        'Viernes': '5',
+        'Sábado': '6',
+        'Domingo': '7',
+      };
+      const days = catedra.CatedraDiaHorario.map(h => dayMap[h.dia_semana]).filter(Boolean);
+      setScheduledClassDays(days);
+    }
+  }, [catedra]);
 
   useEffect(() => {
     if (selectedPlanDeClases && planesDeClase.length > 0) {
@@ -511,7 +566,6 @@ const DocenteCatedraDetailPage = () => {
   };
 
   const handleSelectPlanDeClases = (plan) => {
-    console.log("[DocenteCatedraDetailPage] Selected Plan:", JSON.stringify(plan, null, 2));
     setSelectedPlanDeClases(plan);
   };
 
@@ -524,7 +578,7 @@ const DocenteCatedraDetailPage = () => {
   const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('docenteToken');    
+    const token = localStorage.getItem('docenteToken');
     if (token) {
       try {
         const decoded = jwtDecode(token);
@@ -589,8 +643,8 @@ const DocenteCatedraDetailPage = () => {
         {/* Header Navigation */}
         <div className="bg-slate-950/50 backdrop-blur-xl border-b border-slate-800/50">
           <div className="max-w-7xl mx-auto px-6 py-4">
-            <Link 
-              to="/docente/dashboard" 
+            <Link
+              to="/docente/dashboard"
               className="inline-flex items-center gap-2 text-slate-300 hover:text-white transition-all duration-300 group"
             >
               <div className="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
@@ -624,7 +678,7 @@ const DocenteCatedraDetailPage = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               {(publicaciones?.length === 0) ? (
                 <div className="text-center py-12">
@@ -638,8 +692,8 @@ const DocenteCatedraDetailPage = () => {
                 (currentDocenteId !== null && currentDocenteId !== undefined) ? (
                   <div className="space-y-6">
                     {publicaciones.map(publicacion => (
-                      <PublicacionCard 
-                        key={publicacion.id} 
+                      <PublicacionCard
+                        key={publicacion.id}
                         publicacion={publicacion}
                         onAddComment={handleAddComment}
                         onDeletePublication={handleDeletePublicacion}
@@ -667,7 +721,7 @@ const DocenteCatedraDetailPage = () => {
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900/80 via-purple-900/40 to-slate-900/80 backdrop-blur-xl border border-slate-700/50">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-pink-600/5 to-purple-600/10"></div>
             <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-3xl"></div>
-            
+
             <div className="relative z-10 p-8">
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
                 <div className="space-y-4">
@@ -756,166 +810,20 @@ const DocenteCatedraDetailPage = () => {
             />
           )}
 
-          {/* Sección de Días de Clase */}
-          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-600/20 rounded-lg">
-                    <Calendar className="text-blue-400" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-white">Días de Clase</h3>
-                    <p className="text-slate-400">{diasClase?.length || 0} días registrados</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => openDiaClaseModal()}
-                  className="group inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-xl transition-all duration-300 shadow-lg shadow-blue-900/25 hover:shadow-xl hover:shadow-blue-900/40 hover:scale-105"
-                >
-                  <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
-                  <span>Nuevo Día de Clase</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {diasClase.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
-                    <Calendar className="text-slate-500" size={32} />
-                  </div>
-                  <p className="text-slate-400 text-lg font-medium">No hay días de clase registrados</p>
-                  <p className="text-slate-500 text-sm mt-1">Registra los días de clase para gestionar asistencias</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="border-b border-slate-700/50">
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Fecha</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Día</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {diasClase.map((diaClase) => (
-                        <tr key={diaClase.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                          <td className="py-4 px-4">
-                            <div className="font-medium text-white">
-                              {(() => {
-                                const date = new Date(diaClase.fecha);
-                                const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-                                const correctedDate = new Date(date.getTime() + userTimezoneOffset);
-                                return format(correctedDate, 'dd/MM/yyyy');
-                              })()}
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-600/20 text-indigo-300 rounded-full text-sm border border-indigo-500/30">
-                              {diaClase.dia_semana}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => openDiaClaseModal(diaClase)}
-                                className="p-2 bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/30 hover:text-yellow-200 rounded-lg transition-all duration-200 border border-yellow-500/30"
-                                title="Editar Día de Clase"
-                              >
-                                <Edit3 size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteDiaClase(diaClase.id)}
-                                className="p-2 bg-red-600/20 text-red-300 hover:bg-red-600/30 hover:text-red-200 rounded-lg transition-all duration-200 border border-red-500/30"
-                                title="Eliminar Día de Clase"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                              <button
-                                onClick={() => openAttendanceModal(diaClase)}
-                                className="p-2 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-purple-200 rounded-lg transition-all duration-200 border border-purple-500/30"
-                                title="Gestionar Asistencia"
-                              >
-                                <ClipboardCheck size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Sección de Asistencia Anual */}
-          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-600/20 rounded-lg">
-                    <ClipboardCheck className="text-indigo-400" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-white">Asistencia Anual</h3>
-                    <p className="text-slate-400">Visualiza la asistencia por año</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="yearSelect" className="text-slate-400 text-sm">Año:</label>
-                  <select
-                    id="yearSelect"
-                    value={currentYear}
-                    onChange={(e) => setCurrentYear(parseInt(e.target.value))}
-                    className="bg-slate-700 border border-slate-600 text-white rounded-md px-3 py-1 text-sm focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {[...Array(5)].map((_, i) => {
-                      const yearOption = new Date().getFullYear() - 2 + i;
-                      return <option key={yearOption} value={yearOption}>{yearOption}</option>;
-                    })}
-                  </select>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {annualAttendanceData.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
-                    <ClipboardCheck className="text-slate-500" size={32} />
-                  </div>
-                  <p className="text-slate-400 text-lg font-medium">No hay datos de asistencia para {currentYear}</p>
-                  <p className="text-slate-500 text-sm mt-1">Registra días de clase y asistencias para ver el historial</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {annualAttendanceData.map(dia => (
-                    <div key={dia.id} className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
-                      <h4 className="text-lg font-semibold text-white mb-2">
-                        {format(parseISO(dia.fecha), 'EEEE, dd MMMM yyyy', { locale: es })}
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {dia.asistencias.length === 0 ? (
-                          <span className="text-slate-400 text-sm">No hay asistencias registradas para este día.</span>
-                        ) : (
-                          dia.asistencias.map(asistencia => (
-                            <span 
-                              key={`${dia.id}-${asistencia.alumnoId || asistencia.composerId}`} 
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${asistencia.presente ? 'bg-green-600/20 text-green-300 border border-green-500/30' : 'bg-red-600/20 text-red-300 border border-red-500/30'}`}
-                            >
-                              {asistencia.nombreCompleto} {asistencia.presente ? '(P)' : '(A)'}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Aqui estaba la Seccion Dias de Clase Asistencia Anual */}
+          {/* Sección Unificada de Asistencia */}
+          <UnifiedAttendanceSection
+            diasClase={diasClase}
+            annualAttendanceData={annualAttendanceData}
+            currentYear={currentYear}
+            setCurrentYear={setCurrentYear}
+            onOpenDiaClaseModal={openDiaClaseModal}
+            onEditDiaClase={(diaClase) => openDiaClaseModal(diaClase)}
+            onDeleteDiaClase={handleDeleteDiaClase}
+            onOpenAttendanceModal={openAttendanceModal}
+            scheduledClassDays={scheduledClassDays}
+            recordedClassDates={recordedClassDates}
+          />
 
           {/* Sección de Alumnos */}
           <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
@@ -930,7 +838,7 @@ const DocenteCatedraDetailPage = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="p-6">
               {catedra.CatedraAlumno.length === 0 ? (
                 <div className="text-center py-12">
@@ -954,19 +862,19 @@ const DocenteCatedraDetailPage = () => {
                     </thead>
                     <tbody>
                       {catedra?.CatedraAlumno.map((inscripcion) => {
-                        const nombre = inscripcion.Alumno 
-                          ? `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}` 
+                        const nombre = inscripcion.Alumno
+                          ? `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}`
                           : inscripcion.Composer
                             ? `${inscripcion.Composer.student_first_name} ${inscripcion.Composer.student_last_name} (Contrib.)`
                             : 'Nombre Desconocido';
-                        const email = inscripcion.Alumno 
-                          ? inscripcion.Alumno.email 
+                        const email = inscripcion.Alumno
+                          ? inscripcion.Alumno.email
                           : inscripcion.Composer
                             ? inscripcion.Composer.email
                             : 'N/A';
                         const studentIdentifier = inscripcion.alumnoId || inscripcion.composerId;
                         const paymentStatus = studentPaymentStatuses[studentIdentifier];
-                        
+
                         return (
                           <tr key={inscripcion.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
                             <td className="py-4 px-4">
@@ -1014,7 +922,7 @@ const DocenteCatedraDetailPage = () => {
                             </td>
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-2">
-                                <Link 
+                                <Link
                                   to={`/docente/catedra/${catedra.id}/alumno/${inscripcion.alumnoId || inscripcion.composerId}`}
                                   className="p-2 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 hover:text-indigo-200 rounded-lg transition-all duration-200 border border-indigo-500/30"
                                   title="Ver Detalles"
@@ -1043,61 +951,61 @@ const DocenteCatedraDetailPage = () => {
       </div>
 
       {/* Modales */}
-      <Modal 
-        isOpen={isDiaClaseModalOpen} 
-        onClose={() => setIsDiaClaseModalOpen(false)} 
-        title={editingDiaClase ? "Editar Día de Clase" : "Crear Nuevo Día de Clase"} 
-        showSubmitButton={false} 
+      <Modal
+        isOpen={isDiaClaseModalOpen}
+        onClose={() => setIsDiaClaseModalOpen(false)}
+        title={editingDiaClase ? "Editar Día de Clase" : "Crear Nuevo Día de Clase"}
+        showSubmitButton={false}
         showCancelButton={false}
       >
-        <DiaClaseForm 
-          catedraId={catedra?.id} 
-          onDiaClaseCreated={handleDiaClaseCreated} 
-          onDiaClaseUpdated={handleDiaClaseUpdated} 
-          onCancel={() => setIsDiaClaseModalOpen(false)} 
-          initialData={editingDiaClase} 
-          isEditMode={!!editingDiaClase} 
-          scheduledDays={catedra?.CatedraDiaHorario?.map(h => h.dia_semana)} 
+        <DiaClaseForm
+          catedraId={catedra?.id}
+          onDiaClaseCreated={handleDiaClaseCreated}
+          onDiaClaseUpdated={handleDiaClaseUpdated}
+          onCancel={() => setIsDiaClaseModalOpen(false)}
+          initialData={editingDiaClase}
+          isEditMode={!!editingDiaClase}
+          scheduledDays={catedra?.CatedraDiaHorario?.map(h => h.dia_semana)}
         />
       </Modal>
 
       {selectedDiaClaseForAttendance && (
-        <Modal 
-          isOpen={isAttendanceModalOpen} 
-          onClose={() => setIsAttendanceModalOpen(false)} 
+        <Modal
+          isOpen={isAttendanceModalOpen}
+          onClose={() => setIsAttendanceModalOpen(false)}
           title={`Asistencia para ${(() => {
             const date = new Date(selectedDiaClaseForAttendance.fecha);
             const userTimezoneOffset = date.getTimezoneOffset() * 60000;
             const correctedDate = new Date(date.getTime() + userTimezoneOffset);
             return format(correctedDate, 'dd/MM/yyyy');
-          })()} (${selectedDiaClaseForAttendance.dia_semana})`} 
-          showSubmitButton={false} 
+          })()} (${selectedDiaClaseForAttendance.dia_semana})`}
+          showSubmitButton={false}
           showCancelButton={false}
         >
-          <AttendanceForm 
-            catedraId={catedra?.id} 
-            diaClaseId={selectedDiaClaseForAttendance.id} 
+          <AttendanceForm
+            catedraId={catedra?.id}
+            diaClaseId={selectedDiaClaseForAttendance.id}
             alumnos={catedra.CatedraAlumno}
-            onSave={handleSaveAttendance} 
-            onCancel={() => setIsAttendanceModalOpen(false)} 
+            onSave={handleSaveAttendance}
+            onCancel={() => setIsAttendanceModalOpen(false)}
           />
         </Modal>
       )}
 
-      <Modal 
-        isOpen={isPublicacionModalOpen} 
-        onClose={() => setIsPublicacionModalOpen(false)} 
-        title={editingPublicacion ? "Editar Publicación" : "Crear Nueva Publicación"} 
-        showSubmitButton={false} 
+      <Modal
+        isOpen={isPublicacionModalOpen}
+        onClose={() => setIsPublicacionModalOpen(false)}
+        title={editingPublicacion ? "Editar Publicación" : "Crear Nueva Publicación"}
+        showSubmitButton={false}
         showCancelButton={false}
       >
-        <PublicacionForm 
-          catedraId={catedra?.id} 
-          onSubmit={editingPublicacion ? handleEditPublicacion : handleCreatePublicacion} 
-          initialData={editingPublicacion || {}} 
-          isEditMode={!!editingPublicacion} 
-          loading={publicationLoading} 
-          onCancel={() => setIsPublicacionModalOpen(false)} 
+        <PublicacionForm
+          catedraId={catedra?.id}
+          onSubmit={editingPublicacion ? handleEditPublicacion : handleCreatePublicacion}
+          initialData={editingPublicacion || {}}
+          isEditMode={!!editingPublicacion}
+          loading={publicationLoading}
+          onCancel={() => setIsPublicacionModalOpen(false)}
           userRole={userRole}
           isTablonCreation={true}
         />
@@ -1120,10 +1028,10 @@ const DocenteCatedraDetailPage = () => {
         />
       </Modal>
 
-      <TaskDetailsModal 
-        isOpen={!!viewingTask} 
-        onClose={() => setViewingTask(null)} 
-        task={viewingTask} 
+      <TaskDetailsModal
+        isOpen={!!viewingTask}
+        onClose={() => setViewingTask(null)}
+        task={viewingTask}
       />
 
       {selectedTaskForAssignment && (

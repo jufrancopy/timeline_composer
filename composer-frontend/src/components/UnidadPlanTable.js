@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import UnidadPlanForm from './UnidadPlanForm';
 import UnidadContentManagement from './UnidadContentManagement'; // Import the new component
@@ -14,6 +14,18 @@ const getYouTubeVideoId = (url) => {
 
 
 const PlanDeClasesTable = ({ plan, onBackToPlanes, fetchPlanesDeClase, onViewTask, onAssignTask, onAssignEvaluation }) => {
+  useEffect(() => {
+    if (plan && plan.UnidadPlan) {
+      const lastViewedUnidadId = sessionStorage.getItem('lastViewedUnidadId');
+      if (lastViewedUnidadId) {
+        const unidadToRestore = plan.UnidadPlan.find(unidad => String(unidad.id) === lastViewedUnidadId);
+        if (unidadToRestore) {
+          setSelectedUnidadForManagement(unidadToRestore);
+          sessionStorage.removeItem('lastViewedUnidadId'); // Limpiar después de usar
+        }
+      }
+    }
+  }, [plan]);
   const [isUnidadModalOpen, setIsUnidadModalOpen] = useState(false);
   const [editingUnidad, setEditingUnidad] = useState(null);
   const [isUnidadDetailModalOpen, setIsUnidadDetailModalOpen] = useState(false);
@@ -32,13 +44,11 @@ const PlanDeClasesTable = ({ plan, onBackToPlanes, fetchPlanesDeClase, onViewTas
 
   const handleUnidadCreated = () => {
     fetchPlanesDeClase(); // Refresh parent's plans to get updated units
-    console.log("[PlanDeClasesTable] Unidad created, fetching plans.");
     setIsUnidadModalOpen(false);
   };
 
   const handleUnidadUpdated = () => {
     fetchPlanesDeClase(); // Refresh parent's plans to get updated units
-    console.log("[PlanDeClasesTable] Unidad updated, fetching plans.");
     setIsUnidadModalOpen(false);
     setEditingUnidad(null);
   };

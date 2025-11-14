@@ -14,6 +14,9 @@ const DocenteGenerateEvaluationPage = () => {
     const [numberOfQuestions, setNumberOfQuestions] = useState(5);
     const [numberOfOptions, setNumberOfOptions] = useState(4);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [unidadContent, setUnidadContent] = useState('');
+    const [selectedUnidades, setSelectedUnidades] = useState([]);
+    const [planesDeClase, setPlanesDeClase] = useState([]);
 
     const fetchCatedra = useCallback(async () => {
         try {
@@ -27,12 +30,40 @@ const DocenteGenerateEvaluationPage = () => {
         }
     }, [catedraId]);
 
+    const fetchPlanesDeClase = useCallback(async () => {
+        try {
+            const response = await api.getDocentePlanesDeClase(catedraId);
+            setPlanesDeClase(response.data);
+        } catch (err) {
+            toast.error('Error al cargar los planes de clase.');
+            console.error('Error fetching planes de clase:', err);
+        }
+    }, [catedraId]);
+
     useEffect(() => {
         fetchCatedra();
-    }, [fetchCatedra]);
+        fetchPlanesDeClase();
+    }, [fetchCatedra, fetchPlanesDeClase]);
+
+    useEffect(() => {
+        const content = selectedUnidades
+            .map(unidad => unidad.contenido)
+            .filter(Boolean) // Filtrar contenidos nulos o vacíos
+            .join('\n\n--- NUEVA UNIDAD ---\n\n');
+        setUnidadContent(content);
+    }, [selectedUnidades]);
+
+    const handleSelectUnidad = (unidad) => {
+        setSelectedUnidades(prev =>
+            prev.some(u => u.id === unidad.id)
+                ? prev.filter(u => u.id !== unidad.id)
+                : [...prev, unidad]
+        );
+    };
 
     const handleGenerateEvaluation = async (e) => {
         e.preventDefault();
+        console.log('[DEBUG] handleGenerateEvaluation called. Current state:', { topic, numberOfQuestions, numberOfOptions, unidadContent, selectedUnidades });
         setIsGenerating(true);
         setErrorCatedra(''); // Clear previous errors
 
@@ -41,6 +72,7 @@ const DocenteGenerateEvaluationPage = () => {
             subject: catedra?.nombre, // Use catedra name as subject for AI context
             numberOfQuestions: parseInt(numberOfQuestions, 10),
             numberOfOptions: parseInt(numberOfOptions, 10),
+            unidadContent, // Añadir el contenido de las unidades
         };
 
         try {
@@ -89,6 +121,48 @@ const DocenteGenerateEvaluationPage = () => {
                             placeholder="Ej: Historia de la Música Barroca"
                             required
                         />
+                    </div>
+
+                    <div className="bg-gray-800 p-4 rounded-md shadow-inner">
+                        <h3 className="text-xl font-semibold text-gray-200 mb-4">Unidades del Plan de Clases</h3>
+                        {planesDeClase.length > 0 ? (
+                            planesDeClase.map(plan => (
+                                <div key={plan.id} className="mb-6">
+                                    <h4 className="text-lg font-medium text-green-400 mb-3">Plan: {plan.titulo} ({plan.tipoOrganizacion})</h4>
+                                    {plan.UnidadPlan && plan.UnidadPlan.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {plan.UnidadPlan.map(unidad => (
+                                                <div
+                                                    key={unidad.id}
+                                                    className={`flex items-center p-3 rounded-md cursor-pointer transition-all duration-200 ${selectedUnidades.some(u => u.id === unidad.id) ? 'bg-green-700 hover:bg-green-600 shadow-md' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                    onClick={() => handleSelectUnidad(unidad)}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedUnidades.some(u => u.id === unidad.id)}
+                                                        readOnly
+                                                        className="form-checkbox h-5 w-5 text-green-500 rounded border-gray-500 bg-gray-600 cursor-pointer"
+                                                    />
+                                                    <span className={`ml-3 text-sm font-medium ${selectedUnidades.some(u => u.id === unidad.id) ? 'text-white' : 'text-gray-200'}`}>
+                                                        Unidad {unidad.periodo}: {unidad.contenido.substring(0, 100)}...
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-gray-400">No hay unidades para este plan.</p>
+                                    )}
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-gray-400">No se encontraron planes de clase con unidades.</p>
+                        )}
+                        {selectedUnidades.length > 0 && (
+                            <div className="mt-4 p-3 bg-green-800/30 rounded-md">
+                                <h5 className="text-md font-semibold text-green-200 mb-2">Contenido de Unidades Seleccionadas (para IA):</h5>
+                                <p className="text-sm text-green-100 italic max-h-40 overflow-y-auto custom-scrollbar">{unidadContent || 'Ningún contenido de unidad seleccionado.'}</p>
+                            </div>
+                        )}
                     </div>
 
                     <div>

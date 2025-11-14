@@ -169,7 +169,6 @@ const AlumnoDashboardPage = () => {
         </div>
 
 
-
         {/* Sección de Cátedras */}
         {(userType === 'student' || userType === 'both') && (
           <>

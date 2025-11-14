@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Eye, Target, Trash2, UserPlus, BookOpen, BookMarked, CalendarCheck } from 'lucide-react';
 
@@ -10,8 +10,11 @@ const EvaluationCard = ({
   onAssignEvaluation, 
   showStatus = false, 
   showActions = false, 
-  docenteView = false 
+  docenteView = false,
+  showResultsButton = false,
+  onViewResults
 }) => {
+  const navigate = useNavigate();
   // Función para obtener el estado desde EvaluacionAsignacion
   const getEstado = () => {
     if (evaluacion.EvaluacionAsignacion && evaluacion.EvaluacionAsignacion.length > 0) {
@@ -52,7 +55,7 @@ const EvaluationCard = ({
           <span className="px-2 py-1 text-xs leading-5 font-semibold rounded-full bg-blue-600/20 text-blue-300 border border-blue-500/30">
             <div className="inline-flex items-center gap-1">
               <Target size={14} />
-              {evaluacion.preguntas?.length || 0} Preguntas
+              {evaluacion.Pregunta?.length || 0} Preguntas
             </div>
           </span>
           {showStatus && (
@@ -87,23 +90,25 @@ const EvaluationCard = ({
       </div>
       
       <div className="mt-4 pt-4 border-t border-slate-700 flex items-center gap-2">
-        {/* Botón para ver detalles (siempre visible) */}
-        <Link 
-          to={`/docente/catedra/${catedraId}/evaluation/${evaluacion.id}`} 
-          className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-purple-200 rounded-lg transition-all duration-200 border border-purple-500/30"
-        >
-          <Eye size={16} />
-          <span className="text-sm font-medium">Ver Detalles</span>
-        </Link>
-
-        {/* Botón adicional de acciones (realizar evaluación para alumnos) */}
-        {showActions && !docenteView && ( // Muestra este botón solo si showActions es true y NO es vista de docente
+        {/* Botón para realizar evaluación (siempre visible para alumnos pendientes) */}
+        {showActions && !docenteView && estado !== 'REALIZADA' && estado !== 'CALIFICADA' && (
           <Link
-            to={`/evaluacion/${evaluacion.id}`}
+            to={`/realizar-evaluacion/${evaluacion.id}`}
             className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-500/30"
           >
             <span className="text-sm font-medium">Realizar</span>
           </Link>
+        )}
+
+        {/* Botón para ver resultados (solo si showResultsButton es true y está REALIZADA o CALIFICADA) */}
+        {showResultsButton && (estado === 'REALIZADA' || estado === 'CALIFICADA') && (
+          <button
+            onClick={() => onViewResults(evaluacion.Catedra?.id, evaluacion.id)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 hover:text-emerald-200 rounded-lg transition-all duration-200 border border-emerald-500/30"
+          >
+            <Eye size={16} />
+            <span className="text-sm font-medium">Ver Resultados</span>
+          </button>
         )}
 
         {/* Botón de eliminar (solo si se pasa la función) */}
@@ -124,6 +129,22 @@ const EvaluationCard = ({
             title="Asignar Evaluación a Alumnos"
           >
             <UserPlus size={16} />
+          </button>
+        )}
+
+        {showActions && (
+          <button
+            onClick={() => {
+              if (evaluacion.UnidadPlan?.planDeClasesId) {
+                sessionStorage.setItem('lastViewedPlanId', evaluacion.UnidadPlan.planDeClasesId);
+                sessionStorage.setItem('lastViewedUnidadId', evaluacion.UnidadPlan.id); // Guardar también la unidadId
+              }
+              navigate(`/docente/catedra/${catedraId}/evaluation/${evaluacion.id}`);
+            }}
+            className="p-2 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-purple-200 rounded-lg transition-all duration-200 border border-purple-500/30 ml-2"
+            title="Ver/Editar Evaluación"
+          >
+            <Eye size={16} />
           </button>
         )}
       </div>

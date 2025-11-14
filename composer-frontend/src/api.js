@@ -102,7 +102,11 @@ const api = {
   getMyEvaluations: () => apiClient.get('/alumnos/me/evaluaciones'),
   getEvaluationForStudent: (evaluationId) => apiClient.get(`/alumnos/me/evaluaciones/${evaluationId}`),
   submitEvaluation: (evaluationId, data) => apiClient.post(`/alumnos/me/evaluaciones/${evaluationId}/submit`, data),
-  getAlumnoEvaluationResults: (catedraId, evaluationId) => apiClient.get(`/alumnos/me/evaluaciones/${evaluationId}/results`),
+  getAlumnoEvaluationResults: (catedraId, evaluationId) => apiClient.get(`/alumnos/me/catedra/${catedraId}/evaluaciones/${evaluationId}/results`),
+
+  // ==== NUEVO ENDPOINT - Resultados de evaluación de alumno para docente ===
+  getDocenteEvaluationResults: (catedraId, alumnoId, evaluationId) => apiClient.get(`/docente/catedras/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluationId}/results`),
+  gradeEvaluation: (catedraId, alumnoId, evaluationAssignmentId, data) => apiClient.put(`/docente/catedras/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluationAssignmentId}/grade`, data),
 
   // ==== Endpoints para Publicaciones (Tablón) ====
   getPublicaciones: (catedraId) => apiClient.get(`/publicaciones/catedra/${catedraId}`),
@@ -113,7 +117,7 @@ const api = {
   togglePublicacionVisibility: (publicacionId, catedraId) => apiClient.put(`/publicaciones/${publicacionId}/toggle-visibility`, { catedraId }),
   createComentario: (publicacionId, data) => apiClient.post(`/publicaciones/${publicacionId}/comentarios`, data),
   deleteComentario: (publicacionId, comentarioId) => apiClient.delete(`/publicaciones/${publicacionId}/comentarios/${comentarioId}`),
-  addInteraction: (publicacionId) => apiClient.post(`/publicaciones/${publicacionId}/interacciones`), 
+  addInteraction: (publicacionId) => apiClient.post(`/publicaciones/${publicacionId}/interacciones`),
   removeInteraction: (publicacionId) => apiClient.delete(`/publicaciones/${publicacionId}/interacciones`),
 
   // ==== Endpoints para Admin (Tareas) ====
@@ -158,10 +162,18 @@ const api = {
   getDocenteEvaluacionesMaestras: (catedraId) => apiClient.get(`/docente/catedra/${catedraId}/evaluaciones-maestras`),
   generateDocenteEvaluation: (catedraId, data) => apiClient.post(`/docente/catedra/${catedraId}/generate-evaluation`, data),
   updateDocenteEvaluation: (evaluationId, data) => apiClient.put(`/docente/evaluaciones/${evaluationId}`, data),
+  getEvaluationDetailForDocente: (evaluationId) => apiClient.get(`/docente/evaluaciones/${evaluationId}`),
   assignEvaluationToAlumnos: (catedraId, evaluationId, data) => apiClient.post(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}/assign`, data),
   getAssignedEvaluationStudents: (catedraId, evaluationId) => apiClient.get(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}/assignments`),
   getDocenteEvaluationById: (evaluationId) => apiClient.get(`/docente/evaluaciones/${evaluationId}`),
+  updateDocenteEvaluation: (evaluationId, data) => apiClient.put(`/docente/evaluaciones/${evaluationId}`, data),
   deleteDocenteEvaluation: (catedraId, evaluationId) => apiClient.delete(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}`),
+  //Edición de preguntas de evaluación
+  updateEvaluationQuestions: (evaluationId, data) => apiClient.put(`/docente/evaluaciones/${evaluationId}/preguntas`, data),
+
+  // ==== NUEVO ENDPOINT - Detalles completos de evaluación para docente ====
+  getEvaluationDetail: (evaluationId) => apiClient.get(`/docente/evaluaciones/${evaluationId}`),
+
   // ==== Endpoints para Docentes (Autenticación) ====
   requestDocenteOtp: (email) => apiClient.post('/docente/request-otp', { email }),
   verifyDocenteOtp: (email, otp) => apiClient.post('/docente/verify-otp', { email, otp }),
@@ -171,6 +183,7 @@ const api = {
   getDocenteAlumnoPagos: (alumnoId) => apiClient.get(`/docente/alumnos/${alumnoId}/pagos`),
   getAttendanceByDiaClase: (catedraId, diaClaseId) => apiClient.get(`/docente/catedra/${catedraId}/diasclase/${diaClaseId}/asistencias`),
   getAnnualAttendance: (catedraId, year) => apiClient.get(`/docente/catedra/${catedraId}/asistencias/anual/${year}`),
+
   // ==== Endpoints para Docentes (Planes de Clase) ====
   createPlanDeClases: (catedraId, data) => apiClient.post(`/docente/catedra/${catedraId}/planes`, data),
   updatePlanDeClases: (planId, data) => apiClient.put(`/docente/me/planes/${planId}`, data),
@@ -184,19 +197,17 @@ const api = {
   assignTareaToAlumnos: (catedraId, tareaMaestraId, data) => apiClient.post(`/docente/catedra/${catedraId}/tareas-maestras/${tareaMaestraId}/assign`, data),
   getAssignedTaskStudents: (catedraId, tareaMaestraId) => apiClient.get(`/docente/catedra/${catedraId}/tareas-maestras/${tareaMaestraId}/assignments`),
 
-
   // ==== Endpoints para Docentes (Alumno Detalles y Entregas) ====
   getEntregasForAlumno: (catedraId, alumnoId) => apiClient.get(`/docente/catedra/${catedraId}/alumnos/${alumnoId}/entregas`),
   getEvaluacionesForAlumno: (catedraId, alumnoId) => apiClient.get(`/docente/catedra/${catedraId}/alumnos/${alumnoId}/evaluaciones`),
   calificarTarea: (tareaAsignacionId, data) => apiClient.post(`/docente/tareasAsignaciones/${tareaAsignacionId}/calificar`, data),
   createTareaForDocenteCatedra: (catedraId, data) => apiClient.post(`/docente/catedra/${catedraId}/tareas`, data),
   updateTareaForDocenteCatedra: (catedraId, tareaMaestraId, data) => apiClient.put(`/docente/catedra/${catedraId}/tareas/${tareaMaestraId}`, data),
-  updateTareaForDocenteCatedra: (catedraId, tareaMaestraId, data) => apiClient.put(`/docente/catedra/${catedraId}/tareas/${tareaMaestraId}`, data),
   deleteTareaForDocente: (catedraId, tareaMaestraId) => apiClient.delete(`/docente/catedra/${catedraId}/tareas/${tareaMaestraId}`),
 
   getTareasMaestrasPorUnidad: (catedraId, unidadId) => apiClient.get(`/docente/catedra/${catedraId}/unidad/${unidadId}/tareas-maestras`),
   getEvaluacionesPorUnidad: (catedraId, unidadId) => apiClient.get(`/docente/catedra/${catedraId}/unidad/${unidadId}/evaluaciones`),
-  
+  getUnidadContent: (catedraId, planDeClasesId, unidadId) => apiClient.get(`/docente/me/catedra/${catedraId}/plan/${planDeClasesId}/unidad/${unidadId}/contenido`),
 
   uploadTareaMultimedia: (file) => {
     const formData = new FormData();

@@ -17,7 +17,7 @@ import DocenteLoginPage from './pages/DocenteLoginPage';
 import AlumnoLoginPage from './pages/AlumnoLoginPage';
 import DocenteDashboardPage from './pages/DocenteDashboardPage';
 import AlumnoDashboardPage from './pages/AlumnoDashboardPage';
-import AlumnoTareasPage from './pages/AlumnoTareasPage';
+
 import AlumnoCatedraDetailPage from './pages/AlumnoCatedraDetailPage';
 import AlumnoPublicacionesPage from './pages/AlumnoPublicacionesPage';
 import DocenteCatedraDetailPage from './pages/DocenteCatedraDetailPage';
@@ -35,6 +35,7 @@ import DocentePrivateRoute from './components/DocentePrivateRoute';
 import AddComposerForm from './components/AddComposerForm';
 import SuggestedComposerFloating from './components/SuggestedComposerFloating';
 import ComposerDetailPage from './pages/ComposerDetailPage';
+import TemarioPage from './pages/TemarioPage';
 
 function AppContent() {
   const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem('adminToken'));
@@ -70,14 +71,13 @@ function AppContent() {
     <div className="flex flex-col min-h-screen bg-slate-900">
       <Header isAdmin={isAdmin} isDocente={isDocente} isStudent={isStudent} handleLogout={handleLogout} />
       {isStudent && <SuggestedComposerFloating />}
-      {/* Spacer div para compensar la altura del header fijo */}
-      <div className="h-18 sm:h-20 md:h-24"></div> {/* Ajusta estas alturas según el tamaño real de tu header */}
-      <main className="flex-grow">
+      <main className="flex-grow pt-18 sm:pt-20 md:pt-24">
         <Routes>
           <Route path="/" element={<TimelinePage />} />
           {/* Equivalente en Laravel->>Route::get('/about', [Controller::class, 'about']); */}
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contribute" element={<AddComposerForm />} />
+          <Route path="/temario" element={<TemarioPage />} />
           <Route path="/composers/show/:id" element={<ComposerDetailPage />} />
           <Route path="/admin/login" element={<AdminLoginPage onLogin={handleAdminLogin} />} />
           <Route path="/docente/login" element={<DocenteLoginPage onLogin={handleDocenteLogin} />} />
@@ -92,14 +92,6 @@ function AppContent() {
             } 
           />
 
-          <Route 
-            path="/alumno/tareas" 
-            element={
-              <PrivateRoute>
-                <AlumnoTareasPage />
-              </PrivateRoute>
-            } 
-          />
           
           {/* Rutas de Administrador Protegidas */}
           <Route 
@@ -228,7 +220,7 @@ function AppContent() {
             } 
           />
           <Route 
-            path="/alumno/catedra/:catedraId/evaluaciones/:evaluationId/results" 
+            path="/alumno/catedra/:catedraId/evaluacion/:evaluationId/results" 
             element={
               <PrivateRoute>
                 <AlumnoEvaluationResultsPage />

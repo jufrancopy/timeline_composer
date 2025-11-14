@@ -1076,9 +1076,9 @@ module.exports = (prisma, transporter) => {
           vive_con_padres,
           nombre_tutor: !vive_con_padres ? nombre_tutor : null,
           telefono_tutor: !vive_con_padres ? telefono_tutor : null,
+          updated_at: new Date(),
         },
       });
-      res.status(201).json(newAlumno);
     } catch (error) {
       if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
         return res.status(409).json({ error: 'El correo electrónico ya está en uso.' });

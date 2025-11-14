@@ -140,7 +140,7 @@ const formatDateTime = (dateString) => {
 
 const EvaluacionCard = React.memo(({ evaluacion, catedraId, alumnoId }) => {
   return (
-    <div className="group bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 border border-white/10">
+    <div className="group bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl p-6 rounded-2xl shadow-xl hover:shadow-2xl border border-white/10">
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
@@ -155,20 +155,22 @@ const EvaluacionCard = React.memo(({ evaluacion, catedraId, alumnoId }) => {
           </p>
         </div>
         <span className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap shadow-lg ${
-          evaluacion.estado === 'CALIFICADA' 
+          (evaluacion.estado === 'CALIFICADA' || evaluacion.estado === 'REALIZADA') 
             ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' 
             : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white'
         }`}>
-          {evaluacion.estado === 'CALIFICADA' 
-            ? `✓ ${evaluacion.puntos_obtenidos}%` 
+          {(evaluacion.estado === 'CALIFICADA' || evaluacion.estado === 'REALIZADA') 
+            ? (evaluacion.puntos_obtenidos !== null && evaluacion.total_preguntas > 0 
+                ? `✓ ${((evaluacion.puntos_obtenidos / evaluacion.total_preguntas) * 100).toFixed(0)}%` 
+                : '✓ N/A%') 
             : '⏳ Pendiente'}
         </span>
       </div>
       
       <div className="border-t border-white/10 pt-4 flex justify-end">
-        {evaluacion.estado === 'CALIFICADA' ? (
+        {(evaluacion.estado === 'CALIFICADA' || evaluacion.estado === 'REALIZADA') ? (
           <Link 
-            to={`/docente/catedras/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluacion.id}/results`} 
+            to={`/docente/catedra/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluacion.id}/results`} 
             className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
           >
             <span>Ver Resultados</span>
@@ -202,7 +204,7 @@ const TareaCard = React.memo(({
   const esEntregada = tarea.estado === 'ENTREGADA';
 
   return (
-    <div className="group bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-white/10">
+    <div className="group bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-2xl shadow-xl hover:shadow-2xl overflow-hidden border border-white/10">
       {/* Header de la Tarea */}
       <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 p-6 border-b border-white/10">
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -631,7 +633,8 @@ const DocenteAlumnoTareasPage = () => {
 
   const { evaluacionesPendientes, evaluacionesCalificadas } = useMemo(() => ({
     evaluacionesPendientes: evaluaciones.filter(e => e.estado === 'PENDIENTE'),
-    evaluacionesCalificadas: evaluaciones.filter(e => e.estado === 'CALIFICADA')
+    // Incluir tanto 'CALIFICADA' como 'REALIZADA'
+    evaluacionesCalificadas: evaluaciones.filter(e => ['CALIFICADA', 'REALIZADA'].includes(e.estado))
   }), [evaluaciones]);
 
   if (loading) {
@@ -770,7 +773,7 @@ const DocenteAlumnoTareasPage = () => {
 
             {/* Evaluaciones Calificadas */}
             <SeccionEvaluaciones 
-              titulo="Evaluaciones Calificadas"
+              titulo="Evaluaciones Realizadas"
               emoji="📊"
               evaluaciones={evaluacionesCalificadas}
               catedraId={catedraId}

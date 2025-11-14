@@ -253,7 +253,7 @@ module.exports = (prisma, transporter) => {
 
       const evaluacionesConEstado = evaluaciones.map(ev => ({
         ...ev,
-        realizada: ev.EvaluacionAsignacion.length > 0,
+        realizada: ev.EvaluacionAsignacion.some(ea => ea.estado === 'REALIZADA' || ea.estado === 'CALIFICADA'),
       }));
 
       res.json(evaluacionesConEstado);
@@ -322,7 +322,7 @@ module.exports = (prisma, transporter) => {
         }
 
         const totalQuestions = preguntas.length;
-        const score = totalQuestions > 0 ? Math.round((correctAnswersCount / totalQuestions) * 100) : 0;
+        const finalPoints = correctAnswersCount; // Almacenar la cantidad de respuestas correctas como puntos
 
         await prisma.EvaluacionAsignacion.update({
           where: { id: evaluacionAsignacion.id },
@@ -331,13 +331,13 @@ module.exports = (prisma, transporter) => {
 
         await prisma.CalificacionEvaluacion.create({
           data: {
-            puntos: score, // Almacenar el score como puntos
+            puntos: finalPoints, // Almacenar la cantidad de respuestas correctas como puntos
             alumnoId: alumnoId,
             evaluacionAsignacionId: evaluacionAsignacion.id,
           },
         });
 
-        return { score, correctAnswersCount, totalQuestions };
+        return { finalPoints, correctAnswersCount, totalQuestions };
       });
 
       res.status(200).json({ message: 'Evaluación enviada con éxito.', score: result.score });
@@ -348,45 +348,72 @@ module.exports = (prisma, transporter) => {
     }
   });
 
-  router.get('/alumnos/me/evaluaciones/:evaluationId/results', requireUser(prisma), async (req, res) => {
+  router.get('/alumnos/me/catedra/:catedraId/evaluaciones/:evaluationId/results', requireUser(prisma), async (req, res) => {
     try {
       if (!validateStudentAccess(req)) {
         return res.status(403).json({ error: 'Acceso denegado: Solo para alumnos.' });
       }
 
       const alumnoId = parseInt(req.user.alumnoId);
+      const catedraId = parseInt(req.params.catedraId);
       const evaluationId = parseInt(req.params.evaluationId);
 
+        console.log("[BACKEND RESULTS] Received request for alumnoId:", alumnoId, "catedraId:", catedraId, "evaluationId:", evaluationId);
+
       if (isNaN(evaluationId)) {
+        console.error("[BACKEND RESULTS] Invalid evaluationId:", evaluationId);
         return res.status(400).json({ error: 'ID de evaluación inválido.' });
       }
 
       // Fetch evaluation details, questions, options, and student's responses
-      const evaluationData = await prisma.Evaluacion.findUnique({
-        where: { id: evaluationId },
+      // En alumnoRoutes.js - CORREGIR la consulta
+      const evaluationData = await prisma.Evaluacion.findFirst({
+        where: {
+          id: parseInt(evaluationId),
+          catedraId: parseInt(catedraId), // Esto sí existe en Evaluacion
+          EvaluacionAsignacion: {
+            some: {
+              alumnoId: parseInt(alumnoId), // Usar el alumnoId del usuario autenticado
+              estado: {
+                in: ["REALIZADA", "CALIFICADA"]
+              }
+            }
+          }
+        },
         include: {
           Pregunta: {
             include: {
-              Opcion: true,
-            },
+              Opcion: true
+            }
           },
           EvaluacionAsignacion: {
             where: {
-              alumnoId: alumnoId,
-              estado: 'REALIZADA', // Only show results for completed evaluations
+              alumnoId: parseInt(alumnoId), // Solo las asignaciones de este alumno
+              estado: {
+                in: ["REALIZADA", "CALIFICADA"]
+              }
             },
             include: {
-              CalificacionEvaluacion: true,
-            },
-          },
-        },
+              CalificacionEvaluacion: true
+            }
+          }
+        }
       });
 
+      console.log("[BACKEND RESULTS] Evaluation data from Prisma:", JSON.stringify(evaluationData, null, 2));
+
+
+
       if (!evaluationData || evaluationData.EvaluacionAsignacion.length === 0) {
+        console.error("[BACKEND RESULTS] Evaluation not found or not completed by student for alumnoId:", alumnoId, "evaluationId:", evaluationId);
         return res.status(404).json({ error: 'Evaluación no encontrada o no ha sido completada por el alumno.' });
       }
 
-      const studentScore = evaluationData.EvaluacionAsignacion[0]?.CalificacionEvaluacion[0]?.puntos || 0;
+      console.log("[BACKEND RESULTS] evaluationData for score check:", JSON.stringify(evaluationData.EvaluacionAsignacion, null, 2));
+      const evaluationAssignment = evaluationData.EvaluacionAsignacion[0];
+      const scoreFromCalificacion = evaluationAssignment?.CalificacionEvaluacion[0]?.puntos || null;
+      console.log("[BACKEND RESULTS] studentScore extracted:", scoreFromCalificacion);
+
 
       const studentResponses = await prisma.RespuestaAlumno.findMany({
         where: {
@@ -400,6 +427,10 @@ module.exports = (prisma, transporter) => {
           opcionElegidaId: true,
         },
       });
+
+      console.log("[BACKEND RESULTS] Student responses from Prisma:", JSON.stringify(studentResponses, null, 2));
+
+
 
       const questionsWithResults = evaluationData.Pregunta.map(question => {
         const studentResponse = studentResponses.find(sr => sr.preguntaId === question.id);
@@ -418,11 +449,24 @@ module.exports = (prisma, transporter) => {
         };
       });
 
+      console.log("[BACKEND RESULTS] Questions with results before sending to frontend:", JSON.stringify(questionsWithResults, null, 2));
+
+
+
+      let correctAnswersCount = 0;
+      questionsWithResults.forEach(question => {
+        if (question.alumnoAnswerId === question.correctAnswerId) {
+          correctAnswersCount++;
+        }
+      });
+
       const totalPossiblePoints = evaluationData.Pregunta.length; // Assuming each question is 1 point for simplicity in this view
+      console.log("[BACKEND RESULTS] totalPossiblePoints:", totalPossiblePoints);
+
 
       res.json({
         evaluationTitle: evaluationData.titulo,
-        score: studentScore,
+        score: scoreFromCalificacion !== null ? scoreFromCalificacion : correctAnswersCount,
         totalPoints: totalPossiblePoints,
         questions: questionsWithResults,
       });
@@ -662,8 +706,8 @@ module.exports = (prisma, transporter) => {
       // Map each uploaded file to its path
       const submissionPaths = req.files.map(file => `/uploads/entregas/${file.filename}`);
 
-      const tareaAsignacion = await prisma.TareaAsignacion.findUnique({ 
-        where: { id: tareaAsignacionId } 
+      const tareaAsignacion = await prisma.TareaAsignacion.findUnique({
+        where: { id: tareaAsignacionId }
       });
 
       if (!tareaAsignacion) {
@@ -687,9 +731,9 @@ module.exports = (prisma, transporter) => {
         },
       });
 
-      res.status(200).json({ 
-        message: 'Entrega subida con éxito', 
-        tareaAsignacion: updatedTareaAsignacion 
+      res.status(200).json({
+        message: 'Entrega subida con éxito',
+        tareaAsignacion: updatedTareaAsignacion
       });
     } catch (error) {
       console.error('Error al subir entrega de tarea:', error);

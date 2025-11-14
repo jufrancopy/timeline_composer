@@ -1,4 +1,6 @@
 import React from 'react';
+import logo from '../logo.png'; // Asegúrate de que esta ruta sea correcta
+
 
 const Footer = () => {
   return (
@@ -7,7 +9,7 @@ const Footer = () => {
         <div className="flex items-center mb-4 md:mb-0">
           <a href="https://thepydeveloper.dev" target="_blank" rel="noopener noreferrer">
             <img 
-              src="https://thepydeveloper.dev/images/logo.png" 
+              src={logo} 
               alt="ThePyDeveloper Logo" 
               className="h-10 w-10 mr-3 rounded-full"
             />

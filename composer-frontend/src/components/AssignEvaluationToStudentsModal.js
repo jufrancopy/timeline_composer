@@ -94,20 +94,17 @@ const AssignEvaluationToStudentsModal = ({ catedraId, evaluation, students, onEv
       <div className="p-4">
         <p className="mb-4 text-gray-300">Selecciona los alumnos a los que deseas asignar esta evaluación:</p>
 
-        {loadingInitialData ? (
-          <p className="text-gray-400">Cargando asignaciones anteriores...</p>
-        ) : (
-          <div className="mb-4">
-            <label htmlFor="fechaEntrega" className="block text-sm font-medium text-gray-400 mb-2">Fecha de Entrega</label>
-            <input
-              type="date"
-              id="fechaEntrega"
-              value={fechaEntrega}
-              onChange={(e) => setFechaEntrega(e.target.value)}
-              className="w-full p-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
-            />
-          </div>
-        )}
+        <div className="mb-4">
+          <label htmlFor="fechaEntrega" className="block text-sm font-medium text-gray-400 mb-2">Fecha de Entrega</label>
+          <input
+            type="date"
+            id="fechaEntrega"
+            value={fechaEntrega}
+            onChange={(e) => setFechaEntrega(e.target.value)}
+            className="w-full p-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+          />
+          {loadingInitialData && <p className="text-gray-400 text-sm mt-1">Cargando asignaciones anteriores...</p>}
+        </div>
 
         <div className="flex justify-end mb-4 space-x-2">
           <button onClick={handleAssignAll} className="px-3 py-1 bg-purple-600 rounded text-sm hover:bg-purple-700">Seleccionar Todos</button>

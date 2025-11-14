@@ -249,8 +249,10 @@ model Evaluacion {
   fecha_limite         DateTime?
   isMaster             Boolean                @default(true)
   unidadPlanId         Int?
+  planDeClasesId       Int?
   Catedra              Catedra                @relation(fields: [catedraId], references: [id])
   UnidadPlan           UnidadPlan?            @relation(fields: [unidadPlanId], references: [id])
+  PlanDeClases         PlanDeClases?          @relation(fields: [planDeClasesId], references: [id])
   EvaluacionAsignacion EvaluacionAsignacion[]
   Pregunta             Pregunta[]
   Publicacion          Publicacion?
@@ -315,6 +317,7 @@ model PlanDeClases {
   Catedra          Catedra              @relation(fields: [catedraId], references: [id])
   Docente          Docente              @relation(fields: [docenteId], references: [id])
   UnidadPlan       UnidadPlan[]
+  Evaluacion       Evaluacion[]
 }
 
 model Pregunta {

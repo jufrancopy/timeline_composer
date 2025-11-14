@@ -275,6 +275,7 @@ app.post('/api/request-otp', async (req, res) => {
   // Continuar con el flujo de alumno si userRole es 'alumno'
 
   const otp = crypto.randomInt(100000, 999999).toString(); // Generar un OTP de 6 dígitos
+  console.log(`OTP generado para ${email}: ${otp}`);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP expira en 10 minutos
 
   try {

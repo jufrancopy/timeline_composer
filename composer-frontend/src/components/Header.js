@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import logo from '../logo.svg';
+import logo from '../logo.png';
 import { Menu, X, ChevronDown, UserCircle, LogOut, Settings, Award, BookOpen, BarChart3, Users } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 
@@ -136,12 +136,12 @@ const Header = ({ isAdmin, isDocente, isStudent, handleLogout }) => {
             {/* Logo y título */}
             <Link to="/" className="group flex items-center gap-3 transition-transform duration-300 hover:scale-105">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur-sm opacity-50 group-hover:opacity-75 transition-opacity"></div>
+
                 <img src={logo} className="relative h-12 w-12 rounded-xl shadow-lg" alt="logo" />
               </div>
               <div className="hidden sm:block">
                 <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 drop-shadow-sm">
-                  TimeLine Composer
+                  EduPlatForm
                 </span>
                 <div className="text-xs text-slate-400 font-medium tracking-wide">
                   Plataforma Educativa Colaborativa
@@ -260,7 +260,7 @@ const Header = ({ isAdmin, isDocente, isStudent, handleLogout }) => {
                     <div className="flex items-center gap-3">
                       {userData.initials ? (
                         <div className="relative">
-                          <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full blur-sm opacity-50"></div>
+
                           <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-sm shadow-lg">
                             {userData.initials}
                           </div>

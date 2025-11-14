@@ -3,6 +3,20 @@ import { format } from 'date-fns';
 import { FileText, BookOpen, BookMarked, Target } from 'lucide-react';
 
 const TaskCard = ({ task, getStatusColor, getTaskStatusDisplay, handleOpenSubmitModal, showActions, showPoints, onEditTask, onDeleteTask, onViewTask, onAssignTask, onToggleVisibility, docenteView = false }) => {
+  // ARREGLO: Verificar correctamente si tiene archivos entregados
+  const hasSubmission = task.submission_path && 
+                        (Array.isArray(task.submission_path) 
+                          ? task.submission_path.length > 0 
+                          : true);
+  
+  // ARREGLO: Normalizar el estado
+  const estadoNormalizado = task.estado?.toString().trim().toUpperCase();
+  
+  // ARREGLO: Condición mejorada para mostrar el botón
+  const puedeSubirEntrega = (estadoNormalizado === 'ASIGNADA' || estadoNormalizado === 'VENCIDA') && 
+                            !hasSubmission && 
+                            !docenteView;
+
   return (
     <div className="bg-white/5 backdrop-blur-lg p-4 rounded-lg shadow-xl mb-4 border border-gray-700">
       <div className="flex justify-between items-start mb-2">
@@ -11,7 +25,6 @@ const TaskCard = ({ task, getStatusColor, getTaskStatusDisplay, handleOpenSubmit
           {getTaskStatusDisplay(task)}
         </span>
       </div>
-      {/* <p className="text-sm text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: task.descripcion.substring(0, 100) + '...' }}></p> */}
       <p className="text-sm text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: docenteView ? task.descripcion : task.TareaMaestra.descripcion }}></p>
       <div className="flex flex-col space-y-1 text-sm text-gray-400 mt-2">
         <div className="flex items-center gap-2">
@@ -36,9 +49,10 @@ const TaskCard = ({ task, getStatusColor, getTaskStatusDisplay, handleOpenSubmit
       {showPoints && task.puntos_obtenidos !== null && (
         <p className="text-sm font-bold text-green-400 mt-1"><strong>Mis Puntos:</strong> {task.puntos_obtenidos}</p>
       )}
+      
       {showActions && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {(task.estado === 'ASIGNADA' || task.estado === 'VENCIDA') && !task.submission_path && !docenteView && (
+          {puedeSubirEntrega && (
             <button
               onClick={() => handleOpenSubmitModal(task)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-3 rounded"

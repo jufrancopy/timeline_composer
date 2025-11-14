@@ -26,10 +26,12 @@ const RealizarEvaluacionPage = () => {
     return evaluacion?.estado || 'PENDIENTE';
   };
 
-  const fetchResults = async () => {
+  const fetchResults = async (currentCatedraId) => {
     try {
       console.log("[FETCH RESULTS] Attempting to fetch results for evaluation ID:", evaluationId);
-      const response = await api.getEvaluationResultsForStudent(evaluationId);
+      // Ensure currentCatedraId is used for the API call
+      const response = await api.getAlumnoEvaluationResults(currentCatedraId, evaluationId);
+      console.log("[FETCH RESULTS] API response for results:", response.data);
       console.log("[FETCH RESULTS] API response for results:", response.data);
       setScore(response.data.score);
       setResults(response.data.results);
@@ -57,8 +59,8 @@ const RealizarEvaluacionPage = () => {
         
         if (estado === 'REALIZADA' || estado === 'CALIFICADA') {
           setIsSubmitted(true);
-          toast('Ya completaste esta evaluación. Cargando resultados...', { icon: 'ℹ️' });
-          await fetchResults();
+          toast('Ya completaste esta evaluación. Redirigiendo a resultados...', { icon: 'ℹ️' });
+          navigate(`/alumno/catedra/${response.data.Catedra.id}/evaluacion/${evaluationId}/results`);
         }
       }
     } catch (err) {
@@ -102,7 +104,7 @@ const RealizarEvaluacionPage = () => {
       setIsSubmitted(true);
       setScore(response.data.score);
       toast.success('¡Evaluación enviada y calificada con éxito!');
-      await fetchResults();
+      navigate(`/alumno/catedra/${evaluation.Catedra.id}/evaluacion/${evaluationId}/results`);
     } catch (err) {
       console.error('[HANDLE SUBMIT] Error al enviar la evaluación:', err);
       setError(err.response?.data?.error || 'Error al enviar la evaluación.');

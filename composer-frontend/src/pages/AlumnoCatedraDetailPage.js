@@ -98,6 +98,10 @@ const AlumnoCatedraDetailPage = () => {
     // Implementar lógica de interacción (like/unlike, etc.)
   };
 
+  const handleViewResults = (catedraId, evaluationId) => {
+    navigate(`/alumno/catedra/${catedraId}/evaluacion/${evaluationId}/results`);
+  };
+
   const handleGoToTab = (tabName, idToHighlight = null) => {
     setActiveTab(tabName);
     if (idToHighlight) {
@@ -187,21 +191,37 @@ const AlumnoCatedraDetailPage = () => {
       // Fetch evaluaciones del alumno
       const evalsResponse = await api.getMyEvaluations();
       const allEvals = evalsResponse.data;
+      console.log('DEBUG: allEvals (EvaluacionAsignacion):', allEvals);
       const evalsCatedra = allEvals.filter(
         e => e.Catedra?.id === parsedCatedraId
       );
       setEvaluaciones(evalsCatedra);
       console.log('Evaluaciones fetched:', evalsCatedra);
       console.log('First evaluation in evalsCatedra:', evalsCatedra[0]);
-
-      // Enriquecer publicaciones con el estado de la asignación de evaluación si es de tipo EVALUACION
+      // Enriquecer publicaciones con el estado de la asignación (tarea o evaluación)
       const enrichedPubs = pubs.map(pub => {
         if (pub.tipo === 'EVALUACION' && pub.evaluacionAsignacionId) {
-          const assignedEval = allEvals.find(e => e.id === pub.evaluacionAsignacionId);
-          if (assignedEval) {
-            return { ...pub, evaluacionAsignacionEstado: assignedEval.estado };
+          const masterEvaluation = allEvals.find(e => 
+            e.EvaluacionAsignacion?.some(ea => ea.id === pub.evaluacionAsignacionId)
+          );
+
+          if (masterEvaluation) {
+            const assignment = masterEvaluation.EvaluacionAsignacion.find(ea => ea.id === pub.evaluacionAsignacionId);
+            if (assignment) {
+              return { 
+                ...pub, 
+                evaluacionAsignacionEstado: assignment.estado, 
+                evaluationMaestraId: masterEvaluation.id 
+              };
+            }
+          }
+        } else if (pub.tipo === 'TAREA' && pub.tareaAsignacionId) {
+          const assignedTask = tareasCatedra.find(t => t.id === pub.tareaAsignacionId);
+          if (assignedTask) {
+            return { ...pub, tareaAsignacionEstado: assignedTask.estado };
           }
         }
+        // Retorno por defecto si no es TAREA/EVALUACION con asignación o si no se encontró el match
         return pub;
       });
       setPublicaciones(enrichedPubs);
@@ -562,6 +582,38 @@ const AlumnoCatedraDetailPage = () => {
                   </button>
                 </div>
 
+                {/* Notificaciones de Tareas/Evaluaciones Pendientes dentro del Tablón */}
+                {(stats.tareasPendientes > 0 || stats.evaluacionesPendientes > 0) && (
+                  <div className="bg-yellow-900/20 backdrop-blur-xl rounded-xl border border-yellow-500/30 p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="text-yellow-400 w-6 h-6 flex-shrink-0" />
+                      <p className="text-white text-base font-semibold">
+                        Tienes ítems pendientes en esta cátedra:
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3 justify-center sm:justify-end">
+                      {stats.tareasPendientes > 0 && (
+                        <button
+                          onClick={() => handleGoToTab('tareas')}
+                          className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg flex items-center gap-2 transition-colors font-medium text-sm"
+                        >
+                          <FileText size={18} />
+                          {stats.tareasPendientes} Tarea{stats.tareasPendientes > 1 ? 's' : ''}
+                        </button>
+                      )}
+                      {stats.evaluacionesPendientes > 0 && (
+                        <button
+                          onClick={() => handleGoToTab('evaluaciones')}
+                          className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-2 transition-colors font-medium text-sm"
+                        >
+                          <Brain size={18} />
+                          {stats.evaluacionesPendientes} Evaluación{stats.evaluacionesPendientes > 1 ? 'es' : ''}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {publicaciones.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-20 h-20 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
@@ -692,6 +744,8 @@ const AlumnoCatedraDetailPage = () => {
                             title="Completadas"
                             evaluations={completadas}
                             getStatusColor={getStatusColor}
+                            showResultsButton={true}
+                            onViewResults={handleViewResults}
                           />
                         </>
                       );

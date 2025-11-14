@@ -361,6 +361,14 @@ module.exports = (prisma, transporter) => {
                     },
                 },
             ];
+        } else if (role === 'docente') {
+            // Docentes pueden ver todas las publicaciones (visibles o no para alumnos)
+            // No se necesita un filtro adicional aquí, ya que el catedraId es suficiente.
+            // Sin embargo, para mayor claridad y evitar posibles filtros futuros accidentales, podríamos incluirlo explícitamente.
+            whereClause.OR = [
+                { visibleToStudents: true },
+                { visibleToStudents: false },
+            ];
         }
 
         try {
@@ -402,7 +410,16 @@ module.exports = (prisma, transporter) => {
                                     PlanDeClases: true
                                 }
                             },
-                            EvaluacionAsignacion: { where: { alumnoId: alumnoId || undefined } }
+                            EvaluacionAsignacion: { // <-- AÑADIDO: Incluir la asignación de evaluación directamente aquí
+                                where: { alumnoId: alumnoId || undefined }, // <-- Filtrar por el alumno actual
+                                select: {
+                                    id: true,
+                                    estado: true,
+                                    CalificacionEvaluacion: {
+                                        select: { id: true, puntos: true } // Corregido: `puntos` es el campo correcto
+                                    }
+                                }, // <-- Seleccionar campos relevantes
+                            },
                         }
                     },
                 },
@@ -412,6 +429,7 @@ module.exports = (prisma, transporter) => {
             });
 
             console.log('[DEBUG - PublicacionRoutes] Publicaciones encontradas por findMany:', publicaciones.length);
+            console.log('[DEBUG BACKEND: Raw Publicaciones from Prisma findMany]:', JSON.stringify(publicaciones, null, 2)); // <-- NUEVO LOG
             console.log('[DEBUG - PublicacionRoutes] Publicaciones con interacciones y comentarios para catedraId:', JSON.stringify(publicaciones[0]?.ComentarioPublicacion, null, 2));
             const publicacionesConInteracciones = publicaciones.map(publicacion => {
                 const basePublicacion = {
@@ -430,59 +448,54 @@ module.exports = (prisma, transporter) => {
                     })),
                 };
 
-                if (role === 'alumno') {
-                    if (publicacion.tipo === 'TAREA') {
-                        const tareaAsignacion = publicacion.TareaMaestra?.TareaAsignacion?.[0];
-                        const unidadPlan = publicacion.TareaMaestra?.UnidadPlan;
-                        const planDeClases = unidadPlan?.PlanDeClases;
-                        return {
-                            ...basePublicacion,
-                            catedraId: publicacion.catedraId, // Aseguramos que catedraId esté presente
-                            tareaMaestraId: publicacion.TareaMaestra?.id || null,
-                            tareaAsignacionEstado: tareaAsignacion?.estado || null,
-                            tareaAsignacionId: tareaAsignacion?.id || null,
-                            tareaAsignacionSubmissionPath: tareaAsignacion?.submission_path || null,
-                            tareaAsignacionSubmissionDate: tareaAsignacion?.submission_date || null,
-                            tareaAsignacionPuntosObtenidos: tareaAsignacion?.puntos_obtenidos || null,
-                            unidadPlanNombre: unidadPlan?.periodo || null,
-                            planDeClasesTitulo: planDeClases?.titulo || null,
-                            tareaMaestra: undefined,
-                            ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
-                                ...comment,
-                                autorAlumno: comment.Alumno,
-                                autorDocente: comment.Docente,
-                            })),
-                        };
-                    } else if (publicacion.tipo === 'EVALUACION') {
-                        const evaluacionAsignacion = publicacion.Evaluacion?.EvaluacionAsignacion?.[0];
-                        const evaluacionMaestra = publicacion.Evaluacion;
-                        const unidadPlan = evaluacionMaestra?.UnidadPlan;
-                        const planDeClases = unidadPlan?.PlanDeClases;
-                        let estadoFinal = evaluacionAsignacion?.estado || null; // Usar el estado directamente de la asignación
+                if (publicacion.tipo === 'TAREA') {
+                    const tareaAsignacion = publicacion.TareaMaestra?.TareaAsignacion?.[0]; // Acceder directamente desde la publicación
+                    const unidadPlan = publicacion.TareaMaestra?.UnidadPlan;
+                    const planDeClases = unidadPlan?.PlanDeClases;
+                    return {
+                        ...basePublicacion,
+                        catedraId: publicacion.catedraId, // Aseguramos que catedraId esté presente
+                        tareaMaestraId: publicacion.TareaMaestra?.id || null,
+                        tareaAsignacionEstado: tareaAsignacion?.estado || null,
+                        tareaAsignacionId: tareaAsignacion?.id || null,
+                        tareaAsignacionSubmissionPath: tareaAsignacion?.submission_path || null,
+                        tareaAsignacionSubmissionDate: tareaAsignacion?.submission_date || null,
+                        tareaAsignacionPuntosObtenidos: tareaAsignacion?.puntos_obtenidos || null,
+                        unidadPlanNombre: unidadPlan?.periodo || null,
+                        planDeClasesTitulo: planDeClases?.titulo || null,
+                        tareaMaestra: undefined,
+                        ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                            ...comment,
+                            autorAlumno: comment.Alumno,
+                            autorDocente: comment.Docente,
+                        })),
+                    };
+                } else if (publicacion.tipo === 'EVALUACION') {
+                    const evaluacionAsignacion = publicacion.Evaluacion?.EvaluacionAsignacion?.[0]; // Acceder directamente desde la publicación
+                    const evaluacionMaestra = publicacion.Evaluacion;
+                    const unidadPlan = evaluacionMaestra?.UnidadPlan;
+                    const planDeClases = unidadPlan?.PlanDeClases;
+                    let estadoFinal = evaluacionAsignacion?.estado || null; // Usar el estado directamente de la asignación
 
-                        // Si hay una calificación, y el estado no es ya CALIFICADA, podemos inferir que ha sido calificada.
-                        // Sin embargo, para consistencia con el enum, lo ideal es que el estado en DB se actualice a CALIFICADA.
-                        // Si el estado ya viene como CALIFICADA del backend, este bloque no cambia nada.
-                        if (evaluacionAsignacion?.CalificacionEvaluacion && estadoFinal !== 'CALIFICADA') {
-                            estadoFinal = 'CALIFICADA';
-                        }
-                        return {
-                            ...basePublicacion,
-                            evaluacionMaestraId: evaluacionMaestra?.id || null,
-                            evaluacionMaestraTitulo: evaluacionMaestra?.titulo || null,
-                            evaluacionAsignacionEstado: estadoFinal,
-                            evaluacionAsignacionId: evaluacionAsignacion?.id || null,
-                            unidadPlanNombre: unidadPlan?.periodo || null,
-                            planDeClasesTitulo: planDeClases?.titulo || null,
-                            Evaluacion: undefined,
-                            evaluacionAsignacion: undefined,
-                            ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
-                                ...comment,
-                                autorAlumno: comment.Alumno,
-                                autorDocente: comment.Docente,
-                            })),
-                        };
+                    if (evaluacionAsignacion?.CalificacionEvaluacion?.puntos && estadoFinal !== 'CALIFICADA') {
+                        estadoFinal = 'CALIFICADA';
                     }
+                    return {
+                        ...basePublicacion,
+                        evaluacionMaestraId: evaluacionMaestra?.id || null,
+                        evaluacionMaestraTitulo: evaluacionMaestra?.titulo || null,
+                        evaluacionAsignacionEstado: estadoFinal,
+                        evaluacionAsignacionId: evaluacionAsignacion?.id || null,
+                        evaluacionAsignacionCalificacion: evaluacionAsignacion?.CalificacionEvaluacion?.puntos || null, // Incluir la calificación
+                        unidadPlanNombre: unidadPlan?.periodo || null,
+                        planDeClasesTitulo: planDeClases?.titulo || null,
+                        Evaluacion: undefined,
+                        ComentarioPublicacion: publicacion.ComentarioPublicacion.map(comment => ({
+                            ...comment,
+                            autorAlumno: comment.Alumno,
+                            autorDocente: comment.Docente,
+                        })),
+                    };
                 }
 
                 return {

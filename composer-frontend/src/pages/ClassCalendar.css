@@ -1,0 +1,137 @@
+.react-calendar {
+  width: 100%;
+  max-width: 600px;
+  background-color: #2d3748; /* bg-gray-800 */
+  border: 1px solid #4a5568; /* border-gray-700 */
+  border-radius: 0.5rem;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.125em;
+  padding: 1rem;
+  color: white;
+}
+
+.react-calendar__navigation button {
+  min-width: 44px;
+  background: none;
+  color: #9f7aea; /* purple-400 */
+  font-weight: bold;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  background-color: #4a5568; /* gray-700 */
+  border-radius: 0.25rem;
+}
+
+.react-calendar__navigation button[disabled] {
+  background-color: #2d3748; /* gray-800 */
+  color: #718096; /* gray-500 */
+}
+
+.react-calendar__month-view__weekdays {
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 0.75em;
+  color: #a0aec0; /* gray-400 */
+}
+
+.react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+
+.react-calendar__month-view__days__day {
+  color: white;
+}
+
+.react-calendar__tile {
+  max-width: 100%;
+  padding: 0.5rem 0.625rem;
+  background: none;
+  text-align: center;
+  line-height: 1.5;
+  color: white;
+}
+
+.react-calendar__tile:enabled:hover,
+.react-calendar__tile:enabled:focus {
+  background-color: #4a5568; /* gray-700 */
+  border-radius: 0.25rem;
+}
+
+.react-calendar__tile--now {
+  background: #6b46c1; /* purple-600 */
+  border-radius: 0.25rem;
+  font-weight: bold;
+}
+
+.react-calendar__tile--now:enabled:hover,
+.react-calendar__tile--now:enabled:focus {
+  background: #805ad5; /* purple-500 */
+}
+
+.react-calendar__tile--active {
+  background: #805ad5; /* purple-500 */
+  color: white;
+  border-radius: 0.25rem;
+}
+
+.react-calendar__tile--active:enabled:hover,
+.react-calendar__tile--active:enabled:focus {
+  background: #9f7aea; /* purple-400 */
+}
+
+/* Estilo para los días de clase programados */
+.highlight-class-day {
+  background-color: #38b2ac; /* teal-400 */
+  color: white;
+  border-radius: 0.25rem;
+  font-weight: bold;
+}
+
+.highlight-class-day:enabled:hover,
+.highlight-class-day:enabled:focus {
+  background-color: #319795; /* teal-500 */
+}
+
+/* Estilo para los días de clase registrados (fechas específicas) */
+.highlight-recorded-date {
+  background-color: #ed8936; /* orange-400 */
+  color: white;
+  border-radius: 0.25rem;
+  font-weight: bold;
+}
+
+.highlight-recorded-date:enabled:hover,
+.highlight-recorded-date:enabled:focus {
+  background-color: #dd6b20; /* orange-500 */
+}
+
+.react-calendar__tile--range {
+  background: #7f9cf5; /* indigo-300 */
+  color: white;
+  border-radius: 0;
+}
+
+.react-calendar__month-view__days__day--weekend {
+  color: #fc8181; /* red-400 */
+}
+
+.react-calendar__tile--hasActive {
+  background: #667eea; /* indigo-400 */
+}
+
+.react-calendar__year-view__months__month,
+.react-calendar__decade-view__years__year,
+.react-calendar__century-view__decades__decade {
+  border-radius: 0.25rem;
+}
+
+.react-calendar__year-view__months__month:enabled:hover,
+.react-calendar__year-view__months__month:enabled:focus,
+.react-calendar__decade-view__years__year:enabled:hover,
+.react-calendar__decade-view__years__year:enabled:focus,
+.react-calendar__century-view__decades__decade:enabled:hover,
+.react-calendar__century-view__decades__decade:enabled:focus {
+  background-color: #4a5568; /* gray-700 */
+}

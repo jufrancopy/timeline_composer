@@ -85,6 +85,63 @@ router.post('/admin/catedras/:catedraId/generate-evaluation', requireAdmin, asyn
   }
 });
 
+// Actualizar una evaluación maestra existente (Docente/Admin)
+router.put('/docente/evaluaciones/:evaluationId', requireDocenteOrAdmin, async (req, res) => {
+  try {
+    const evaluationId = parseInt(req.params.evaluationId, 10);
+    const { titulo, fecha_limite, unidadPlanId, planDeClasesId } = req.body;
+
+    if (!titulo) {
+      return res.status(400).json({ error: 'El título de la evaluación es requerido.' });
+    }
+
+    const existingEvaluation = await prisma.evaluacion.findUnique({
+      where: { id: evaluationId },
+      include: {
+        catedra: true,
+        publicacion: true, // Incluir la publicación asociada
+      },
+    });
+
+    if (!existingEvaluation) {
+      return res.status(404).json({ error: 'Evaluación no encontrada.' });
+    }
+
+    // Autorización: Verificar que el docente está asociado a la cátedra de la evaluación
+    if (req.user.role !== 'ADMIN' && existingEvaluation.catedra.docenteId !== req.user.docenteId) {
+      return res.status(403).json({ error: 'No autorizado: El docente no está asociado a la cátedra de esta evaluación.' });
+    }
+
+    const updatedEvaluation = await prisma.evaluacion.update({
+      where: { id: evaluationId },
+      data: {
+        titulo: titulo,
+        fecha_limite: fecha_limite ? new Date(fecha_limite) : null,
+        unidadPlanId: unidadPlanId ? parseInt(unidadPlanId, 10) : null,
+        planDeClasesId: planDeClasesId ? parseInt(planDeClasesId, 10) : null,
+        updated_at: new Date(),
+      },
+    });
+
+    // Actualizar la publicación asociada si existe
+    if (existingEvaluation.publicacion) {
+      await prisma.publicacion.update({
+        where: { id: existingEvaluation.publicacion.id },
+        data: {
+          titulo: `Evaluación Maestra Actualizada: ${updatedEvaluation.titulo}`,
+          contenido: `La evaluación maestra "${existingEvaluation.titulo}" ha sido actualizada a "${updatedEvaluation.titulo}".`,
+          updated_at: new Date(),
+        },
+      });
+    }
+
+    res.status(200).json({ message: 'Evaluación actualizada exitosamente.', evaluation: updatedEvaluation });
+  } catch (error) {
+    console.error('Error updating evaluation:', error);
+    res.status(500).json({ error: 'Error al actualizar la evaluación', details: error.message, stack: error.stack });
+  }
+});
+
 // 2. Docente: Asignar una Evaluación Maestra a Alumnos
 router.post('/docente/evaluaciones/:evaluationMaestraId/assign', requireDocenteOrAdmin, async (req, res) => {
   try {
@@ -591,26 +648,41 @@ router.get('/evaluaciones/:asignacionId/results', requireUser, async (req, res) 
       include: { opcion_elegida: true },
     });
 
+    let correctAnswersCount = 0;
+    const totalQuestions = evaluation.preguntas.length;
+
     const formattedResults = evaluation.preguntas.map(pregunta => {
       const studentAnswer = studentResponses.find(r => r.preguntaId === pregunta.id);
       const correctOption = pregunta.opciones.find(o => o.es_correcta === true);
 
+      // Check if the student's answer is correct
+      if (studentAnswer && studentAnswer.opcion_elegida.es_correcta) {
+        correctAnswersCount++;
+      }
+
       return {
-        pregunta: pregunta.texto,
-        opciones: pregunta.opciones.map(op => ({
-          texto: op.texto,
-          es_correcta: op.es_correcta,
-          seleccionada: studentAnswer?.opcionElegidaId === op.id,
+        id: pregunta.id,
+        text: pregunta.texto,
+        options: pregunta.opciones.map(op => ({
+          id: op.id,
+          text: op.texto,
+          isCorrect: op.es_correcta,
         })),
-        respuesta_alumno: studentAnswer ? studentAnswer.opcion_elegida.texto : null,
-        es_correcta_alumno: studentAnswer?.opcion_elegida.es_correcta || false,
-        correct_answer: correctOption ? correctOption.texto : 'N/A',
+        correctAnswerId: correctOption ? correctOption.id : null,
+        alumnoAnswerId: studentAnswer ? studentAnswer.opcionElegidaId : null,
       };
     });
 
     const studentScore = assignment.calificacion?.puntos || 0;
 
-    res.json({ results: formattedResults, score: studentScore, title: evaluation.titulo });
+    res.json({
+      evaluationTitle: evaluation.titulo,
+      score: studentScore,
+      totalPoints: 100, // Assuming total points is 100 for percentage score
+      correctAnswersCount,
+      totalQuestions,
+      questions: formattedResults,
+    });
   } catch (error) {
     console.error('Error getting evaluation results:', error);
     res.status(500).json({ error: 'Error al obtener los resultados de la evaluación', details: error.message });

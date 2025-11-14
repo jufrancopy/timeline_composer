@@ -128,7 +128,7 @@ const AlumnoTareaDetailPage = () => {
             </div>
           </div>
           
-          <div>
+          <div className="mb-6">
             <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
               <FileText size={20} />
               Descripción
@@ -140,7 +140,7 @@ const AlumnoTareaDetailPage = () => {
           </div>
 
           {(TareaMaestra.recursos && TareaMaestra.recursos.length > 0) && (
-            <div className="mt-6">
+            <div className="mb-6">
               <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
                 <FileText size={20} />
                 Recursos Adjuntos
@@ -176,17 +176,8 @@ const AlumnoTareaDetailPage = () => {
             </div>
           )}
 
-          {/* Sección de Entrega (solo si la tarea no ha sido entregada o está en estado pendiente) */}
-          {tareaAsignacion.estado?.toUpperCase() === 'ASIGNADA' && puntos_obtenidos === null ? (
-            <div className="mt-8 text-center">
-              <Link 
-                to={`/alumno/submit-tarea/${tareaAsignacionId}`} // Ruta para subir la entrega
-                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-all"
-              >
-                Subir Entrega
-              </Link>
-            </div>
-          ) : (
+          {/* Sección de Entrega */}
+          {tareaAsignacion.estado?.toUpperCase() !== 'ASIGNADA' || puntos_obtenidos !== null ? (
             <div className="mt-8">
               <h4 className="text-lg font-semibold text-white mb-3">Estado de la Entrega:</h4>
               <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
@@ -194,7 +185,7 @@ const AlumnoTareaDetailPage = () => {
                 {submission_date && <p className="text-white">Fecha de Entrega: {new Date(submission_date).toLocaleDateString()}</p>}
                 {puntos_obtenidos !== null && <p className="text-white">Puntos Obtenidos: <span className="font-bold">{puntos_obtenidos}</span></p>}
                 {(submission_path && submission_path.length > 0) && (
-                  <div className="text-white">
+                  <div className="text-white mt-3">
                     <h5 className="font-semibold mb-2">Archivos Entregados:</h5>
                     <div className="grid gap-2">
                       {submission_path.map((path, index) => {
@@ -217,12 +208,21 @@ const AlumnoTareaDetailPage = () => {
                 )}
               </div>
             </div>
-          )}
+          ) : null}
 
-          <div className="mt-8 text-center">
-            <Link 
+          {/* Botones de Acción */}
+          <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+            {tareaAsignacion.estado?.toUpperCase() === 'ASIGNADA' && puntos_obtenidos === null && (
+              <Link
+                to={`/alumno/submit-tarea/${tareaAsignacionId}`}
+                className="w-full sm:w-auto text-center inline-flex justify-center items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-all"
+              >
+                Subir Entrega
+              </Link>
+            )}
+            <Link
               to="/alumno/tareas"
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition-all"
+              className="w-full sm:w-auto text-center inline-flex justify-center px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition-all"
             >
               Volver a Mis Tareas
             </Link>

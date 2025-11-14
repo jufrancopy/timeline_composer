@@ -89,14 +89,25 @@ const MyEvaluationsPage = () => {
                     <h2 className="text-xl font-semibold text-white group-hover:text-orange-300 transition-colors pr-10">
                       {ev.titulo}
                     </h2>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                      ev.estado === 'PENDIENTE' ? 'bg-yellow-900/20 text-yellow-300 border-yellow-500/30' : 
-                      ev.estado === 'REALIZADA' ? 'bg-blue-900/20 text-blue-300 border-blue-500/30' :
-                      ev.estado === 'CALIFICADA' ? 'bg-green-900/20 text-green-300 border-green-500/30' :
-                      'bg-gray-900/20 text-gray-300 border-gray-500/30'
-                    }`}>
-                      {ev.estado}
-                    </span>
+                    {(() => {
+                      let displayedStatus = ev.estado;
+                      let statusClass = '';
+
+                      if (ev.estado === 'REALIZADA' || ev.estado === 'CALIFICADA') {
+                        displayedStatus = 'Calificada';
+                        statusClass = 'bg-green-900/20 text-green-300 border-green-500/30';
+                      } else if (ev.estado === 'PENDIENTE') {
+                        displayedStatus = 'Pendiente de Calificación';
+                        statusClass = 'bg-yellow-900/20 text-yellow-300 border-yellow-500/30';
+                      } else {
+                        statusClass = 'bg-gray-900/20 text-gray-300 border-gray-500/30';
+                      }
+                      return (
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusClass}`}>
+                          {displayedStatus}
+                        </span>
+                      );
+                    })()}
                   </div>
                   
                   <div className="flex flex-col space-y-1 text-sm text-gray-400 mb-3">
@@ -127,7 +138,7 @@ const MyEvaluationsPage = () => {
                       <span>Fecha Límite: {ev.fecha_limite ? format(new Date(ev.fecha_limite), 'dd/MM/yyyy') : 'No especificada'}</span>
                     </div>
                     <Link
-                      to={ev.realizada ? `/alumno/catedra/${ev.Catedra?.id}/evaluaciones/${ev.id}/results` : `/evaluacion/${ev.id}`}
+                      to={ev.realizada ? `/alumno/catedra/${ev.Catedra?.id}/evaluacion/${ev.id}/results` : `/evaluacion/${ev.id}`}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition-all"
                     >
                       {ev.realizada ? 'Ver Resultados' : 'Realizar Evaluación'}

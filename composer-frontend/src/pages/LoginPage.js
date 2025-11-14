@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Mail, Shield, Users } from 'lucide-react';
+import { Mail, Shield } from 'lucide-react';
 import { handleRequestError } from '../utils/errorUtils';
+import logo from '../logo.png'; // Importar el logo
 
 
 function LoginPage({ onLogin }) {
@@ -59,9 +60,7 @@ function LoginPage({ onLogin }) {
           
           <div className="relative z-10 p-8">
             <div className="text-center mb-8">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-green-600 to-emerald-600 rounded-full flex items-center justify-center">
-                <Users className="text-white" size={28} />
-              </div>
+              <img src={logo} alt="Logo EduPlatForm" className="w-24 h-24 mx-auto mb-4 rounded-full shadow-lg" />
               <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-400 via-emerald-400 to-green-400">
                 Acceder como Estudiante
               </h2>

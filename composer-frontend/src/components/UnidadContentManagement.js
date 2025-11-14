@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Modal from './Modal';
 import TareaForm from './TareaForm';
 import EvaluationForm from './EvaluationForm';
@@ -29,6 +29,7 @@ const UnidadContentManagement = ({ catedraId, planDeClasesId, unidadId, unidadPe
       const tareasResponse = await api.getTareasMaestrasPorUnidad(catedraId, unidadId);
       setTareas(tareasResponse.data);
 
+      console.log(`[DEBUG - UnidadContentManagement] Fetching evaluations for catedraId: ${catedraId}, unidadId: ${unidadId}`);
       const evaluacionesResponse = await api.getEvaluacionesPorUnidad(catedraId, unidadId);
       setEvaluaciones(evaluacionesResponse.data);
     } catch (error) {
@@ -41,6 +42,18 @@ const UnidadContentManagement = ({ catedraId, planDeClasesId, unidadId, unidadPe
 
   useEffect(() => {
     fetchContent();
+
+    const lastViewedUnidadId = sessionStorage.getItem('lastViewedUnidadId');
+    if (lastViewedUnidadId) {
+      // Pequeño retardo para asegurar que el DOM esté actualizado después de la renderización
+      setTimeout(() => {
+        const section = document.getElementById('evaluaciones-unidad-section');
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth' });
+          sessionStorage.removeItem('lastViewedUnidadId'); // Limpiar después de usar
+        }
+      }, 100);
+    }
   }, [fetchContent]);
 
   const handleTareaCreated = () => {
@@ -88,10 +101,10 @@ const UnidadContentManagement = ({ catedraId, planDeClasesId, unidadId, unidadPe
     setIsTaskDetailModalOpen(true);
   };
 
-  const handleGenerateEvaluation = async (topic, subject, numberOfQuestions, numberOfOptions, selectedUnidadId) => {
+  const handleGenerateEvaluation = async (topic, subject, numberOfQuestions, numberOfOptions, selectedUnidadId, unidadContentForm) => {
     setIsGenerating(true);
     try {
-      await api.generateDocenteEvaluation(catedraId, { topic, subject, numberOfQuestions, numberOfOptions, unidadPlanId: selectedUnidadId });
+      await api.generateDocenteEvaluation(catedraId, { topic, subject, numberOfQuestions, numberOfOptions, unidadPlanId: selectedUnidadId, unidadContent: unidadContentForm });
       Swal.fire({
         title: '¡Éxito!',
         text: 'La evaluación ha sido generada y guardada correctamente.',
@@ -99,8 +112,8 @@ const UnidadContentManagement = ({ catedraId, planDeClasesId, unidadId, unidadPe
         timer: 3000,
         showConfirmButton: false
       });
-      setIsEvaluationModalOpen(false);
       fetchContent();
+      setIsEvaluationModalOpen(false);
     } catch (error) {
       let errorMessage = error.response?.data?.error || 'No se pudo generar la evaluación.';
       if (errorMessage.includes('The model is overloaded')) {
@@ -243,7 +256,7 @@ const UnidadContentManagement = ({ catedraId, planDeClasesId, unidadId, unidadPe
       </div>
 
       {/* Sección de Evaluaciones */}
-      <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
+      <div id="evaluaciones-unidad-section" className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
         <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
