@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import EvaluationCard from './EvaluationCard';
 
-const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true, showActions = false }) => {
+const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true, showActions = false, showResultsButton = false, onViewResults }) => {
   if (!evaluations || evaluations.length === 0) {
     return (
       <div className="mb-8">
@@ -25,8 +25,8 @@ const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true
     switch(estado) {
       case 'PENDIENTE': return 'Pendiente';
       case 'VENCIDA': return 'Vencida';
-      case 'REALIZADA': return 'Realizada';
-      case 'CALIFICADA': return 'Calificada';
+      case 'REALIZADA':
+      case 'CALIFICADA': return 'Realizada - Calificada';
       default: return estado;
     }
   };
@@ -46,6 +46,7 @@ const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Fecha de Creación</th>
               {showStatus && <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Estado</th>}
               {showActions && <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Acciones</th>}
+              {showResultsButton && <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Resultados</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
@@ -83,6 +84,20 @@ const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true
                       </Link>
                     </td>
                   )}
+                  {showResultsButton && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {estado === 'REALIZADA' || estado === 'CALIFICADA' ? (
+                        <button
+                          onClick={() => onViewResults(evaluation.Catedra?.id, evaluation.id)}
+                          className="text-emerald-400 hover:text-emerald-500"
+                        >
+                          Ver Resultados
+                        </button>
+                      ) : (
+                        <span className="text-gray-500">N/A</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -95,10 +110,12 @@ const EvaluationTable = ({ title, evaluations, getStatusColor, showStatus = true
         {evaluations.map((evaluation) => (
           <EvaluationCard 
             key={evaluation.id} 
-            catedraId={evaluation.catedraId} 
+            catedraId={evaluation.Catedra?.id} 
             evaluacion={evaluation} 
             showStatus={showStatus}
             showActions={showActions}
+            showResultsButton={showResultsButton}
+            onViewResults={onViewResults}
           />
         ))}
       </div>
