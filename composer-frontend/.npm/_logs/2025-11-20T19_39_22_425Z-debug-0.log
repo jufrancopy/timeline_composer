@@ -1,0 +1,108 @@
+0 verbose cli /home/jucfra/.nvm/versions/node/v20.19.4/bin/node /home/jucfra/.nvm/versions/node/v20.19.4/bin/npm
+1 info using npm@10.8.2
+2 info using node@v20.19.4
+3 silly config load:file:/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/npmrc
+4 silly config load:file:/home/jucfra/Proyectos/TimeLineComposer/composer-frontend/.npmrc
+5 silly config load:file:/home/jucfra/.npmrc
+6 silly config load:file:/home/jucfra/Proyectos/TimeLineComposer/composer-frontend/etc/npmrc
+7 verbose title npm install react-datepicker
+8 verbose argv "install" "react-datepicker" "--prefix" "composer-frontend"
+9 verbose logfile logs-max:10 dir:/home/jucfra/Proyectos/TimeLineComposer/composer-frontend/.npm/_logs/2025-11-20T19_39_22_425Z-
+10 verbose logfile /home/jucfra/Proyectos/TimeLineComposer/composer-frontend/.npm/_logs/2025-11-20T19_39_22_425Z-debug-0.log
+11 silly packumentCache heap:2197815296 maxSize:549453824 maxEntrySize:274726912
+12 silly logfile done cleaning log files
+13 silly idealTree buildDeps
+14 silly fetch manifest react-datepicker@*
+15 silly packumentCache full:https://registry.npmjs.org/react-datepicker cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/npm 1224ms
+17 http fetch GET 200 https://registry.npmjs.org/react-datepicker 654ms (cache miss)
+18 silly packumentCache full:https://registry.npmjs.org/react-datepicker set size:undefined disposed:false
+19 silly fetch manifest react@^18.2.0
+20 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+21 http fetch GET 200 https://registry.npmjs.org/react 157ms (cache miss)
+22 silly packumentCache full:https://registry.npmjs.org/react set size:undefined disposed:false
+23 silly fetch manifest react-dom@^18.2.0
+24 silly packumentCache full:https://registry.npmjs.org/react-dom cache-miss
+25 http fetch GET 200 https://registry.npmjs.org/react-dom 128ms (cache miss)
+26 silly packumentCache full:https://registry.npmjs.org/react-dom set size:undefined disposed:false
+27 silly placeDep ROOT react-datepicker@8.9.0 OK for: composer-frontend@0.1.0 want: *
+28 silly fetch manifest @floating-ui/react@^0.27.15
+29 silly packumentCache full:https://registry.npmjs.org/@floating-ui%2freact cache-miss
+30 http fetch GET 200 https://registry.npmjs.org/@floating-ui%2freact 47ms (cache miss)
+31 silly packumentCache full:https://registry.npmjs.org/@floating-ui%2freact set size:undefined disposed:false
+32 silly fetch manifest react@^16.9.0 || ^17 || ^18 || ^19 || ^19.0.0-rc
+33 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+34 http fetch GET 200 https://registry.npmjs.org/react 22ms (cache hit)
+35 silly packumentCache full:https://registry.npmjs.org/react set size:6279916 disposed:false
+36 silly fetch manifest react-dom@^16.9.0 || ^17 || ^18 || ^19 || ^19.0.0-rc
+37 silly packumentCache full:https://registry.npmjs.org/react-dom cache-miss
+38 http fetch GET 200 https://registry.npmjs.org/react-dom 21ms (cache hit)
+39 silly packumentCache full:https://registry.npmjs.org/react-dom set size:8233325 disposed:false
+40 silly placeDep ROOT @floating-ui/react@0.27.16 OK for: react-datepicker@8.9.0 want: ^0.27.15
+41 silly fetch manifest tabbable@^6.0.0
+42 silly packumentCache full:https://registry.npmjs.org/tabbable cache-miss
+43 silly fetch manifest @floating-ui/react-dom@^2.1.6
+44 silly packumentCache full:https://registry.npmjs.org/@floating-ui%2freact-dom cache-miss
+45 http fetch GET 200 https://registry.npmjs.org/tabbable 38ms (cache miss)
+46 silly packumentCache full:https://registry.npmjs.org/tabbable set size:undefined disposed:false
+47 http fetch GET 200 https://registry.npmjs.org/@floating-ui%2freact-dom 60ms (cache miss)
+48 silly packumentCache full:https://registry.npmjs.org/@floating-ui%2freact-dom set size:undefined disposed:false
+49 silly fetch manifest react@>=17.0.0
+50 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+51 http fetch GET 200 https://registry.npmjs.org/react 19ms (cache hit)
+52 silly packumentCache full:https://registry.npmjs.org/react set size:6279916 disposed:false
+53 silly fetch manifest react-dom@>=17.0.0
+54 silly packumentCache full:https://registry.npmjs.org/react-dom cache-miss
+55 http fetch GET 200 https://registry.npmjs.org/react-dom 21ms (cache hit)
+56 silly packumentCache full:https://registry.npmjs.org/react-dom set size:8233325 disposed:false
+57 silly placeDep ROOT @floating-ui/react-dom@2.1.6 OK for: @floating-ui/react@0.27.16 want: ^2.1.6
+58 silly placeDep ROOT tabbable@6.3.0 OK for: @floating-ui/react@0.27.16 want: ^6.0.0
+59 silly reify moves {}
+60 verbose stack Error: EACCES: permission denied, mkdir '/home/jucfra/Proyectos/TimeLineComposer/composer-frontend/node_modules/@tailwindcss/oxide-android-arm64'
+60 verbose stack     at async mkdir (node:internal/fs/promises:858:10)
+60 verbose stack     at async /home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js:624:20
+60 verbose stack     at async Promise.allSettled (index 0)
+60 verbose stack     at async [reifyPackages] (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js:325:11)
+60 verbose stack     at async Arborist.reify (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js:142:5)
+60 verbose stack     at async Install.exec (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/lib/commands/install.js:150:5)
+60 verbose stack     at async Npm.exec (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/lib/npm.js:207:9)
+60 verbose stack     at async module.exports (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/lib/cli/entry.js:74:5)
+61 error code EACCES
+62 error syscall mkdir
+63 error path /home/jucfra/Proyectos/TimeLineComposer/composer-frontend/node_modules/@tailwindcss/oxide-android-arm64
+64 error errno -13
+65 error Error: EACCES: permission denied, mkdir '/home/jucfra/Proyectos/TimeLineComposer/composer-frontend/node_modules/@tailwindcss/oxide-android-arm64'
+65 error     at async mkdir (node:internal/fs/promises:858:10)
+65 error     at async /home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js:624:20
+65 error     at async Promise.allSettled (index 0)
+65 error     at async [reifyPackages] (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js:325:11)
+65 error     at async Arborist.reify (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js:142:5)
+65 error     at async Install.exec (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/lib/commands/install.js:150:5)
+65 error     at async Npm.exec (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/lib/npm.js:207:9)
+65 error     at async module.exports (/home/jucfra/.nvm/versions/node/v20.19.4/lib/node_modules/npm/lib/cli/entry.js:74:5) {
+65 error   errno: -13,
+65 error   code: 'EACCES',
+65 error   syscall: 'mkdir',
+65 error   path: '/home/jucfra/Proyectos/TimeLineComposer/composer-frontend/node_modules/@tailwindcss/oxide-android-arm64'
+65 error }
+66 error
+66 error The operation was rejected by your operating system.
+66 error It is likely you do not have the permissions to access this file as the current user
+66 error
+66 error If you believe this might be a permissions issue, please double-check the
+66 error permissions of the file and its containing directories, or try running
+66 error the command again as root/Administrator.
+67 silly unfinished npm timer reify 1763667562765
+68 silly unfinished npm timer reify:createSparse 1763667565514
+69 verbose cwd /home/jucfra/Proyectos/TimeLineComposer
+70 verbose os Linux 5.4.0-216-generic
+71 verbose node v20.19.4
+72 verbose npm  v10.8.2
+73 notice
+73 notice New major version of npm available! 10.8.2 -> 11.6.3
+73 notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.3
+73 notice To update run: npm install -g npm@11.6.3
+73 notice  { force: true, [Symbol(proc-log.meta)]: true }
+74 verbose exit -13
+75 verbose code -13
+76 error A complete log of this run can be found in: /home/jucfra/Proyectos/TimeLineComposer/composer-frontend/.npm/_logs/2025-11-20T19_39_22_425Z-debug-0.log

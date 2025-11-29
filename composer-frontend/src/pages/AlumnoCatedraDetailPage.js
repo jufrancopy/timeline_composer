@@ -12,6 +12,7 @@ import PublicacionForm from '../components/PublicacionForm';
 import TaskTable from '../components/TaskTable';
 import EvaluationTable from '../components/EvaluationTable';
 import Modal from '../components/Modal';
+import AlumnoFinalGradeDisplay from '../components/AlumnoFinalGradeDisplay';
 
 const AlumnoCatedraDetailPage = () => {
   const { catedraId } = useParams();
@@ -38,6 +39,9 @@ const AlumnoCatedraDetailPage = () => {
 
   // Estados para Evaluaciones
   const [evaluaciones, setEvaluaciones] = useState([]);
+  const [finalGradeResults, setFinalGradeResults] = useState(null);
+  const [porcentajeMinimoAprobacion, setPorcentajeMinimoAprobacion] = useState(null);
+  const [calificacionFinalConfigId, setCalificacionFinalConfigId] = useState(null);
 
   const handleGoToTaskTab = (catedraId, taskId) => {
     handleGoToTab('tareas', taskId);
@@ -198,6 +202,21 @@ const AlumnoCatedraDetailPage = () => {
       setEvaluaciones(evalsCatedra);
       console.log('Evaluaciones fetched:', evalsCatedra);
       console.log('First evaluation in evalsCatedra:', evalsCatedra[0]);
+
+      // Fetch calificación final del alumno
+      const finalGradeResponse = await api.getAlumnoFinalGrade(parsedCatedraId);
+      if (finalGradeResponse.data) {
+        setFinalGradeResults(finalGradeResponse.data.resultados);
+        setPorcentajeMinimoAprobacion(finalGradeResponse.data.config.porcentajeMinimoAprobacion);
+        setCalificacionFinalConfigId(finalGradeResponse.data.config.id);
+        console.log('[FinalGrade] Calificación final del alumno fetched:', finalGradeResponse.data);
+        console.log('[FinalGrade] Resultados de calificación para mostrar:', finalGradeResponse.data.resultados);
+      } else {
+        setFinalGradeResults([]);
+        setPorcentajeMinimoAprobacion(null);
+        setCalificacionFinalConfigId(null);
+        console.log('[FinalGrade] No se encontró calificación final para este alumno en esta cátedra.');
+      }
       // Enriquecer publicaciones con el estado de la asignación (tarea o evaluación)
       const enrichedPubs = pubs.map(pub => {
         if (pub.tipo === 'EVALUACION' && pub.evaluacionAsignacionId) {
@@ -455,18 +474,28 @@ const AlumnoCatedraDetailPage = () => {
               <BookOpen className="text-white" size={36} />
             </div>
             <div className="flex-1">
-              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
-                Cátedra: {catedra.Catedra?.nombre || 'Nombre no disponible'}
-              </h1>
-              <div className="flex flex-wrap gap-4 text-slate-400">
-                <div className="flex items-center gap-2">
-                  <Calendar size={18} />
-                  <span>Año {catedra.Catedra?.anio || 'N/A'}</span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
+                    Cátedra: {catedra.Catedra?.nombre || 'Nombre no disponible'}
+                  </h1>
+                  <div className="flex flex-wrap gap-4 text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={18} />
+                      <span>Año {catedra.Catedra?.anio || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <User size={18} />
+                      <span>{catedra.Catedra?.institucion || 'Institución no especificada'}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <User size={18} />
-                  <span>{catedra.Catedra?.institucion || 'Institución no especificada'}</span>
-                </div>
+                {finalGradeResults && finalGradeResults.length > 0 && (
+                  <div className="w-24 h-24 rounded-full flex flex-col items-center justify-center bg-gradient-to-br from-fuchsia-600 to-purple-700 shadow-lg shadow-fuchsia-900/40 flex-shrink-0 text-white font-bold text-3xl p-2 border-2 border-white/20">
+                    <p className="leading-none">{finalGradeResults[0].escalaNota}</p>
+                    <p className="text-sm font-medium text-fuchsia-200 leading-none">({finalGradeResults[0].estadoEscala.split(' ')[0]})</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -556,6 +585,17 @@ const AlumnoCatedraDetailPage = () => {
                     {stats.totalEvaluaciones}
                   </span>
                 )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('calificacionFinal')}
+                className={`${activeTab === 'calificacionFinal'
+                    ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
+                    : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                  } group flex items-center gap-2 whitespace-nowrap py-4 px-3 border-b-2 font-medium text-lg transition-all duration-300 rounded-t-lg`}
+              >
+                <Award size={20} />
+                Calificación Final
               </button>
             </nav>
           </div>
@@ -752,6 +792,23 @@ const AlumnoCatedraDetailPage = () => {
                     })()}
                   </>
                 )}
+              </div>
+            )}
+
+            {/* TAB: Calificación Final */}
+            {activeTab === 'calificacionFinal' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">Calificación Final</h3>
+                  <p className="text-slate-400">Consulta tu calificación final en esta cátedra</p>
+                </div>
+                <AlumnoFinalGradeDisplay
+                  backendResults={finalGradeResults}
+                  porcentajeMinimoAprobacion={porcentajeMinimoAprobacion}
+                  selectedAlumnoId={currentAlumnoId}
+                  configId={calificacionFinalConfigId}
+                  catedraId={parseInt(catedraId)}
+                />
               </div>
             )}
           </div>

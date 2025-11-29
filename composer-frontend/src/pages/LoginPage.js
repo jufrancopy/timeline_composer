@@ -60,7 +60,7 @@ function LoginPage({ onLogin }) {
           
           <div className="relative z-10 p-8">
             <div className="text-center mb-8">
-              <img src={logo} alt="Logo EduPlatForm" className="w-24 h-24 mx-auto mb-4 rounded-full shadow-lg" />
+              <img src={logo} alt="Logo EduPlatForm" className="w-32 h-32 mx-auto mb-4 rounded-xl shadow-lg p-2 bg-gradient-to-br from-green-400 to-emerald-400" />
               <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-400 via-emerald-400 to-green-400">
                 Acceder como Estudiante
               </h2>

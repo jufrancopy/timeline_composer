@@ -382,6 +382,9 @@ module.exports = (prisma, transporter) => {
         },
         include: {
           Pregunta: {
+            orderBy: {
+              orden: 'asc',
+            },
             include: {
               Opcion: true
             }

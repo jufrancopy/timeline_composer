@@ -1,7 +1,8 @@
 const express = require('express');
 const requireAdmin = require('../middlewares/requireAdmin');
 const requireDocenteOrAdmin = require('../middlewares/requireDocenteOrAdmin');
-const { requireUser, setPrismaClient: setPrismaClientForUserMiddlewareInRoutes } = require('../middlewares/requireUser');
+const { requireUser } = require('../middlewares/requireUser');
+const requireDocente = require('../middlewares/requireDocente');
 const { generateQuestionsWithAI } = require('../ai');
 
 const router = express.Router();
@@ -51,8 +52,9 @@ router.post('/admin/catedras/:catedraId/generate-evaluation', requireAdmin, asyn
         isMaster: true,
         // fecha_limite se establecerá al asignar la evaluación
         preguntas: {
-          create: generatedQuestions.map(q => ({
+          create: generatedQuestions.map((q, index) => ({
             texto: q.texto,
+            orden: index, // Asignar el orden basado en el índice
             opciones: {
               create: q.opciones.map(o => ({ texto: o.texto, es_correcta: o.es_correcta })),
             },
@@ -85,188 +87,7 @@ router.post('/admin/catedras/:catedraId/generate-evaluation', requireAdmin, asyn
   }
 });
 
-// Actualizar una evaluación maestra existente (Docente/Admin)
-router.put('/docente/evaluaciones/:evaluationId', requireDocenteOrAdmin, async (req, res) => {
-  try {
-    const evaluationId = parseInt(req.params.evaluationId, 10);
-    const { titulo, fecha_limite, unidadPlanId, planDeClasesId } = req.body;
 
-    if (!titulo) {
-      return res.status(400).json({ error: 'El título de la evaluación es requerido.' });
-    }
-
-    const existingEvaluation = await prisma.evaluacion.findUnique({
-      where: { id: evaluationId },
-      include: {
-        catedra: true,
-        publicacion: true, // Incluir la publicación asociada
-      },
-    });
-
-    if (!existingEvaluation) {
-      return res.status(404).json({ error: 'Evaluación no encontrada.' });
-    }
-
-    // Autorización: Verificar que el docente está asociado a la cátedra de la evaluación
-    if (req.user.role !== 'ADMIN' && existingEvaluation.catedra.docenteId !== req.user.docenteId) {
-      return res.status(403).json({ error: 'No autorizado: El docente no está asociado a la cátedra de esta evaluación.' });
-    }
-
-    const updatedEvaluation = await prisma.evaluacion.update({
-      where: { id: evaluationId },
-      data: {
-        titulo: titulo,
-        fecha_limite: fecha_limite ? new Date(fecha_limite) : null,
-        unidadPlanId: unidadPlanId ? parseInt(unidadPlanId, 10) : null,
-        planDeClasesId: planDeClasesId ? parseInt(planDeClasesId, 10) : null,
-        updated_at: new Date(),
-      },
-    });
-
-    // Actualizar la publicación asociada si existe
-    if (existingEvaluation.publicacion) {
-      await prisma.publicacion.update({
-        where: { id: existingEvaluation.publicacion.id },
-        data: {
-          titulo: `Evaluación Maestra Actualizada: ${updatedEvaluation.titulo}`,
-          contenido: `La evaluación maestra "${existingEvaluation.titulo}" ha sido actualizada a "${updatedEvaluation.titulo}".`,
-          updated_at: new Date(),
-        },
-      });
-    }
-
-    res.status(200).json({ message: 'Evaluación actualizada exitosamente.', evaluation: updatedEvaluation });
-  } catch (error) {
-    console.error('Error updating evaluation:', error);
-    res.status(500).json({ error: 'Error al actualizar la evaluación', details: error.message, stack: error.stack });
-  }
-});
-
-// 2. Docente: Asignar una Evaluación Maestra a Alumnos
-router.post('/docente/evaluaciones/:evaluationMaestraId/assign', requireDocenteOrAdmin, async (req, res) => {
-  try {
-    const evaluationMaestraId = parseInt(req.params.evaluationMaestraId, 10);
-    const { alumnoIds, fecha_limite } = req.body; // alumnoIds es un array de IDs de alumno, fecha_limite es opcional
-
-    if (!alumnoIds || !Array.isArray(alumnoIds) || alumnoIds.length === 0) {
-      return res.status(400).json({ error: 'Se requieren IDs de alumnos para asignar la evaluación.' });
-    }
-
-    const evaluationMaestra = await prisma.evaluacion.findUnique({
-      where: { id: evaluationMaestraId, isMaster: true },
-      include: { catedra: true },
-    });
-
-    if (!evaluationMaestra) {
-      return res.status(404).json({ error: 'Evaluación Maestra no encontrada.' });
-    }
-
-    // Ensure the assigning docente is associated with the catedra of the evaluation
-    const docenteCatedra = await prisma.catedra.findFirst({
-      where: {
-        id: evaluationMaestra.catedraId,
-        docenteId: req.user.docenteId,
-      },
-    });
-
-    if (!docenteCatedra && req.user.role !== 'ADMIN') { // Allow admins to assign evaluations
-      return res.status(403).json({ error: 'No autorizado: El docente no está asociado a esta cátedra.' });
-    }
-
-    const assignedEvaluations = [];
-    const alumnosToNotify = [];
-
-    for (const alumnoId of alumnoIds) {
-      // Create EvaluacionAsignacion record for each student
-      const newAssignment = await prisma.evaluacionAsignacion.create({
-        data: {
-          alumnoId: alumnoId,
-          evaluacionId: evaluationMaestraId,
-          fecha_entrega: fecha_limite ? new Date(fecha_limite) : evaluationMaestra.fecha_limite, // Use assignment-specific deadline or master deadline
-          estado: 'PENDIENTE',
-        },
-      });
-      assignedEvaluations.push(newAssignment);
-
-      // Fetch student details for notification
-      const alumno = await prisma.alumno.findUnique({ where: { id: alumnoId } });
-      if (alumno && alumno.email) {
-        alumnosToNotify.push(alumno);
-      }
-
-      // Create a Publicacion for the assigned evaluation, now visible to this specific student
-      // This Publicacion links directly to the EvaluacionAsignacion for individual student visibility
-      const publicacionAsignacion = await prisma.publicacion.create({
-        data: {
-          titulo: `Nueva Evaluación Asignada: ${evaluationMaestra.titulo}`,
-          contenido: `Se te ha asignado la evaluación "${evaluationMaestra.titulo}". ¡Haz clic para realizarla!`,
-          tipo: 'EVALUACION',
-          catedraId: evaluationMaestra.catedraId,
-          autorDocenteId: req.user.docenteId,
-          evaluacionAsignacionId: newAssignment.id,
-          visibleToStudents: true, // Visible para el alumno asignado
-        },
-      });
-
-      // Update the EvaluacionAsignacion with the publicacionId
-      await prisma.evaluacionAsignacion.update({
-        where: { id: newAssignment.id },
-        data: { publicacionId: publicacionAsignacion.id },
-      });
-    }
-
-    // Send email notifications to assigned students
-    const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const evaluationLinkBase = `${frontendBaseUrl}/alumno/evaluaciones`; // Base URL for student evaluations
-
-    for (const alumno of alumnosToNotify) {
-      const assignedEvaluation = assignedEvaluations.find(ae => ae.alumnoId === alumno.id);
-      const specificEvaluationLink = `${evaluationLinkBase}/${assignedEvaluation.evaluacionId}`; // Link to the specific master evaluation
-
-      const mailOptions = {
-        from: `"Aportes HMPY" <${process.env.EMAIL_USER}>`,
-        to: alumno.email,
-        subject: `Nueva evaluación asignada: ${evaluationMaestra.titulo}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
-            <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center;">
-              <h1 style="margin: 0; font-size: 24px;">Nueva Evaluación Asignada</h1>
-            </div>
-            <div style="padding: 20px;">
-              <p>Hola ${alumno.nombre} ${alumno.apellido},</p>
-              <p>Se te ha asignado una nueva evaluación en la cátedra <strong>${evaluationMaestra.catedra.nombre}</strong>:</p>
-              
-              <h3 style="color: #333;">Detalles de la Evaluación:</h3>
-              <p><strong>Título:</strong> ${evaluationMaestra.titulo}</p>
-              ${fecha_limite ? `<p><strong>Fecha Límite:</strong> ${new Date(fecha_limite).toLocaleDateString()}</p>` : ''}
-              <p>Esta evaluación ya está disponible para que la realices. Haz clic en el botón de abajo para empezar:</p>
-              <p style="text-align: center; margin-top: 30px;">
-                <a href="${specificEvaluationLink}" style="display: inline-block; padding: 12px 25px; background-color: #5a189a; color: white; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">
-                  Realizar Evaluación
-                </a>
-              </p>
-              <p style="margin-top: 20px; font-size: 14px; color: #666;">
-                Si tienes alguna duda, no dudes en contactar a tu instructor.
-              </p>
-            </div>
-            <div style="background-color: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #999;">
-              Este es un correo automático, por favor no respondas a este mensaje.
-            </div>
-          </div>
-        `,
-      };
-
-      transporter.sendMail(mailOptions)
-        .then((info) => console.log(`[EVALUACION] Correo de asignación de evaluación enviado a ${alumno.email} - MessageID: ${info.messageId}`))
-        .catch((error) => console.error(`[EVALUACION] Error al enviar correo de asignación de evaluación a ${alumno.email}:`, error));
-    }
-
-    res.status(200).json({ message: `Evaluación Maestra asignada a ${assignedEvaluations.length} alumnos.`, assignments: assignedEvaluations });
-  } catch (error) {
-    console.error('Error assigning evaluation:', error);
-    res.status(500).json({ error: 'Error al asignar la evaluación', details: error.message, stack: error.stack });
-  }
-});
 
 // 8. Create a new Tarea for a Catedra (Admin Only)
 router.post('/admin/catedras/:catedraId/tareas', requireAdmin, async (req, res) => {
@@ -388,6 +209,38 @@ router.post('/admin/catedras/:catedraId/tareas', requireAdmin, async (req, res) 
   }
 });
 
+// Ruta para obtener evaluaciones de una Catedra
+router.get('/docente/catedra/:catedraId/evaluaciones', requireDocente, async (req, res) => {
+  const { catedraId } = req.params;
+
+  try {
+    const evaluaciones = await prisma.evaluacion.findMany({
+      where: {
+        catedraId: parseInt(catedraId),
+      },
+      select: {
+        id: true,
+        titulo: true,
+        fecha_limite: true,
+        Pregunta: {
+          select: {
+            puntos: true, // Asumiendo que Pregunta tiene un campo 'puntos'
+          },
+        },
+      },
+    });
+
+    const evaluacionesConPuntosTotales = evaluaciones.map(evaluacion => {
+      const puntosTotales = evaluacion.Pregunta.reduce((sum, pregunta) => sum + (pregunta.puntos || 0), 0);
+      return { ...evaluacion, puntosTotales, Pregunta: undefined }; // Eliminar Pregunta del objeto final
+    });
+
+    res.status(200).json(evaluacionesConPuntosTotales);
+  } catch (error) {
+    console.error('Error al obtener evaluaciones:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
 // 2. Get Evaluations for a Catedra
 router.get('/catedras/:catedraId/evaluaciones', async (req, res) => {
   try {
@@ -619,17 +472,18 @@ router.post('/evaluaciones/:asignacionId/submit', requireUser, async (req, res) 
 });
 
 // 5. Get Evaluation Results (Student - with correct/incorrect answers)
-router.get('/evaluaciones/:asignacionId/results', requireUser, async (req, res) => {
+router.get('/evaluaciones/:evaluacionId/results', requireUser, async (req, res) => {
   try {
-    const asignacionId = parseInt(req.params.asignacionId, 10);
+    const evaluacionId = parseInt(req.params.evaluacionId, 10);
     const { alumnoId } = req.user;
 
     if (!alumnoId) {
       return res.status(403).json({ error: 'No autorizado: Información de alumno no disponible.' });
     }
 
-    const assignment = await prisma.evaluacionAsignacion.findUnique({
-      where: { id: asignacionId, alumnoId: alumnoId },
+    // Buscar la asignación de evaluación para este alumno y esta evaluación maestra
+    const assignment = await prisma.evaluacionAsignacion.findFirst({
+      where: { evaluacionId: evaluacionId, alumnoId: alumnoId },
       include: {
         evaluacion: {
           include: { preguntas: { include: { opciones: true } } },
@@ -639,10 +493,11 @@ router.get('/evaluaciones/:asignacionId/results', requireUser, async (req, res) 
     });
 
     if (!assignment) {
-      return res.status(404).json({ error: 'Asignación de evaluación no encontrada o no pertenece al alumno.' });
+      return res.status(404).json({ error: 'Asignación de evaluación no encontrada para este alumno y evaluación.' });
     }
 
     const evaluation = assignment.evaluacion;
+    const asignacionId = assignment.id; // Obtenemos el asignacionId de la asignación encontrada
     const studentResponses = await prisma.respuestaAlumno.findMany({
       where: { alumnoId, pregunta: { evaluacionId: evaluation.id } },
       include: { opcion_elegida: true },
@@ -1016,5 +871,180 @@ router.delete('/catedras/:id', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar la cátedra', details: error.message });
   }
 });
+
+// 8. Docente Edits Student Evaluation Answers (Docente/Admin Only)
+router.put('/docente/evaluaciones/asignacion/:asignacionId/respuestas', requireDocenteOrAdmin, async (req, res) => {
+  const asignacionId = parseInt(req.params.asignacionId, 10);
+  const { respuestas, studentId } = req.body; // Array de { preguntaId: Int, opcionElegidaId: Int }, studentId: Int
+  const docenteId = req.user.docenteId; // Obtenemos el ID del docente del token
+
+  if (!studentId) {
+    return res.status(400).json({ error: 'studentId es requerido en el body.' });
+  }
+  const parsedStudentId = parseInt(studentId, 10);
+  if (isNaN(parsedStudentId)) {
+    return res.status(400).json({ error: 'studentId debe ser un número entero válido.' });
+  }
+
+  console.log(`[DOCENTE EDIT EVAL] Endpoint hit. asignacionId: ${asignacionId}, docenteId: ${docenteId}, respuestas length: ${respuestas?.length}`);
+
+  try {
+    if (!respuestas || !Array.isArray(respuestas) || respuestas.length === 0) {
+      return res.status(400).json({ error: 'Respuestas no proporcionadas o en formato incorrecto.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      console.log(`[DOCENTE EDIT EVAL] Attempting to find evaluation assignment with ID: ${asignacionId}`);
+      // 1. Verificar la asignación y obtener detalles de la evaluación
+      const assignment = await tx.evaluacionAsignacion.findUnique({
+        where: { id: asignacionId },
+        include: {
+          Evaluacion: {
+            include: {
+              Catedra: true,
+              Pregunta: { include: { Opcion: true } },
+            },
+          },
+          Alumno: true,
+          CalificacionEvaluacion: true,
+        },
+      });
+
+      if (!assignment) {
+        console.warn(`[DOCENTE EDIT EVAL] Asignación con ID ${asignacionId} no encontrada.`);
+        return res.status(404).json({ error: 'Asignación de evaluación no encontrada.' });
+      }
+      console.log(`[DOCENTE EDIT EVAL] Asignación encontrada (ID: ${asignacionId}):`, JSON.stringify(assignment, null, 2));
+      const evaluation = assignment.Evaluacion;
+      const alumnoId = assignment.alumnoId;
+      const catedraId = evaluation.catedraId;
+
+      // 2. Verificar que el docente pertenece a la cátedra de la evaluación (si es docente)
+      if (req.user.role === 'DOCENTE') {
+        const docenteCatedra = await tx.catedraDocente.findUnique({
+          where: {
+            catedraId_docenteId: {
+              catedraId: catedraId,
+              docenteId: docenteId,
+            },
+          },
+        });
+        if (!docenteCatedra) {
+          throw new Error('No autorizado: El docente no está asignado a esta cátedra.');
+        }
+      }
+
+      // 3. Eliminar respuestas anteriores del alumno para las preguntas que se van a editar
+      const preguntaIdsToUpdate = respuestas.map(r => r.questionId).filter(id => id !== undefined && id !== null);
+      console.log(`[DOCENTE EDIT EVAL] studentId for deleteMany: ${req.body.studentId}`);
+      console.log(`[DOCENTE EDIT EVAL] preguntaIdsToUpdate for deleteMany: ${JSON.stringify(preguntaIdsToUpdate)}`);
+      if (preguntaIdsToUpdate.length > 0) {
+        await tx.respuestaAlumno.deleteMany({
+          where: {
+            alumnoId: parsedStudentId,
+            preguntaId: { in: preguntaIdsToUpdate },
+          },
+        });
+      }
+
+      // 4. Guardar las nuevas respuestas del docente
+      const newStudentResponses = [];
+      for (const respuesta of respuestas) {
+        const { questionId, answerId } = respuesta;
+        if (!evaluation || !evaluation.Pregunta) {
+          console.error(`[DOCENTE EDIT EVAL] Evaluation o evaluation.Pregunta es indefinido. Evaluation Assignment ID: ${asignacionId}`);
+          return res.status(500).json({ message: 'Error: Evaluación o preguntas de la evaluación no encontradas.' });
+        }
+        const pregunta = evaluation.Pregunta.find(p => p.id === questionId);
+
+        if (!pregunta) {
+          console.warn(`[DOCENTE EDIT EVAL] Pregunta con ID ${questionId} no encontrada en la evaluación.`);
+          continue;
+        }
+
+        const opcion = pregunta.Opcion.find(o => o.id === answerId);
+        if (!opcion) {
+          console.warn(`[DOCENTE EDIT EVAL] Opción con ID ${answerId} no encontrada para la pregunta ${questionId}.`);
+          continue;
+        }
+
+        newStudentResponses.push({
+          alumnoId: parsedStudentId,
+          preguntaId: questionId,
+          opcionElegidaId: answerId,
+        });
+      }
+
+      if (newStudentResponses.length > 0) {
+        console.log(`[DOCENTE EDIT EVAL] newStudentResponses for createMany: ${JSON.stringify(newStudentResponses)}`);
+        await tx.respuestaAlumno.createMany({
+          data: newStudentResponses,
+        });
+      }
+
+      // 5. Recalcular la calificación de la evaluación
+      const allStudentResponses = await tx.respuestaAlumno.findMany({
+        where: { alumnoId: parsedStudentId, Pregunta: { evaluacionId: evaluation.id } },
+        include: { Opcion: true },
+      });
+
+      let correctAnswersCount = 0;
+      for (const resAlumno of allStudentResponses) {
+        if (resAlumno.Opcion?.es_correcta) {
+          correctAnswersCount++;
+        }
+      }
+
+      const totalQuestions = evaluation.Pregunta.length;
+      const newScore = correctAnswersCount;
+
+      // 6. Actualizar la calificación en CalificacionEvaluacion
+      await tx.calificacionEvaluacion.upsert({
+        where: { evaluacionAsignacionId: asignacionId },
+        update: { puntos: newScore },
+        create: {
+          alumnoId,
+          evaluacionAsignacionId: asignacionId,
+          puntos: newScore,
+        },
+      });
+
+      // 7. Actualizar el estado de la asignación a 'REALIZADA' si aún no lo está (o mantenerlo)
+      await tx.evaluacionAsignacion.update({
+        where: { id: asignacionId },
+        data: { estado: 'REALIZADA' }, // Asegurar que el estado sea REALIZADA después de la edición
+      });
+
+      // 8. Actualizar Puntuacion general del alumno en la Catedra
+      // Necesitamos encontrar el registro de Puntuacion anterior para la evaluación y actualizarlo o crear uno nuevo.
+      // O, para simplificar y asegurar consistencia, eliminar el anterior y crear uno nuevo para esta evaluación.
+      await tx.puntuacion.deleteMany({
+        where: {
+          alumnoId: alumnoId,
+          catedraId: catedraId,
+          motivo: `Calificación de evaluación: ${evaluation.titulo}`,
+          tipo: 'EVALUACION',
+        },
+      });
+
+      await tx.puntuacion.create({
+        data: {
+          alumnoId,
+          catedraId: catedraId,
+          puntos: newScore,
+          motivo: `Calificación de evaluación: ${evaluation.titulo}`,
+          tipo: 'EVALUACION',
+        },
+      });
+
+      res.status(200).json({ message: 'Evaluación del alumno actualizada exitosamente por el docente.', score: newScore, correctAnswersCount, totalQuestions });
+    });
+
+  } catch (error) {
+    console.error('[DOCENTE EDIT EVAL] Error updating student evaluation:', error);
+    res.status(500).json({ error: 'Error al actualizar la evaluación del alumno', details: error.message });
+  }
+});
+
 
 module.exports = { router, setPrismaClient, setTransporter };

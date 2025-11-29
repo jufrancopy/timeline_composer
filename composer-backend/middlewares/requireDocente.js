@@ -17,14 +17,15 @@ const requireDocente = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('[requireDocente] Decoded token:', decoded);
+    console.log('[requireDocente] Decoded token structure:', JSON.stringify(decoded, null, 2)); // ← Esto muestra toda la estructura
 
     if (decoded.role !== 'docente') {
       console.log('[requireDocente] Access denied: Role is not docente. Role:', decoded.role);
       return res.status(403).json({ message: 'Access denied: Not a docente' });
     }
-    req.docente = decoded; // Attach docente info to request
-    console.log('[requireDocente] req.docente set:', req.docente);
+    
+    req.docente = decoded;
+    console.log('[requireDocente] req.docente set with keys:', Object.keys(req.docente));
     next();
   } catch (error) {
     console.error('[requireDocente] Docente authentication error:', error);

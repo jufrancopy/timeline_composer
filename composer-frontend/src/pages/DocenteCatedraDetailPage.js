@@ -20,6 +20,8 @@ import { Tooltip as TooltipComponent } from 'react-tooltip';
 import { es } from 'date-fns/locale';
 import { Toaster, toast } from 'react-hot-toast';
 import UnifiedAttendanceSection from '../components/UnifiedAttendanceSection';
+import DocenteFinalGradesPage from './DocenteFinalGradesPage';
+import FinalGradesSection from '../components/FinalGradesSection';
 
 
 
@@ -39,7 +41,8 @@ import {
   DollarSign,
   MessageSquare,
   UserMinus,
-  ClipboardCheck
+  ClipboardCheck,
+  CalendarCheck, // Añadir el nuevo icono
 } from 'lucide-react';
 
 const DocenteCatedraDetailPage = () => {
@@ -145,6 +148,18 @@ const DocenteCatedraDetailPage = () => {
       toast.error("Error al cargar la asistencia anual.");
     }
   }, [id, currentYear]);
+
+  const handleUpdateDiaClaseTipo = async (diaClaseId, newTipoDia) => {
+    try {
+      await api.put(`/docente/catedra/${id}/diasClase/${diaClaseId}/tipo`, { tipoDia: newTipoDia });
+      toast.success('Tipo de día actualizado exitosamente!');
+      fetchDiasClase();
+      fetchAnnualAttendance();
+    } catch (error) {
+      console.error('Error al actualizar el tipo de día de clase:', error);
+      toast.error(error.response?.data?.error || 'Error al actualizar el tipo de día de clase.');
+    }
+  };
 
   const fetchPublicaciones = useCallback(async () => {
     try {
@@ -340,7 +355,7 @@ const DocenteCatedraDetailPage = () => {
     switch (status) {
       case 'ASIGNADA':
         colorClass = 'bg-orange-600/20 text-orange-300 border-orange-500/30';
-        statusText = 'Asignada';
+        statusText = 'Pendiente';
         break;
       case 'ENTREGADA':
         colorClass = 'bg-blue-600/20 text-blue-300 border-blue-500/30';
@@ -572,6 +587,67 @@ const DocenteCatedraDetailPage = () => {
   const handleBackToPlanes = () => {
     setSelectedPlanDeClases(null);
   };
+
+  const handleCheckAttendanceInRange = async (alumno) => {
+    const { value: formValues } = await Swal.fire({
+      title: `Verificar Asistencia de ${alumno.nombre}`,
+      html:
+        `<p class="text-slate-400 text-sm mb-4">Selecciona un rango de fechas.</p>` +
+        `<input id="swal-input-start" type="date" class="swal2-input">` +
+        `<input id="swal-input-end" type="date" class="swal2-input">`,
+      focusConfirm: false,
+      confirmButtonText: 'Verificar',
+      showCancelButton: true,
+      cancelButtonText: 'Cancelar',
+      preConfirm: () => {
+        return [
+          document.getElementById('swal-input-start').value,
+          document.getElementById('swal-input-end').value
+        ]
+      }
+    });
+
+    if (formValues) {
+      const [startDate, endDate] = formValues;
+      if (!startDate || !endDate) {
+        Swal.fire('Error', 'Debes seleccionar ambas fechas.', 'error');
+        return;
+      }
+
+      const loadingSwal = Swal.fire({
+        title: 'Calculando...',
+        text: 'Por favor, espera.',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      try {
+        const [asistenciasRes, diasClaseRes] = await Promise.all([
+          api.get(`/docente/catedra/${id}/alumno/${alumno.id}/asistencias?startDate=${startDate}&endDate=${endDate}`),
+          api.get(`/docente/catedra/${id}/diasClase?startDate=${startDate}&endDate=${endDate}`)
+        ]);
+
+        const clasesAsistidas = asistenciasRes.data.length;
+        const clasesTotales = diasClaseRes.data.length;
+        
+        loadingSwal.close(); // Cerrar el swal de carga
+
+        Swal.fire({
+          title: 'Resultado de Asistencia',
+          html: `El alumno asistió a <strong>${clasesAsistidas}</strong> de <strong>${clasesTotales}</strong> clases en el rango seleccionado.`,
+          icon: 'success'
+        });
+
+      } catch (error) {
+        loadingSwal.close(); // Cerrar el swal de carga
+        console.error('Error verificando asistencia:', error);
+        Swal.fire('Error', 'No se pudo verificar la asistencia. Inténtalo de nuevo.', 'error');
+      }
+    }
+  };
+
 
   // Extraer el ID del docente del token para usarlo en PublicacionCard
   const [currentDocenteId, setCurrentDocenteId] = useState(null);
@@ -821,9 +897,30 @@ const DocenteCatedraDetailPage = () => {
             onEditDiaClase={(diaClase) => openDiaClaseModal(diaClase)}
             onDeleteDiaClase={handleDeleteDiaClase}
             onOpenAttendanceModal={openAttendanceModal}
+            onUpdateDiaClaseTipo={handleUpdateDiaClaseTipo}
             scheduledClassDays={scheduledClassDays}
             recordedClassDates={recordedClassDates}
           />
+
+          {/* Sección de Calificaciones Finales */}
+          <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 p-6 border-b border-slate-700/50">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-600/20 rounded-lg">
+                    <ClipboardCheck className="text-purple-400" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-white">Calificaciones Finales</h3>
+                    <p className="text-slate-400">Gestiona las configuraciones y resultados de calificaciones finales</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <FinalGradesSection />
+            </div>
+          </div>
 
           {/* Sección de Alumnos */}
           <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden">
@@ -855,7 +952,8 @@ const DocenteCatedraDetailPage = () => {
                       <tr className="border-b border-slate-700/50">
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Estudiante</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Email</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Entregas</th>
+                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Tareas</th>
+                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Evaluaciones</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Estado de Pagos</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Acciones</th>
                       </tr>
@@ -914,6 +1012,68 @@ const DocenteCatedraDetailPage = () => {
                                 })()}
                               </div>
                             </td>
+                            <td className="py-4 px-4 text-slate-300">
+                              <div className="flex flex-wrap gap-2">
+                                {(() => {
+                                  const alumnoEvaluaciones = inscripcion.Alumno?.EvaluacionAsignacion || [];
+                                  if (alumnoEvaluaciones.length === 0) {
+                                    return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-600/20 text-gray-300 border border-gray-500/30">No hay evaluaciones asignadas</span>;
+                                  }
+
+                                  return (
+                                    <div className="flex flex-col gap-2">
+                                      {alumnoEvaluaciones.map(evaluacionAsignacion => {
+                                        const estado = evaluacionAsignacion.estado;
+                                        let colorClass = '';
+                                        let statusText = '';
+                                        let actionButton = null;
+
+                                        switch (estado) {
+                                          case 'PENDIENTE':
+                                            colorClass = 'bg-yellow-600/20 text-yellow-300 border-yellow-500/30';
+                                            statusText = 'Pendiente';
+                                            break;
+                                          case 'REALIZADA':
+                                            colorClass = 'bg-blue-600/20 text-blue-300 border-blue-500/30';
+                                            statusText = 'Realizada';
+                                            break;
+                                          case 'CALIFICADA':
+                                            colorClass = 'bg-green-600/20 text-green-300 border-green-500/30';
+                                            statusText = 'Calificada';
+                                            break;
+                                          case 'VENCIDA':
+                                            colorClass = 'bg-red-600/20 text-red-300 border-red-500/30';
+                                            statusText = 'Vencida';
+                                            break;
+                                          default:
+                                            colorClass = 'bg-gray-600/20 text-gray-300 border-gray-500/30';
+                                            statusText = 'Desconocido';
+                                        }
+
+                                        return (
+                                          <div key={evaluacionAsignacion.id} className="flex items-center">
+                                            <span
+                                              className={`px-2.5 py-1 rounded-full text-xs font-medium ${colorClass}`}
+                                            >
+                                              {evaluacionAsignacion.Evaluacion?.titulo || 'Evaluación'} ({statusText})
+                                            </span>
+                                            {(estado === 'REALIZADA' || estado === 'CALIFICADA') && (
+                                              <Link
+                                                to={`/docente/catedra/${catedra.id}/alumnos/${studentIdentifier}/evaluaciones/${evaluacionAsignacion.evaluacionId}/results`}
+                                                className="ml-2 p-1 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-purple-200 rounded-lg transition-all duration-200 border border-purple-500/30"
+                                                title="Ver Resultados"
+                                              >
+                                                <Eye size={16} />
+                                              </Link>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            </td>
                             <td className="py-4 px-4">
                               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border ${getPaymentStatusColor(paymentStatus)}`}>
                                 <DollarSign size={14} />
@@ -929,6 +1089,20 @@ const DocenteCatedraDetailPage = () => {
                                 >
                                   <Eye size={16} />
                                 </Link>
+                                {/* El enlace a la página de calificaciones finales del alumno se elimina para integrar la funcionalidad en esta vista */}
+                                <button
+                                  onClick={() => {
+                                    const studentInfo = {
+                                      id: inscripcion.alumnoId || inscripcion.composerId,
+                                      nombre: inscripcion.Alumno ? `${inscripcion.Alumno.nombre} ${inscripcion.Alumno.apellido}` : `${inscripcion.Composer.student_first_name} ${inscripcion.Composer.student_last_name}`
+                                    };
+                                    handleCheckAttendanceInRange(studentInfo);
+                                  }}
+                                  className="p-2 bg-cyan-600/20 text-cyan-300 hover:bg-cyan-600/30 hover:text-cyan-200 rounded-lg transition-all duration-200 border border-cyan-500/30"
+                                  title="Verificar Asistencia en Rango"
+                                >
+                                  <CalendarCheck size={16} />
+                                </button>
                                 <button
                                   onClick={() => handleDesinscribir(inscripcion)}
                                   className="p-2 bg-red-600/20 text-red-300 hover:bg-red-600/30 hover:text-red-200 rounded-lg transition-all duration-200 border border-red-500/30"

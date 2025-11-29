@@ -40,6 +40,7 @@ const AlumnoLoginPage = ({ onLogin }) => {
     try {
       const response = await api.verifyOtp(email, otp);
       localStorage.setItem('userToken', response.data.token); // Store as 'userToken' for students
+      console.log('Alumno Token Received:', response.data.token); // Log the token
       onLogin(); // Notify the parent component
       toast.success('¡Sesión iniciada con éxito!');
       navigate('/alumnos/dashboard'); // Redirect to student dashboard
@@ -63,7 +64,7 @@ const AlumnoLoginPage = ({ onLogin }) => {
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
           {/* Header section */}
           <div className="bg-gradient-to-r from-emerald-500/20 to-lime-500/20 p-8 pb-6">
-            <img src={logo} alt="Logo EduPlatForm" className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-lime-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-105 transition-transform duration-300" />
+            <img src={logo} alt="Logo EduPlatForm" className="w-32 h-32 bg-gradient-to-br from-emerald-400 to-lime-400 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-105 transition-transform duration-300 p-2" />
             <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-emerald-200 to-lime-200 bg-clip-text text-transparent">
               Acceso de Alumno
             </h2>

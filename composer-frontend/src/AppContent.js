@@ -26,8 +26,12 @@ import DocenteTareaPage from './pages/DocenteTareaPage';
 import DocenteEvaluationPage from './pages/DocenteEvaluationPage';
 import DocenteGenerateEvaluationPage from './pages/DocenteGenerateEvaluationPage';
 import DocenteEvaluationResultsPage from './pages/DocenteEvaluationResultsPage';
-import AlumnoTareaDetailPage from './pages/AlumnoTareaDetailPage';
 import AlumnoEvaluationResultsPage from './pages/AlumnoEvaluationResultsPage';
+import AlumnoTareaDetailPage from './pages/AlumnoTareaDetailPage';
+import DocenteRealizarEvaluacionPage from './pages/DocenteRealizarEvaluacionPage';
+import DocenteEditEvaluationPage from './pages/DocenteEditEvaluationPage';
+import DocenteFinalGradesPage from './pages/DocenteFinalGradesPage'; // Importar la nueva página
+
 import Footer from './components/Footer';
 import Header from './components/Header';
 import PrivateRoute from './components/PrivateRoute';
@@ -36,6 +40,8 @@ import AddComposerForm from './components/AddComposerForm';
 import SuggestedComposerFloating from './components/SuggestedComposerFloating';
 import ComposerDetailPage from './pages/ComposerDetailPage';
 import TemarioPage from './pages/TemarioPage';
+import CatedrasList from './components/CatedrasList';
+import PublicCatedraView from './components/PublicCatedraView';
 
 function AppContent() {
   const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem('adminToken'));
@@ -78,71 +84,73 @@ function AppContent() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contribute" element={<AddComposerForm />} />
           <Route path="/temario" element={<TemarioPage />} />
+          <Route path="/public/catedras" element={<CatedrasList />} />
+          <Route path="/public/catedras/:id" element={<PublicCatedraView />} />
           <Route path="/composers/show/:id" element={<ComposerDetailPage />} />
           <Route path="/admin/login" element={<AdminLoginPage onLogin={handleAdminLogin} />} />
           <Route path="/docente/login" element={<DocenteLoginPage onLogin={handleDocenteLogin} />} />
           <Route path="/alumno/login" element={<AlumnoLoginPage onLogin={handleStudentLogin} />} />
 
-          <Route 
-            path="/alumnos/dashboard" 
+          <Route
+            path="/alumnos/dashboard"
             element={
               <PrivateRoute>
                 <AlumnoDashboardPage />
               </PrivateRoute>
-            } 
+            }
           />
 
-          
+
           {/* Rutas de Administrador Protegidas */}
-          <Route 
-            path="/admin/dashboard" 
-            element={isAdmin ? <AdminDashboardPage handleLogout={handleLogout} /> : <Navigate to="/admin/login" />} 
+          <Route
+            path="/admin/dashboard"
+            element={isAdmin ? <AdminDashboardPage handleLogout={handleLogout} /> : <Navigate to="/admin/login" />}
           />
-          <Route 
-            path="/admin/catedras" 
-            element={isAdmin ? <CatedrasPage /> : <Navigate to="/admin/login" />} 
+          <Route
+            path="/admin/catedras"
+            element={isAdmin ? <CatedrasPage /> : <Navigate to="/admin/login" />}
           />
-          <Route 
-            path="/admin/catedras/:id" 
-            element={isAdmin ? <CatedraDetailPage /> : <Navigate to="/admin/login" />} 
+          <Route
+            path="/admin/catedras/:id"
+            element={isAdmin ? <CatedraDetailPage /> : <Navigate to="/admin/login" />}
           />
-          <Route 
-            path="/admin/alumnos" 
-            element={isAdmin ? <AlumnosPage /> : <Navigate to="/admin/login" />} 
+          <Route
+            path="/admin/alumnos"
+            element={isAdmin ? <AlumnosPage /> : <Navigate to="/admin/login" />}
           />
-          <Route 
-            path="/admin/docentes" 
-            element={isAdmin ? <DocentesPage /> : <Navigate to="/admin/login" />} 
+          <Route
+            path="/admin/docentes"
+            element={isAdmin ? <DocentesPage /> : <Navigate to="/admin/login" />}
           />
-          <Route 
-            path="/admin/catedras/:catedraId/evaluations/create" 
-            element={isAdmin ? <AdminEvaluationPage /> : <Navigate to="/admin/login" />} 
+          <Route
+            path="/admin/catedras/:catedraId/evaluations/create"
+            element={isAdmin ? <AdminEvaluationPage /> : <Navigate to="/admin/login" />}
           />
 
           {/* Rutas de Docente Protegidas */}
-          <Route 
-            path="/docente/dashboard" 
+          <Route
+            path="/docente/dashboard"
             element={
               <DocentePrivateRoute>
                 <DocenteDashboardPage />
               </DocentePrivateRoute>
-            } 
+            }
           />
-          <Route 
-            path="/docente/catedra/:id" 
+          <Route
+            path="/docente/catedra/:id"
             element={
               <DocentePrivateRoute>
                 <DocenteCatedraDetailPage />
               </DocentePrivateRoute>
-            } 
+            }
           />
-          <Route 
-            path="/docente/catedra/:catedraId/alumno/:alumnoId" 
+          <Route
+            path="/docente/catedra/:catedraId/alumno/:alumnoId"
             element={
               <DocentePrivateRoute>
                 <DocenteAlumnoTareasPage />
               </DocentePrivateRoute>
-            } 
+            }
           />
           <Route
             path="/docente/catedra/:catedraId/tareas/create"
@@ -152,13 +160,13 @@ function AppContent() {
               </DocentePrivateRoute>
             }
           />
-          <Route 
+          <Route
             path="/docente/catedra/:catedraId/generate-evaluation"
             element={
               <DocentePrivateRoute>
                 <DocenteGenerateEvaluationPage />
               </DocentePrivateRoute>
-            } 
+            }
           />
           <Route
             path="/docente/catedra/:catedraId/evaluations/create"
@@ -172,7 +180,7 @@ function AppContent() {
             path="/docente/catedra/:catedraId/evaluation/:evaluationId"
             element={
               <DocentePrivateRoute>
-                <DocenteEvaluationPage />
+                <DocenteEditEvaluationPage />
               </DocentePrivateRoute>
             }
           />
@@ -185,47 +193,53 @@ function AppContent() {
             }
           />
           <Route
-            path="/alumno/tarea/:tareaAsignacionId"
+            path="/docente/catedra/:catedraId/alumno/:alumnoId/realizar-evaluacion/:evaluationId"
             element={
-              <PrivateRoute>
-                <AlumnoTareaDetailPage />
-              </PrivateRoute>
+              <DocentePrivateRoute>
+                <DocenteRealizarEvaluacionPage />
+              </DocentePrivateRoute>
             }
           />
+          
+          <Route
+            path="/docente/catedra/:catedraId/alumno/:alumnoId/editar-evaluacion/:asignacionId"
+            element={<DocenteEditEvaluationPage />}
+          />
+
           <Route path="/gamification" element={<GamificationPage />} />
 
           {/* Rutas de Alumno Protegidas */}
-          <Route 
-            path="/my-evaluations" 
+          <Route
+            path="/my-evaluations"
             element={
               <PrivateRoute>
                 <MyEvaluationsPage />
               </PrivateRoute>
-            } 
+            }
           />
-          <Route 
-            path="/evaluacion/:evaluationId" 
+          <Route
+            path="/evaluacion/:evaluationId"
             element={
               <PrivateRoute>
                 <RealizarEvaluacionPage />
               </PrivateRoute>
-            } 
+            }
           />
-          <Route 
-            path="/alumno/catedra/:catedraId" 
+          <Route
+            path="/alumno/catedra/:catedraId"
             element={
               <PrivateRoute>
                 <AlumnoCatedraDetailPage />
               </PrivateRoute>
-            } 
+            }
           />
-          <Route 
-            path="/alumno/catedra/:catedraId/evaluacion/:evaluationId/results" 
+          <Route
+            path="/alumno/catedra/:catedraId/evaluacion/:evaluationId/results"
             element={
               <PrivateRoute>
                 <AlumnoEvaluationResultsPage />
               </PrivateRoute>
-            } 
+            }
           />
         </Routes>
       </main>

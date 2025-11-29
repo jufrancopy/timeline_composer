@@ -104,6 +104,12 @@ function DocenteEvaluationResultsPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-center">
               {results.evaluationTitle}
             </h1>
+            <button
+              onClick={() => navigate(`/docente/catedra/${catedraId}/alumno/${alumnoId}/editar-evaluacion/${results.evaluationAssignment.id}`)}
+              className="ml-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
+            >
+              Editar Evaluación
+            </button>
           </div>
           <p className="text-center text-gray-300 mb-4">
             Alumno: {results.alumnoNombre} {results.alumnoApellido}

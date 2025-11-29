@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Calendar, Clock, Users, TrendingUp, CheckCircle, XCircle, Plus, Edit3, Trash2, ClipboardCheck, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, Users, TrendingUp, CheckCircle, XCircle, Plus, Edit3, Trash2, ClipboardCheck, ChevronDown, ChevronUp, BarChart3, CloudRain, Sun, Umbrella, CalendarX } from 'lucide-react';
+import TipoDiaClaseModal from './TipoDiaClaseModal';
 
 const UnifiedAttendanceSection = ({ 
   diasClase = [],
@@ -10,12 +11,76 @@ const UnifiedAttendanceSection = ({
   onEditDiaClase,
   onDeleteDiaClase,
   onOpenAttendanceModal,
+  onUpdateDiaClaseTipo,
   scheduledClassDays = [],
-  recordedClassDates = []
-}) => {
-  const [viewMode, setViewMode] = useState('list'); // 'list', 'calendar', 'stats'
+  recordedClassDates = []}) => {
+  const [viewMode, setViewMode] = useState('list');
   const [expandedDays, setExpandedDays] = useState(new Set());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [showTipoDiaModal, setShowTipoDiaModal] = useState(false);
+  const [selectedDiaClaseForTipo, setSelectedDiaClaseForTipo] = useState(null);
+
+      // Función para parsear fechas ISO ignorando zona horaria
+  const parseISODate = (isoString) => {
+    // Extraer año, mes, día directamente del string (evitar new Date(isoString) que aplica zona horaria)
+    const datePart = String(isoString || '').split('T')[0]; // => 'YYYY-MM-DD'
+    const parts = datePart.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Mes es 0-indexed
+    const day = parseInt(parts[2], 10);
+    // dateLocal: fecha construida en medianoche local (evita desplazamientos)
+    const dateLocal = new Date(year, month, day);
+    // isoDate: cadena segura para <input type="date" value="YYYY-MM-DD" />
+    const isoDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return { year, month, day, date: dateLocal, isoDate };
+  };
+
+  const formatDate = (dateString) => {
+    const { date } = parseISODate(dateString);
+    return date.toLocaleDateString('es-ES', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  const getTipoDiaIcon = (tipoDia) => {
+    switch (tipoDia) {
+      case 'FERIADO': return <Sun size={12} className="text-yellow-400" />;
+      case 'ASUETO': return <Umbrella size={12} className="text-blue-400" />;
+      case 'LLUVIA': return <CloudRain size={12} className="text-slate-400" />;
+      default: return null;
+    }
+  };
+
+  const getTipoDiaLabel = (tipoDia) => {
+    switch (tipoDia) {
+      case 'NORMAL': return 'Normal';
+      case 'FERIADO': return 'Feriado';
+      case 'ASUETO': return 'Asueto';
+      case 'LLUVIA': return 'Lluvia';
+      default: return 'Normal';
+    }
+  };
+
+  const getTipoDiaClasses = (tipoDia) => {
+    switch (tipoDia) {
+      case 'FERIADO': return 'from-yellow-600/20 to-yellow-700/10 border-yellow-500/30';
+      case 'ASUETO': return 'from-blue-600/20 to-blue-700/10 border-blue-500/30';
+      case 'LLUVIA': return 'from-slate-600/20 to-slate-700/10 border-slate-500/30';
+      default: return 'from-blue-600/20 to-purple-600/20 border-blue-500/30';
+    }
+  };
+
+  const getTipoDiaSpanClasses = (tipoDia) => {
+    switch (tipoDia) {
+      case 'FERIADO': return 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30';
+      case 'ASUETO': return 'bg-blue-600/20 text-blue-300 border border-blue-500/30';
+      case 'LLUVIA': return 'bg-slate-600/20 text-slate-300 border border-slate-500/30';
+      default: return 'bg-purple-600/20 text-purple-300 border border-purple-500/30'; // Default (NORMAL)
+    }
+  };
 
   // Calcular estadísticas
   const calculateStats = () => {
@@ -41,7 +106,7 @@ const UnifiedAttendanceSection = ({
     }));
 
     annualAttendanceData.forEach(dia => {
-      const month = new Date(dia.fecha).getMonth();
+      const { month } = parseISODate(dia.fecha);
       monthlyData[month].classes++;
       dia.asistencias.forEach(a => {
         if (a.presente) monthlyData[month].present++;
@@ -70,59 +135,73 @@ const UnifiedAttendanceSection = ({
     return months[monthIndex];
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-    const correctedDate = new Date(date.getTime() + userTimezoneOffset);
-    return correctedDate.toLocaleDateString('es-ES', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
   // Filtrar días por mes seleccionado
   const filteredDays = viewMode === 'list' && selectedMonth !== null
-    ? annualAttendanceData.filter(dia => new Date(dia.fecha).getMonth() === selectedMonth)
+    ? annualAttendanceData.filter(dia => {
+        const { month } = parseISODate(dia.fecha);
+        return month === selectedMonth;
+      })
     : annualAttendanceData;
 
   // Renderizar calendario simple
   const renderSimpleCalendar = () => {
     const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYearNum = today.getFullYear();
-    const firstDay = new Date(currentYearNum, currentMonth, 1);
-    const lastDay = new Date(currentYearNum, currentMonth + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
+    const currentMonth = selectedMonth ?? today.getMonth();
+    const currentYearNum = currentYear;
+    const firstDayOfMonth = new Date(currentYearNum, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYearNum, currentMonth + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const startingDayOfWeek = firstDayOfMonth.getDay();
+
+    // Convertir scheduledClassDays a formato Date.getDay() (0-6)
+    const scheduledDaysAsNumbers = new Set(scheduledClassDays.map(dayStr => {
+      const dayNum = parseInt(dayStr, 10);
+      if (dayNum === 7) return 0; // Domingo
+      return dayNum;
+    }));
 
     const days = [];
+    // Días vacíos al inicio del mes
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(<div key={`empty-${i}`} className="h-16 bg-slate-800/20 rounded-lg"></div>);
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(currentYearNum, currentMonth, day);
       const dateStr = `${currentYearNum}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const hasClass = recordedClassDates.includes(dateStr);
-      const isToday = day === today.getDate();
+      const dayOfWeek = date.getDay();
+
+      const hasRecordedClass = recordedClassDates.includes(dateStr);
+      const isScheduledDay = scheduledDaysAsNumbers.has(dayOfWeek);
+      const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYearNum === today.getFullYear();
+      
+      let dayClasses = 'border-slate-700/50 bg-slate-800/20';
+      let textClasses = 'text-slate-400';
+
+      if (isToday) {
+        dayClasses = 'border-purple-500 bg-purple-500/10';
+        textClasses = 'text-purple-300';
+      } else if (hasRecordedClass) {
+        dayClasses = 'border-green-500/50 bg-green-500/10';
+        textClasses = 'text-green-300';
+      } else if (isScheduledDay) {
+        dayClasses = 'border-blue-500/50 bg-blue-500/10';
+        textClasses = 'text-blue-300';
+      }
       
       days.push(
         <div 
           key={day} 
-          className={`h-16 rounded-lg border transition-all ${
-            isToday 
-              ? 'border-purple-500 bg-purple-500/10' 
-              : hasClass 
-                ? 'border-green-500/50 bg-green-500/10' 
-                : 'border-slate-700/50 bg-slate-800/20'
-          } flex flex-col items-center justify-center p-2 hover:scale-105 cursor-pointer`}
+          className={`h-16 rounded-lg border transition-all ${dayClasses} flex flex-col items-center justify-center p-2 hover:scale-105 cursor-pointer`}
         >
-          <span className={`text-sm font-semibold ${isToday ? 'text-purple-300' : hasClass ? 'text-green-300' : 'text-slate-400'}`}>
+          <span className={`text-sm font-semibold ${textClasses}`}>
             {day}
           </span>
-          {hasClass && (
+          {hasRecordedClass && (
             <div className="w-1.5 h-1.5 bg-green-400 rounded-full mt-1"></div>
+          )}
+          {!hasRecordedClass && isScheduledDay && (
+             <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1"></div>
           )}
         </div>
       );
@@ -143,7 +222,11 @@ const UnifiedAttendanceSection = ({
         <div className="flex items-center gap-4 justify-center mt-4 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-500/30 border border-green-500/50 rounded"></div>
-            <span className="text-slate-400">Clases registradas</span>
+            <span className="text-slate-400">Clase Registrada</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-blue-500/30 border border-blue-500/50 rounded"></div>
+            <span className="text-slate-400">Clase Programada</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-purple-500/30 border border-purple-500 rounded"></div>
@@ -181,6 +264,19 @@ const UnifiedAttendanceSection = ({
                 return <option key={yearOption} value={yearOption}>{yearOption}</option>;
               })}
             </select>
+
+            {/* Selector de mes para el calendario */}
+            {viewMode === 'calendar' && (
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                className="bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500 ml-2"
+              >
+                {Array(12).fill(0).map((_, i) => (
+                  <option key={i} value={i}>{getMonthName(i)}</option>
+                ))}
+              </select>
+            )}
 
             {/* Toggle de vista */}
             <div className="flex bg-slate-700/50 rounded-lg p-1">
@@ -264,6 +360,7 @@ const UnifiedAttendanceSection = ({
                 const presentCount = dia.asistencias.filter(a => a.presente).length;
                 const totalCount = dia.asistencias.length;
                 const attendancePercentage = totalCount > 0 ? (presentCount / totalCount) * 100 : 0;
+                const { year, month, day } = parseISODate(dia.fecha);
 
                 return (
                   <div 
@@ -277,18 +374,22 @@ const UnifiedAttendanceSection = ({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
-                          <div className="flex flex-col items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600/20 to-purple-600/20 rounded-lg border border-blue-500/30">
+                          <div className={`flex flex-col items-center justify-center w-16 h-16 bg-gradient-to-br ${getTipoDiaClasses(dia.tipoDia || 'NORMAL')} rounded-lg border`}>
                             <span className="text-2xl font-bold text-white">
-                              {new Date(dia.fecha).getDate()}
+                              {day}
                             </span>
                             <span className="text-xs text-slate-400">
-                              {getMonthName(new Date(dia.fecha).getMonth()).substring(0, 3)}
+                              {getMonthName(month).substring(0, 3)}
                             </span>
                           </div>
                           
                           <div className="flex-1">
                             <h4 className="text-lg font-semibold text-white mb-1">
-                              {formatDate(dia.fecha)}
+                              {formatDate(dia.fecha)} {dia.tipoDia && dia.tipoDia !== 'NORMAL' && (
+                                <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getTipoDiaSpanClasses(dia.tipoDia)}`}>
+                                  {getTipoDiaIcon(dia.tipoDia)} {getTipoDiaLabel(dia.tipoDia)}
+                                </span>
+                              )}
                             </h4>
                             <div className="flex flex-wrap items-center gap-3">
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-600/20 text-indigo-300 rounded-full text-xs border border-indigo-500/30">
@@ -318,7 +419,9 @@ const UnifiedAttendanceSection = ({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onEditDiaClase(dia);
+                              // pasar isoDate para evitar desplazamientos por zona horaria
+                              const isoDate = parseISODate(dia.fecha).isoDate;
+                              onEditDiaClase({ ...dia, isoDate });
                             }}
                             className="p-2 bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/30 hover:text-yellow-200 rounded-lg transition-all duration-200 border border-yellow-500/30"
                             title="Editar"
@@ -334,6 +437,17 @@ const UnifiedAttendanceSection = ({
                             title="Eliminar"
                           >
                             <Trash2 size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDiaClaseForTipo(dia);
+                              setShowTipoDiaModal(true);
+                            }}
+                            className="p-2 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-purple-200 rounded-lg transition-all duration-200 border border-purple-500/30"
+                            title="Marcar tipo de día"
+                          >
+                            <CalendarX size={16} />
                           </button>
                           <button
                             onClick={(e) => {
@@ -470,6 +584,13 @@ const UnifiedAttendanceSection = ({
           </div>
         )}
       </div>
+
+      <TipoDiaClaseModal
+        isOpen={showTipoDiaModal}
+        onClose={() => setShowTipoDiaModal(false)}
+        diaClase={selectedDiaClaseForTipo}
+        onSave={onUpdateDiaClaseTipo}
+      />
     </div>
   );
 };

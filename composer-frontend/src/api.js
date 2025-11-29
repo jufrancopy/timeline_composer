@@ -27,8 +27,15 @@ apiClient.interceptors.response.use(
       localStorage.removeItem('adminToken');
       localStorage.removeItem('userToken');
       localStorage.removeItem('token');
-      // Optionally, redirect to login page
-      // window.location.href = '/login'; 
+      if (localStorage.getItem('adminToken')) {
+        window.location.href = '/admin-login';
+      } else if (localStorage.getItem('docenteToken')) {
+        window.location.href = '/docente-login';
+      } else if (localStorage.getItem('userToken')) {
+        window.location.href = '/alumno-login';
+      } else {
+        window.location.href = '/login'; // Default login page
+      }
     }
     return Promise.reject(error);
   }
@@ -36,6 +43,12 @@ apiClient.interceptors.response.use(
 
 // ==== Endpoints para Alumnos ====
 const api = {
+  get: (...args) => apiClient.get(...args),
+  post: (...args) => apiClient.post(...args),
+  put: (...args) => apiClient.put(...args),
+  delete: (...args) => apiClient.delete(...args),
+  submitEvaluationManuallyByDocente: (catedraId, alumnoId, evaluationId, selectedAnswers) => apiClient.post(`/docente/catedra/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluationId}/manual-submit`, { selectedAnswers }),
+
   // ==== Endpoints para Alumnos ====
   getAlumnos: () => apiClient.get('/admin/alumnos'),
   getEnrollmentCandidates: () => apiClient.get('/admin/enrollment-candidates'), //CRUSH
@@ -104,11 +117,23 @@ const api = {
   submitEvaluation: (evaluationId, data) => apiClient.post(`/alumnos/me/evaluaciones/${evaluationId}/submit`, data),
   getAlumnoEvaluationResults: (catedraId, evaluationId) => apiClient.get(`/alumnos/me/catedra/${catedraId}/evaluaciones/${evaluationId}/results`),
 
+  // NUEVO ENDPOINT - Obtener Calificación Final del Alumno
+  getAlumnoFinalGrade: (catedraId) => apiClient.get(`/alumnos/me/catedra/${catedraId}/calificacionFinal`),
+
   // ==== NUEVO ENDPOINT - Resultados de evaluación de alumno para docente ===
   getDocenteEvaluationResults: (catedraId, alumnoId, evaluationId) => apiClient.get(`/docente/catedras/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluationId}/results`),
   gradeEvaluation: (catedraId, alumnoId, evaluationAssignmentId, data) => apiClient.put(`/docente/catedras/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluationAssignmentId}/grade`, data),
+  getAlumnoResponsesForEvaluation: (catedraId, alumnoId, evaluationId) => apiClient.get(`/docente/catedra/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluationId}/responses`),
+  
+  updateAlumnoEvaluationAnswers: (asignacionId, studentId, respuestas) => 
+  apiClient.put(`/docente/evaluaciones/asignacion/${asignacionId}/respuestas`, { studentId, respuestas }),
+
+  // NUEVO ENDPOINT - Resultados de evaluación por asignacionId para docente
+  getDocenteEvaluationResultsByAssignmentId: (asignacionId) => apiClient.get(`/docente/evaluaciones/asignacion/${asignacionId}/results`),
 
   // ==== Endpoints para Publicaciones (Tablón) ====
+  fetchPublicCatedras: () => apiClient.get('/public/catedras'),
+  fetchPublicCatedraById: (id) => apiClient.get(`/public/catedras/${id}`),
   getPublicaciones: (catedraId) => apiClient.get(`/publicaciones/catedra/${catedraId}`),
   getMyPublicaciones: () => apiClient.get('/alumnos/me/publicaciones'),
   createPublicacion: (catedraId, data) => apiClient.post(`/catedras/${catedraId}/publicaciones`, data),
@@ -161,15 +186,15 @@ const api = {
   // ==== Endpoints para Docentes (Evaluaciones) ====
   getDocenteEvaluacionesMaestras: (catedraId) => apiClient.get(`/docente/catedra/${catedraId}/evaluaciones-maestras`),
   generateDocenteEvaluation: (catedraId, data) => apiClient.post(`/docente/catedra/${catedraId}/generate-evaluation`, data),
-  updateDocenteEvaluation: (evaluationId, data) => apiClient.put(`/docente/evaluaciones/${evaluationId}`, data),
+
   getEvaluationDetailForDocente: (evaluationId) => apiClient.get(`/docente/evaluaciones/${evaluationId}`),
   assignEvaluationToAlumnos: (catedraId, evaluationId, data) => apiClient.post(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}/assign`, data),
   getAssignedEvaluationStudents: (catedraId, evaluationId) => apiClient.get(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}/assignments`),
-  getDocenteEvaluationById: (evaluationId) => apiClient.get(`/docente/evaluaciones/${evaluationId}`),
-  updateDocenteEvaluation: (evaluationId, data) => apiClient.put(`/docente/evaluaciones/${evaluationId}`, data),
+
   deleteDocenteEvaluation: (catedraId, evaluationId) => apiClient.delete(`/docente/catedra/${catedraId}/evaluaciones/${evaluationId}`),
   //Edición de preguntas de evaluación
   updateEvaluationQuestions: (evaluationId, data) => apiClient.put(`/docente/evaluaciones/${evaluationId}/preguntas`, data),
+  updateDocenteEvaluation: (evaluationId, data) => apiClient.put(`/docente/evaluaciones/${evaluationId}`, data),
 
   // ==== NUEVO ENDPOINT - Detalles completos de evaluación para docente ====
   getEvaluationDetail: (evaluationId) => apiClient.get(`/docente/evaluaciones/${evaluationId}`),

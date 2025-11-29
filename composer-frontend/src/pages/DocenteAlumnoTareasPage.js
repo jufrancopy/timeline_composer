@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../api';
 import Swal from 'sweetalert2';
 import Modal from '../components/Modal';
+import { Eye, Edit3 } from 'lucide-react';
+
 
 // ============================================
 // COMPONENTES AUXILIARES
@@ -68,7 +70,7 @@ const StatusBadge = React.memo(({ estado, puntosObtenidos, puntosPosibles }) => 
   };
 
   const badge = badges[estado] || badges.ASIGNADA;
-  
+
   return (
     <span className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-full ${badge.bg} ${badge.text} shadow-lg`}>
       <span>{badge.icon}</span>
@@ -89,22 +91,22 @@ const getAttachmentInfo = (paths, baseUrl) => {
     let correctedPath = path.startsWith('/uploads/') ? path : `/uploads/${path}`;
 
 
-    
+
     const fullUrl = `${baseUrl}${correctedPath}`;
     const extension = correctedPath.split('.').pop().toLowerCase();
     const filename = correctedPath.split('/').pop();
-    
+
     const fileTypeMap = {
       png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image',
       pdf: 'pdf',
       doc: 'word', docx: 'word',
       ppt: 'powerpoint', pptx: 'powerpoint'
     };
-    
-    return { 
-      url: fullUrl, 
-      fileType: fileTypeMap[extension] || 'other', 
-      filename 
+
+    return {
+      url: fullUrl,
+      fileType: fileTypeMap[extension] || 'other',
+      filename
     };
   };
 
@@ -139,6 +141,7 @@ const formatDateTime = (dateString) => {
 // ============================================
 
 const EvaluacionCard = React.memo(({ evaluacion, catedraId, alumnoId }) => {
+  console.log("[Frontend] Objeto evaluación en EvaluacionCard:", evaluacion);
   return (
     <div className="group bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl p-6 rounded-2xl shadow-xl hover:shadow-2xl border border-white/10">
       <div className="flex justify-between items-start mb-4">
@@ -154,34 +157,42 @@ const EvaluacionCard = React.memo(({ evaluacion, catedraId, alumnoId }) => {
             {formatDate(evaluacion.created_at)}
           </p>
         </div>
-        <span className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap shadow-lg ${
-          (evaluacion.estado === 'CALIFICADA' || evaluacion.estado === 'REALIZADA') 
-            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' 
+        <span className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap shadow-lg ${(evaluacion.estado === 'CALIFICADA' || evaluacion.estado === 'REALIZADA')
+            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
             : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white'
-        }`}>
-          {(evaluacion.estado === 'CALIFICADA' || evaluacion.estado === 'REALIZADA') 
-            ? (evaluacion.puntos_obtenidos !== null && evaluacion.total_preguntas > 0 
-                ? `✓ ${((evaluacion.puntos_obtenidos / evaluacion.total_preguntas) * 100).toFixed(0)}%` 
-                : '✓ N/A%') 
+          }`}>
+          {(evaluacion.estado === 'CALIFICADA' || evaluacion.estado === 'REALIZADA')
+            ? (evaluacion.puntos_obtenidos !== null && evaluacion.total_preguntas > 0
+              ? `✓ ${((evaluacion.puntos_obtenidos / evaluacion.total_preguntas) * 100).toFixed(0)}%`
+              : '✓ N/A%')
             : '⏳ Pendiente'}
         </span>
       </div>
-      
+
       <div className="border-t border-white/10 pt-4 flex justify-end">
         {(evaluacion.estado === 'CALIFICADA' || evaluacion.estado === 'REALIZADA') ? (
-          <Link 
-            to={`/docente/catedra/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluacion.id}/results`} 
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
-          >
-            <span>Ver Resultados</span>
-            <span className="group-hover:translate-x-1 transition-transform">→</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/docente/catedra/${catedraId}/alumnos/${alumnoId}/evaluaciones/${evaluacion.id}/results`}
+              className="p-2 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-500/30"
+              title="Ver Resultados"
+            >
+              <Eye size={20} />
+            </Link>
+            <Link
+              to={`/docente/catedra/${catedraId}/alumno/${alumnoId}/editar-evaluacion/${evaluacion.asignacion_id || evaluacion.evaluacionAsignacionId}`}
+              className="p-2 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-purple-200 rounded-lg transition-all duration-200 border border-purple-500/30"
+              title="Editar Evaluación"
+            >
+              <Edit3 size={20} />
+            </Link>
+          </div>
         ) : (
-          <Link 
-            to={`/realizar-evaluacion/${evaluacion.id}`} 
+          <Link
+            to={`/docente/catedra/${catedraId}/alumno/${alumnoId}/realizar-evaluacion/${evaluacion.id}`}
             className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
           >
-            <span>Realizar Evaluación</span>
+            <span>Realizar Evaluación Manual</span>
             <span className="group-hover:translate-x-1 transition-transform">→</span>
           </Link>
         )}
@@ -190,14 +201,14 @@ const EvaluacionCard = React.memo(({ evaluacion, catedraId, alumnoId }) => {
   );
 });
 
-const TareaCard = React.memo(({ 
-  tarea, 
-  calificacion, 
-  onCalificacionChange, 
-  onCalificar, 
-  guardando, 
+const TareaCard = React.memo(({
+  tarea,
+  calificacion,
+  onCalificacionChange,
+  onCalificar,
+  guardando,
   openAttachmentModal,
-  STATIC_ASSET_BASE_URL 
+  STATIC_ASSET_BASE_URL
 }) => {
   const attachments = getAttachmentInfo(tarea.submission_path, STATIC_ASSET_BASE_URL);
   const esCalificada = tarea.estado === 'CALIFICADA';
@@ -226,10 +237,10 @@ const TareaCard = React.memo(({
               </div>
             </div>
           </div>
-          <StatusBadge 
-            estado={tarea.estado} 
-            puntosObtenidos={tarea.puntos_obtenidos} 
-            puntosPosibles={tarea.puntos_posibles} 
+          <StatusBadge
+            estado={tarea.estado}
+            puntosObtenidos={tarea.puntos_obtenidos}
+            puntosPosibles={tarea.puntos_posibles}
           />
         </div>
 
@@ -261,14 +272,14 @@ const TareaCard = React.memo(({
                 </div>
                 <h4 className="font-bold text-xl text-white">Entrega del Alumno</h4>
               </div>
-              
+
               <div className="bg-gradient-to-br from-blue-600/10 to-cyan-600/10 p-4 rounded-xl border border-blue-500/20">
                 <p className="text-sm text-gray-300 flex items-center gap-2">
                   <span className="text-blue-400">🕐</span>
                   {formatDateTime(tarea.submission_date)}
                 </p>
               </div>
-              
+
               <div className="bg-black/20 p-5 rounded-xl border border-white/10">
                 <p className="font-semibold mb-4 text-white flex items-center gap-2">
                   <span className="text-purple-400">📎</span>
@@ -277,15 +288,15 @@ const TareaCard = React.memo(({
                 {attachments.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {attachments.map((att, index) => att.url && (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className="relative group block w-full h-32 rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-white/10"
                         onClick={() => openAttachmentModal(att, attachments)}
                       >
                         {att.fileType === 'image' ? (
-                          <img 
-                            src={att.url} 
-                            alt={att.filename} 
+                          <img
+                            src={att.url}
+                            alt={att.filename}
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                           />
                         ) : (
@@ -313,7 +324,7 @@ const TareaCard = React.memo(({
                 </div>
                 <h4 className="font-bold text-xl text-white">Calificación</h4>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-bold text-gray-200 mb-3 flex items-center gap-2">
                   <span className="text-yellow-400">⭐</span>
@@ -321,8 +332,8 @@ const TareaCard = React.memo(({
                 </label>
                 {esCalificada ? (
                   <div className="text-2xl font-bold text-white bg-gradient-to-r from-green-600/30 to-emerald-600/30 border-2 border-green-500/50 rounded-xl px-6 py-4 text-center shadow-lg">
-                    {tarea.puntos_obtenidos !== null 
-                      ? `${tarea.puntos_obtenidos} / ${tarea.puntos_posibles}` 
+                    {tarea.puntos_obtenidos !== null
+                      ? `${tarea.puntos_obtenidos} / ${tarea.puntos_posibles}`
                       : 'N/A'}
                   </div>
                 ) : (
@@ -361,8 +372,8 @@ const TareaCard = React.memo(({
               </div>
 
               {esEntregada && (
-                <button 
-                  onClick={() => onCalificar(tarea.id, tarea.puntos_posibles)} 
+                <button
+                  onClick={() => onCalificar(tarea.id, tarea.puntos_posibles)}
                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] flex items-center justify-center gap-2"
                   disabled={guardando}
                 >
@@ -387,14 +398,14 @@ const TareaCard = React.memo(({
   );
 });
 
-const SeccionTareas = React.memo(({ 
-  titulo, 
+const SeccionTareas = React.memo(({
+  titulo,
   emoji,
-  tareas, 
-  calificaciones, 
-  onCalificacionChange, 
-  onCalificar, 
-  guardando, 
+  tareas,
+  calificaciones,
+  onCalificacionChange,
+  onCalificar,
+  guardando,
   openAttachmentModal,
   STATIC_ASSET_BASE_URL,
   gradientFrom,
@@ -414,7 +425,7 @@ const SeccionTareas = React.memo(({
       {tareas.length > 0 ? (
         <div className="space-y-6">
           {tareas.map(tarea => (
-            <TareaCard 
+            <TareaCard
               key={tarea.id}
               tarea={tarea}
               calificacion={calificaciones[tarea.id] || { puntos: '', comentario: '' }}
@@ -438,11 +449,11 @@ const SeccionTareas = React.memo(({
   );
 });
 
-const SeccionEvaluaciones = React.memo(({ 
-  titulo, 
+const SeccionEvaluaciones = React.memo(({
+  titulo,
   emoji,
-  evaluaciones, 
-  catedraId, 
+  evaluaciones,
+  catedraId,
   alumnoId,
   gradientFrom,
   gradientTo
@@ -461,7 +472,7 @@ const SeccionEvaluaciones = React.memo(({
       {evaluaciones.length > 0 ? (
         <div className="space-y-6">
           {evaluaciones.map(evaluacion => (
-            <EvaluacionCard 
+            <EvaluacionCard
               key={evaluacion.id}
               evaluacion={evaluacion}
               catedraId={catedraId}
@@ -487,7 +498,7 @@ const SeccionEvaluaciones = React.memo(({
 
 const DocenteAlumnoTareasPage = () => {
   const { catedraId, alumnoId } = useParams();
-  
+
   const [data, setData] = useState(null);
   const [evaluaciones, setEvaluaciones] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -498,8 +509,8 @@ const DocenteAlumnoTareasPage = () => {
   const [currentAttachmentIndex, setCurrentAttachmentIndex] = useState(0);
   const [guardando, setGuardando] = useState(false);
 
-  const STATIC_ASSET_BASE_URL = process.env.REACT_APP_API_URL 
-    ? new URL(process.env.REACT_APP_API_URL).origin 
+  const STATIC_ASSET_BASE_URL = process.env.REACT_APP_API_URL
+    ? new URL(process.env.REACT_APP_API_URL).origin
     : '';
 
   const fetchData = useCallback(async () => {
@@ -538,16 +549,16 @@ const DocenteAlumnoTareasPage = () => {
   const handleCalificacionChange = useCallback((tareaId, field, value) => {
     setCalificaciones(prev => ({
       ...prev,
-      [tareaId]: { 
-        ...prev[tareaId], 
-        [field]: value 
+      [tareaId]: {
+        ...prev[tareaId],
+        [field]: value
       },
     }));
   }, []);
 
   const handleCalificar = useCallback(async (tareaId, puntosPosibles) => {
     const calificacion = calificaciones[tareaId];
-    
+
     if (calificacion?.puntos === '' || calificacion?.puntos === null) {
       Swal.fire({
         icon: 'error',
@@ -575,7 +586,7 @@ const DocenteAlumnoTareasPage = () => {
         puntos_obtenidos: puntos,
         comentario_docente: calificacion.comentario || null,
       });
-      
+
       await Swal.fire({
         icon: 'success',
         title: '¡Calificado!',
@@ -583,7 +594,7 @@ const DocenteAlumnoTareasPage = () => {
         confirmButtonColor: '#9333ea',
         timer: 2000
       });
-      
+
       fetchData();
     } catch (error) {
       console.error('Error al calificar:', error);
@@ -605,10 +616,10 @@ const DocenteAlumnoTareasPage = () => {
     setIsAttachmentModalOpen(true);
   }, []);
 
-  const { 
-    tareasPendientesDeEntrega, 
-    tareasEntregadasPendientesDeCalificacion, 
-    tareasCalificadas 
+  const {
+    tareasPendientesDeEntrega,
+    tareasEntregadasPendientesDeCalificacion,
+    tareasCalificadas
   } = useMemo(() => {
     if (!data?.tareasConEntregas) {
       return {
@@ -657,7 +668,7 @@ const DocenteAlumnoTareasPage = () => {
         <div className="bg-gradient-to-br from-red-600/20 to-red-800/20 border-2 border-red-500/50 backdrop-blur-xl rounded-2xl p-8 max-w-md shadow-2xl">
           <div className="text-6xl mb-4 text-center">⚠️</div>
           <p className="text-red-300 text-center text-lg mb-6">{error}</p>
-          <button 
+          <button
             onClick={fetchData}
             className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg"
           >
@@ -686,8 +697,8 @@ const DocenteAlumnoTareasPage = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header con botón de regreso mejorado */}
-          <Link 
-            to={`/docente/catedra/${catedraId}`} 
+          <Link
+            to={`/docente/catedra/${catedraId}`}
             className="mb-8 inline-flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-all duration-300 group bg-white/5 px-4 py-2 rounded-xl hover:bg-white/10 backdrop-blur-sm"
           >
             <span className="group-hover:-translate-x-1 transition-transform">←</span>
@@ -716,7 +727,7 @@ const DocenteAlumnoTareasPage = () => {
           {/* Contenido Principal con espaciado mejorado */}
           <div className="space-y-12">
             {/* Tareas Entregadas Pendientes */}
-            <SeccionTareas 
+            <SeccionTareas
               titulo="Tareas Entregadas - Por Calificar"
               emoji="⏳"
               tareas={tareasEntregadasPendientesDeCalificacion}
@@ -731,7 +742,7 @@ const DocenteAlumnoTareasPage = () => {
             />
 
             {/* Tareas Calificadas */}
-            <SeccionTareas 
+            <SeccionTareas
               titulo="Tareas Calificadas"
               emoji="✅"
               tareas={tareasCalificadas}
@@ -746,7 +757,7 @@ const DocenteAlumnoTareasPage = () => {
             />
 
             {/* Tareas Pendientes de Entrega */}
-            <SeccionTareas 
+            <SeccionTareas
               titulo="Tareas Pendientes de Entrega"
               emoji="📋"
               tareas={tareasPendientesDeEntrega}
@@ -761,7 +772,7 @@ const DocenteAlumnoTareasPage = () => {
             />
 
             {/* Evaluaciones Pendientes */}
-            <SeccionEvaluaciones 
+            <SeccionEvaluaciones
               titulo="Evaluaciones Pendientes"
               emoji="📝"
               evaluaciones={evaluacionesPendientes}
@@ -772,7 +783,7 @@ const DocenteAlumnoTareasPage = () => {
             />
 
             {/* Evaluaciones Calificadas */}
-            <SeccionEvaluaciones 
+            <SeccionEvaluaciones
               titulo="Evaluaciones Realizadas"
               emoji="📊"
               evaluaciones={evaluacionesCalificadas}
@@ -786,36 +797,37 @@ const DocenteAlumnoTareasPage = () => {
       </div>
 
       {/* Modal de Adjuntos mejorado */}
-      <Modal 
-        isOpen={isAttachmentModalOpen} 
-        onClose={() => setIsAttachmentModalOpen(false)} 
-        title={`Adjunto ${modalAttachments.length > 0 ? currentAttachmentIndex + 1 : 0} de ${modalAttachments.length}`} 
-        showSubmitButton={false} 
+      <Modal
+        isOpen={isAttachmentModalOpen}
+        onClose={() => setIsAttachmentModalOpen(false)}
+        title={`Adjunto ${modalAttachments.length > 0 ? currentAttachmentIndex + 1 : 0} de ${modalAttachments.length}`}
+        showSubmitButton={false}
         cancelText="Cerrar"
+        isAttachmentModal={true}
       >
         <div className="p-6">
           {modalAttachments.length > 0 && modalAttachments[currentAttachmentIndex] ? (
             <div className="relative">
               {modalAttachments[currentAttachmentIndex].fileType === 'image' ? (
-                <img 
-                  src={modalAttachments[currentAttachmentIndex].url} 
-                  alt="Adjunto" 
+                <img
+                  src={modalAttachments[currentAttachmentIndex].url}
+                  alt="Adjunto"
                   className="max-w-full h-auto rounded-lg mx-auto"
                 />
               ) : modalAttachments[currentAttachmentIndex].fileType === 'pdf' ? (
-                <iframe 
-                  src={modalAttachments[currentAttachmentIndex].url} 
-                  title="Documento PDF" 
-                  className="w-full" 
+                <iframe
+                  src={modalAttachments[currentAttachmentIndex].url}
+                  title="Documento PDF"
+                  className="w-full"
                   style={{ height: '70vh' }}
                 ></iframe>
               ) : (
                 <div className="flex flex-col items-center justify-center p-8 bg-gray-800 rounded-lg text-white">
                   <FileIcon fileType={modalAttachments[currentAttachmentIndex].fileType} size={64} />
                   <p className="mt-4 text-xl font-semibold">{modalAttachments[currentAttachmentIndex].filename}</p>
-                  <a 
-                    href={modalAttachments[currentAttachmentIndex].url} 
-                    target="_blank" 
+                  <a
+                    href={modalAttachments[currentAttachmentIndex].url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="mt-4 inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                   >
@@ -823,7 +835,7 @@ const DocenteAlumnoTareasPage = () => {
                   </a>
                 </div>
               )}
-              
+
               {modalAttachments.length > 1 && (
                 <>
                   <button

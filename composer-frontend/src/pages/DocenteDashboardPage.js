@@ -13,10 +13,6 @@ const DocenteDashboardPage = () => {
   const [docenteId, setDocenteId] = useState(null);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem('docenteToken');
-    navigate('/docente/login');
-  };
 
   useEffect(() => {
     const token = localStorage.getItem('docenteToken');
@@ -152,12 +148,7 @@ const DocenteDashboardPage = () => {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Mi Dashboard de Docente
           </h1>
-          <button
-            onClick={handleLogout}
-            className="bg-red-700 hover:bg-red-800 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 w-full md:w-auto mt-4 md:mt-0 shadow-lg"
-          >
-            Cerrar Sesión
-          </button>
+
         </div>
 
         <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">

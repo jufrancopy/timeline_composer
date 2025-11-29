@@ -1,7 +1,9 @@
 console.log('[CRUSH DEBUG] Backend index.js cargado.');
+
 const path = require('path');
 const { uploadSingle, uploadArray } = require('./utils/multerConfig');
 const fs = require('fs');
+
 
 process.on('uncaughtException', (err) => {
   console.error('ERROR FATAL NO CAPTURADO:', err);
@@ -50,6 +52,8 @@ const publicacionRoutes = require('./routes/publicacionRoutes');
 const composerRoutes = require('./routes/composerRoutes');
 const alumnoRoutes = require('./routes/alumnoRoutes');
 const { router: ratingRoutes, setPrismaClient: setPrismaClientForRatings } = require('./routes/ratingRoutes');
+const calificacionRoutes = require('./routes/calificacionRoutes'); // Importar las nuevas rutas de calificación final
+const publicCatedraRoutes = require('./routes/publicCatedraRoutes');
 
 const prisma = require('./utils/prismaClient');
 const app = express();
@@ -86,6 +90,7 @@ setPrismaClient(prisma);
 setTransporter(transporter);
 // setPrismaClientForUserMiddleware(prisma); // Esta línea ya no es necesaria
 setPrismaClientForRatings(prisma);
+
 
 app.use(express.json());
 app.use((req, res, next) => {
@@ -764,9 +769,11 @@ app.use('/api', adminRouter);
 app.use('/api', docenteRouter);
 app.use('/api', evaluationRoutes);
 app.use('/api', publicacionRouter);
+app.use('/api', calificacionRoutes); // Nuevas rutas de calificación final
 
 app.use('/api/ratings', ratingRoutes);
 app.use('/api', alumnoRouter);
+app.use('/api/public/catedras', publicCatedraRoutes);
 app.use('/api/composers', composerRouter);
 
 app.get(/^\/(?!api).*/, (req, res) => {

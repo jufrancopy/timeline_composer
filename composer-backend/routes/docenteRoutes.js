@@ -214,14 +214,45 @@ module.exports = (prisma, transporter) => {
               Alumno: {
                 include: {
                   TareaAsignacion: {
-                    include: {
+                    where: {
                       TareaMaestra: {
+                        catedraId: catedraId,
+                      },
+                    },
+                    include: {
+                      TareaMaestra: true,
+                    },
+                  },
+                  EvaluacionAsignacion: {
+                    where: {
+                      Evaluacion: {
+                        catedraId: catedraId,
+                      },
+                    },
+                    select: {
+                      id: true, // ID de la asignación
+                      evaluacionId: true,
+                      estado: true,
+                      CalificacionEvaluacion: {
                         select: {
-                          id: true,
-                          titulo: true,
-                          puntos_posibles: true,
+                          puntos: true,
                         },
                       },
+                      Evaluacion: {
+                        select: {
+                          titulo: true, // Título de la evaluación maestra
+                        },
+                      },
+                    },
+                  },
+                  Asistencia: {
+                    where: {
+                      DiaClase: {
+                        catedraId: catedraId,
+                      },
+                    },
+                    select: {
+                      presente: true,
                     },
                   },
                 },
@@ -239,6 +270,48 @@ module.exports = (prisma, transporter) => {
       if (!catedra) {
         return res.status(404).json({ message: 'Catedra not found or not assigned to this docente' });
       }
+
+      // Procesar datos de alumnos para añadir conteos
+      const alumnosConConteos = catedra.CatedraAlumno.map(ca => {
+        const alumno = ca.Alumno;
+        const entregasCount = alumno.TareaAsignacion.filter(ta => ta.estado === 'ENTREGADA' || ta.estado === 'CALIFICADA').length;
+
+        const evaluacionesStatus = alumno.EvaluacionAsignacion.reduce((acc, curr) => {
+          acc[curr.estado] = (acc[curr.estado] || 0) + 1;
+          return acc;
+        }, {});
+
+        // Calcular % Asistencia
+        const totalClases = catedra.DiaClase.length;
+        const asistenciasPresentes = alumno.Asistencia.filter(a => a.presente).length;
+        const porcentajeAsistencia = totalClases > 0 ? (asistenciasPresentes / totalClases) * 100 : 0;
+
+        // Calcular total de tareas asignadas (incluyendo estados ASIGNADA, ENTREGADA, CALIFICADA)
+        const totalTareasAsignadas = alumno.TareaAsignacion.length;
+
+        // Calcular promedio de calificaciones de evaluaciones
+        const calificacionesEvaluaciones = alumno.EvaluacionAsignacion
+          .filter(ea => ea.CalificacionEvaluacion?.puntos !== null && ea.CalificacionEvaluacion?.puntos !== undefined)
+          .map(ea => ea.CalificacionEvaluacion.puntos);
+        const promedioEvaluaciones = calificacionesEvaluaciones.length > 0
+          ? calificacionesEvaluaciones.reduce((sum, current) => sum + current, 0) / calificacionesEvaluaciones.length
+          : 0;
+
+        return {
+          ...ca,
+          Alumno: {
+            ...alumno,
+            entregasCount, // Esto ya existe
+            evaluacionesStatus, // Esto ya existe
+            porcentajeAsistencia,
+            totalTareasAsignadas,
+            promedioEvaluaciones,
+          },
+        };
+      });
+
+      catedra.CatedraAlumno = alumnosConConteos;
+
       res.status(200).json(catedra);
     } catch (error) {
       console.error('Error fetching specific docente catedra:', error);
@@ -341,6 +414,7 @@ module.exports = (prisma, transporter) => {
     }
   });
 
+  // GET /docente/catedra/:catedraId/diasclase - Obtener todos los días de clase de una cátedra
   router.get('/docente/catedra/:catedraId/diasclase', requireDocente, async (req, res) => {
     const { catedraId } = req.params;
     const docenteId = req.docente.docenteId;
@@ -361,18 +435,18 @@ module.exports = (prisma, transporter) => {
         where: {
           catedraId: parseInt(catedraId),
         },
-        include: {
-          Asistencia: true, // Incluir asistencias para poder pre-cargar el estado
+        orderBy: {
+          fecha: 'asc',
         },
-        orderBy: { fecha: 'asc' },
       });
 
       res.status(200).json(diasClase);
     } catch (error) {
-      console.error('Error al obtener días de clase para docente:', error);
+      console.error('Error al obtener los días de clase para el docente:', error);
       res.status(500).json({ error: 'Error al obtener los días de clase.', details: error.message });
     }
   });
+
 
   // PUT /docente/diasclase/:diaClaseId - Actualizar un día de clase
   router.put('/docente/catedra/:catedraId/diasclase/:diaClaseId', requireDocente, async (req, res) => {
@@ -551,6 +625,7 @@ module.exports = (prisma, transporter) => {
         id: dia.id,
         fecha: dia.fecha,
         dia_semana: dia.dia_semana,
+        tipoDia: dia.tipoDia, // Incluir el tipo de día
         asistencias: dia.Asistencia.map(asistencia => ({
           alumnoId: asistencia.alumnoId,
           composerId: asistencia.composerId,
@@ -734,8 +809,9 @@ module.exports = (prisma, transporter) => {
         const totalPreguntas = asig.Evaluacion._count.Pregunta;
 
         return {
-          id: asig.evaluacionId,
-          asignacion_id: asig.id,
+          id: asig.Evaluacion.id, // Usar el ID de la Evaluación maestra
+          asignacion_id: asig.id, // Mantener asignacion_id con el ID de la EvaluacionAsignacion
+          evaluacionAsignacionId: asig.id, // Nuevo campo para el ID de la asignación
           titulo: asig.Evaluacion.titulo,
           estado: asig.estado,
           puntos_obtenidos: puntos,
@@ -786,25 +862,35 @@ module.exports = (prisma, transporter) => {
 
       // 3. Obtener los detalles de la evaluación, preguntas, opciones y respuestas del alumno
       const evaluationData = await prisma.Evaluacion.findUnique({
-        where: { id: parseInt(evaluationId) },
+        where: {
+          id: parseInt(evaluationId)
+        },
         include: {
           Pregunta: {
-            include: {
-              Opcion: true,
+            orderBy: {
+              orden: "asc"
             },
+            include: {
+              Opcion: true
+            }
           },
           EvaluacionAsignacion: {
             where: {
               alumnoId: parseInt(alumnoId),
-              estado: { in: ['REALIZADA', 'CALIFICADA'] },
+              estado: {
+                in: [
+                  "REALIZADA",
+                  "CALIFICADA"
+                ]
+              }
             },
             include: {
-              CalificacionEvaluacion: true,
-            },
-          },
-        },
+              CalificacionEvaluacion: true
+            }
+          }
+        }
       });
-
+      
       if (!evaluationData || evaluationData.EvaluacionAsignacion.length === 0) {
         return res.status(404).json({ error: 'Evaluación no encontrada o no ha sido completada por el alumno.' });
       }
@@ -850,18 +936,142 @@ module.exports = (prisma, transporter) => {
       });
 
       const totalQuestions = evaluationData.Pregunta.length;
+      const calculatedScore = totalQuestions > 0 ? (correctAnswersCount / totalQuestions) * 100 : 0;
 
       res.status(200).json({
         evaluationTitle: evaluationData.titulo,
         alumnoNombre: catedraAlumno.Alumno.nombre,
         alumnoApellido: catedraAlumno.Alumno.apellido,
-        score: manualScore, // Este es el puntaje manual si ya existe
+        score: manualScore !== null ? manualScore : calculatedScore, // Usar manualScore si existe, de lo contrario, el calculado
         correctAnswersCount: correctAnswersCount, // Cantidad de respuestas correctas automáticas
         totalQuestions: totalQuestions,
         evaluationAssignmentId: evaluationAssignment.id, // Añadir el ID de la asignación
         status: evaluationAssignment.estado, // Añadir el estado de la asignación
         questions: questionsWithResults,
       });
+
+    } catch (error) {
+      console.error('Error al obtener resultados de la evaluación del alumno para el docente:', error);
+      res.status(500).json({ error: 'Error al obtener los resultados de la evaluación.', details: error.message });
+    }
+  });
+
+  // NUEVO ENDPOINT
+  // GET /docente/evaluaciones/asignacion/:asignacionId/results - Obtener los resultados de una evaluación por el ID de la asignación
+  router.get('/docente/evaluaciones/asignacion/:asignacionId/results', requireDocente, async (req, res) => {
+    const { asignacionId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      // 1. Obtener la asignación de evaluación por su ID
+      const evaluationAssignment = await prisma.evaluacionAsignacion.findUnique({
+        where: { id: parseInt(asignacionId) },
+        include: {
+          Evaluacion: {
+            select: {
+              id: true,
+              catedraId: true,
+            },
+          },
+          Alumno: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+            },
+          },
+          CalificacionEvaluacion: true,
+        },
+      });
+
+      if (!evaluationAssignment) {
+        return res.status(404).json({ error: 'Asignación de evaluación no encontrada o no ha sido completada por el alumno.' });
+      }
+
+      const { Evaluacion: { id: evaluationId, catedraId }, Alumno: { id: alumnoId, nombre: alumnoNombre, apellido: alumnoApellido } } = evaluationAssignment;
+
+      // 2. Verificar que el docente pertenece a la cátedra de la evaluación
+      const catedra = await prisma.catedra.findFirst({
+        where: { id: parseInt(catedraId), docenteId: docenteId },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado para el docente.' });
+      }
+
+      // 3. Obtener los detalles de la evaluación, preguntas, opciones
+      const evaluationData = await prisma.Evaluacion.findUnique({
+        where: { id: parseInt(evaluationId) },
+        include: {
+          Pregunta: {
+            orderBy: { orden: "asc" },
+            include: { Opcion: true },
+          },
+        },
+      });
+
+      if (!evaluationData) {
+        return res.status(404).json({ error: 'Evaluación maestra no encontrada.' });
+      }
+
+      const studentResponses = await prisma.RespuestaAlumno.findMany({
+        where: {
+          alumnoId: parseInt(alumnoId),
+          Pregunta: {
+            evaluacionId: parseInt(evaluationId),
+          },
+        },
+        select: {
+          preguntaId: true,
+          opcionElegidaId: true,
+        },
+      });
+
+      let correctAnswersCount = 0;
+      const questionsWithResults = evaluationData.Pregunta.map(question => {
+        const studentResponse = studentResponses.find(sr => sr.preguntaId === question.id);
+        const correctAnswer = question.Opcion.find(option => option.es_correcta);
+
+        const isCorrect = correctAnswer && studentResponse?.opcionElegidaId === correctAnswer.id;
+        if (isCorrect) {
+          correctAnswersCount++;
+        }
+
+        return {
+          id: question.id,
+          text: question.texto,
+          options: question.Opcion.map(option => ({
+            id: option.id,
+            text: option.texto,
+            es_correcta: option.es_correcta,
+          })),
+          correctAnswerId: correctAnswer?.id,
+          alumnoAnswerId: studentResponse?.opcionElegidaId || null,
+          isCorrect: isCorrect,
+        };
+      });
+
+      const totalQuestions = evaluationData.Pregunta.length;
+      const calculatedScore = totalQuestions > 0 ? (correctAnswersCount / totalQuestions) * 100 : 0;
+      const manualScore = evaluationAssignment?.CalificacionEvaluacion?.puntos || null;
+
+      res.status(200).json({
+        evaluationTitle: evaluationData.titulo,
+        alumnoNombre: alumnoNombre,
+        alumnoApellido: alumnoApellido,
+        score: manualScore !== null ? manualScore : calculatedScore,
+        correctAnswersCount: correctAnswersCount,
+        totalQuestions: totalQuestions,
+        evaluationAssignmentId: evaluationAssignment.id,
+        status: evaluationAssignment.estado,
+        questions: questionsWithResults,
+      });
+
+    } catch (error) {
+      console.error('Error al obtener resultados de la evaluación por asignación ID para el docente:', error);
+      res.status(500).json({ error: 'Error al obtener los resultados de la evaluación por asignación ID.', details: error.message });
+    }
+  });
 
   router.put('/docente/catedras/:catedraId/alumnos/:alumnoId/evaluaciones/:evaluationAssignmentId/grade', requireDocente, async (req, res) => {
     const { catedraId, alumnoId, evaluationAssignmentId } = req.params;
@@ -918,43 +1128,47 @@ module.exports = (prisma, transporter) => {
     }
   });
 
-  router.put('/docente/evaluaciones/:evaluationId', requireDocente, async (req, res) => {
+  
+  // GET /docente/evaluaciones/:evaluationId - Obtener los detalles completos de una evaluación para el docente
+  router.get('/docente/evaluaciones/:evaluationId', requireDocente, async (req, res) => {
     const { evaluationId } = req.params;
-    const { titulo } = req.body; // Solo se puede actualizar el título por ahora
+    const docenteId = req.docente.docenteId;
 
     try {
-      const docenteId = req.docente.docenteId;
-
-      const existingEvaluation = await prisma.Evaluacion.findFirst({
+      const evaluation = await prisma.Evaluacion.findFirst({
         where: {
           id: parseInt(evaluationId),
           Catedra: {
             docenteId: docenteId,
           },
         },
-      });
-
-      if (!existingEvaluation) {
-        return res.status(404).json({ error: 'Evaluación no encontrada o no pertenece a este docente.' });
-      }
-
-      const updatedEvaluation = await prisma.Evaluacion.update({
-        where: { id: parseInt(evaluationId) },
-        data: {
-          titulo: titulo || undefined, // Permite actualizar el título
+        include: {
+          Catedra: {
+            select: { nombre: true, id: true },
+          },
+          UnidadPlan: {
+            include: {
+              PlanDeClases: true,
+            },
+          },
+          Pregunta: {
+            include: {
+              Opcion: true,
+            },
+          },
         },
       });
 
-      res.status(200).json(updatedEvaluation);
-    } catch (error) {
-      console.error('Error al actualizar evaluación:', error);
-      res.status(500).json({ error: 'Error al actualizar la evaluación.', details: error.message });
-    }
-  });
+      if (!evaluation) {
+        console.log("[DEBUG BACKEND] Evaluación no encontrada para ID:", evaluationId); // Nuevo log
+        return res.status(404).json({ error: 'Evaluación no encontrada o no pertenece a este docente.' });
+      }
 
+      console.log("[DEBUG BACKEND] Evaluación obtenida para el docente:", JSON.stringify(evaluation, null, 2)); // Nuevo log
+      res.status(200).json(evaluation);
     } catch (error) {
-      console.error('Error al obtener resultados de la evaluación del alumno para el docente:', error);
-      res.status(500).json({ error: 'Error al obtener los resultados de la evaluación.', details: error.message });
+      console.error('Error al obtener los detalles de la evaluación para el docente:', error);
+      res.status(500).json({ error: 'Error al obtener los detalles de la evaluación.', details: error.message });
     }
   });
 
@@ -1242,6 +1456,18 @@ module.exports = (prisma, transporter) => {
           continue;
         }
 
+        // Check if assignment already exists
+        const existingAssignment = await prisma.tareaAsignacion.findUnique({
+          where: {
+            alumnoId_tareaMaestraId: {
+              alumnoId: alumnoIdInt,
+              tareaMaestraId: parseInt(tareaMaestraId),
+            },
+          },
+        });
+
+        const isNewAssignment = !existingAssignment;
+
         const asignacion = await prisma.tareaAsignacion.upsert({
           where: {
             alumnoId_tareaMaestraId: {
@@ -1261,8 +1487,8 @@ module.exports = (prisma, transporter) => {
         });
         assignedTasks.push(asignacion);
 
-        // Send email notification to student (BLOCKED BY USER)
-        if (alumno.email) {
+        // Send email notification to student ONLY if it's a new assignment
+        if (isNewAssignment && alumno.email) {
           const mailOptions = {
             from: `"HMPY (Historia de la Música PY - Academia)" <${process.env.EMAIL_USER}>`,
             to: alumno.email,
@@ -1517,6 +1743,46 @@ module.exports = (prisma, transporter) => {
     }
   });
 
+  // GET /docente/catedra/:catedraId/evaluaciones - Obtener todas las evaluaciones de una cátedra
+  router.get('/docente/catedra/:catedraId/evaluaciones', requireDocente, async (req, res) => {
+    const { catedraId } = req.params;
+    const docenteId = req.docente.docenteId;
+
+    try {
+      // Verificar que la cátedra pertenece al docente
+      const catedra = await prisma.catedra.findFirst({
+        where: {
+          id: parseInt(catedraId),
+          docenteId: docenteId,
+        },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      // Obtener todas las evaluaciones para la cátedra
+      const evaluaciones = await prisma.evaluacion.findMany({
+        where: {
+          catedraId: parseInt(catedraId),
+        },
+        include: {
+          _count: {
+            select: { Pregunta: true },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      res.status(200).json(evaluaciones);
+    } catch (error) {
+      console.error('Error al obtener evaluaciones de la cátedra:', error);
+      res.status(500).json({ error: 'Error al obtener las evaluaciones.', details: error.message });
+    }
+  });
+
   // GET /docentes/catedras/:catedraId/evaluaciones-maestras - Obtener todas las evaluaciones maestras de una cátedra
   router.get("/docente/catedra/:catedraId/evaluaciones-maestras", requireDocente, async (req, res) => {
     const { catedraId } = req.params;
@@ -1613,6 +1879,18 @@ module.exports = (prisma, transporter) => {
           continue;
         }
 
+        // Check if assignment already exists
+        const existingAssignment = await prisma.evaluacionAsignacion.findUnique({
+          where: {
+            alumnoId_evaluacionId: {
+              alumnoId: alumnoIdInt,
+              evaluacionId: parseInt(evaluationId),
+            },
+          },
+        });
+
+        const isNewAssignment = !existingAssignment;
+
         // 2. Crear o actualizar EvaluacionAsignacion
         const asignacion = await prisma.evaluacionAsignacion.upsert({
           where: {
@@ -1623,7 +1901,7 @@ module.exports = (prisma, transporter) => {
           },
           update: {
             fecha_entrega: fecha_entrega ? new Date(fecha_entrega) : null,
-            estado: 'PENDIENTE', // Resetear a PENDIENTE si ya existía y se reasigna
+            // No actualizar el estado a PENDIENTE en caso de reasignación si ya tiene otro estado
             updated_at: new Date(),
           },
           create: {
@@ -1636,8 +1914,8 @@ module.exports = (prisma, transporter) => {
         });
         assignedEvaluations.push(asignacion);
 
-        // 3. Enviar email de notificación
-        if (enrollment.Alumno.email) {
+        // 3. Enviar email de notificación ONLY if it's a new assignment
+        if (isNewAssignment && enrollment.Alumno.email) {
           const mailOptions = {
             from: `"HMPY (Historia de la Música PY - Academia)" <${process.env.EMAIL_USER}>`,
             to: enrollment.Alumno.email,
@@ -2763,10 +3041,15 @@ module.exports = (prisma, transporter) => {
           catedraId: parseInt(catedraId),
         },
         include: {
+          Pregunta: {
+            select: { id: true } // Solo necesitamos contar las preguntas
+          },
           EvaluacionAsignacion: { // Usar la relación correcta
             where: { alumnoId: parseInt(alumnoId) },
             select: {
+              id: true, // Incluir el ID de EvaluacionAsignacion
               estado: true,
+              fecha_entrega: true, // Incluir la fecha de entrega
               created_at: true, // created_at de EvaluacionAsignacion
               CalificacionEvaluacion: { // Incluir la calificación relacionada
                 select: { puntos: true } // Seleccionar los puntos de la calificación
@@ -2778,14 +3061,21 @@ module.exports = (prisma, transporter) => {
       });
 
       // 3. Map evaluations to include status for the specific student
-      const evaluationsWithStatus = evaluations.map(evaluation => ({
-        id: evaluation.id,
-        titulo: evaluation.titulo,
-        created_at: evaluation.created_at,
-        catedraId: evaluation.catedraId,
-        puntos_obtenidos: evaluation.EvaluacionAsignacion.length > 0 && evaluation.EvaluacionAsignacion[0].CalificacionEvaluacion ? evaluation.EvaluacionAsignacion[0].CalificacionEvaluacion.puntos : null,
-        estado: evaluation.EvaluacionAsignacion.length > 0 ? evaluation.EvaluacionAsignacion[0].estado : 'PENDIENTE',
-      }));
+      const evaluationsWithStatus = evaluations.map(evaluation => {
+        const asignacion = evaluation.EvaluacionAsignacion.length > 0 ? evaluation.EvaluacionAsignacion[0] : null;
+        return {
+          id: asignacion ? asignacion.id : evaluation.id, // Usar el id de EvaluacionAsignacion si existe, de lo contrario, el de Evaluacion
+          evaluacionMaestraId: evaluation.id, // ID de la Evaluación maestra
+          titulo: evaluation.titulo,
+          created_at: evaluation.created_at, // created_at de Evaluacion
+          catedraId: evaluation.catedraId,
+          fecha_limite: evaluation.fecha_limite, // Fecha límite de la evaluación maestra
+          total_preguntas: evaluation.Pregunta ? evaluation.Pregunta.length : 0, // Contar las preguntas de la evaluación maestra
+          puntos_obtenidos: asignacion?.CalificacionEvaluacion?.puntos || null,
+          estado: asignacion?.estado || 'PENDIENTE',
+          fecha_entrega: asignacion?.fecha_entrega || null, // Fecha de entrega de EvaluacionAsignacion
+        };
+      });
 
       res.json(evaluationsWithStatus);
 
@@ -2879,54 +3169,22 @@ module.exports = (prisma, transporter) => {
     }
   });
 
-  // Get a specific evaluation by ID for the logged-in docente
-  router.get('/docente/evaluaciones/:evaluationId', requireDocente, async (req, res) => {
-    const { evaluationId } = req.params;
-    const docenteId = req.docente.docenteId;
 
-    try {
-      const evaluation = await prisma.Evaluacion.findUnique({
-        where: { id: parseInt(evaluationId) },
-        include: {
-          Catedra: {
-            select: { docenteId: true }
-          },
-          Pregunta: {
-            include: {
-              Opcion: true,
-            },
-          },
-        },
-      });
 
-      if (!evaluation) {
-        return res.status(404).json({ error: 'Evaluación no encontrada.' });
-      }
-
-      // Verify the catedra of the evaluation belongs to the docente
-      if (!evaluation.Catedra || evaluation.Catedra.docenteId !== docenteId) {
-        return res.status(403).json({ error: 'No tiene permiso para ver esta evaluación.' });
-      }
-
-      res.json(evaluation);
-
-    } catch (error) {
-      console.error('Error fetching evaluation for docente:', error);
-      res.status(500).json({ error: 'Error al obtener la evaluación.' });
-    }
-  });
-
-  // PUT /docente/evaluaciones/:evaluationId - Actualizar evaluación (solo título y fecha)
+  // PUT /docente/evaluaciones/:evaluationId - Actualizar evaluación completa
   router.put('/docente/evaluaciones/:evaluationId', requireDocente, async (req, res) => {
     const { evaluationId } = req.params;
-    const { titulo, fecha_limite } = req.body;
+    const { titulo, fecha_limite, preguntas } = req.body; // ← Agregar preguntas
     const docenteId = req.docente.docenteId;
 
     try {
       // Verificar que la evaluación pertenece al docente
       const evaluation = await prisma.Evaluacion.findUnique({
         where: { id: parseInt(evaluationId) },
-        include: { Catedra: { select: { docenteId: true } } }
+        include: {
+          Catedra: { select: { docenteId: true } },
+          Pregunta: { include: { Opcion: true } } // ← Incluir preguntas existentes
+        }
       });
 
       if (!evaluation) {
@@ -2937,30 +3195,152 @@ module.exports = (prisma, transporter) => {
         return res.status(403).json({ error: 'No tiene permiso para editar esta evaluación.' });
       }
 
-      // Crear objeto de datos dinámicamente con solo los campos proporcionados
-      const updateData = {};
-      if (titulo !== undefined) updateData.titulo = titulo;
-      if (fecha_limite !== undefined) {
-        updateData.fecha_limite = fecha_limite ? new Date(fecha_limite) : null;
-      }
-      // NO incluimos unidadPlanId ni planDeClasesId para preservarlos
+      // Iniciar transacción para múltiples operaciones
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Actualizar datos básicos de la evaluación
+        const updateData = {};
+        if (titulo !== undefined) updateData.titulo = titulo;
+        if (fecha_limite !== undefined) {
+          updateData.fecha_limite = fecha_limite ? new Date(fecha_limite) : null;
+        }
 
-      // Solo actualizar si hay campos para actualizar
-      if (Object.keys(updateData).length === 0) {
-        return res.status(400).json({ error: 'No se proporcionaron campos para actualizar.' });
-      }
+        if (Object.keys(updateData).length > 0) {
+          await tx.Evaluacion.update({
+            where: { id: parseInt(evaluationId) },
+            data: updateData,
+          });
+        }
 
-      const updatedEvaluation = await prisma.Evaluacion.update({
-        where: { id: parseInt(evaluationId) },
-        data: updateData,
+        // 2. Sincronizar preguntas si se proporcionan
+        if (preguntas !== undefined) {
+          await syncPreguntas(tx, parseInt(evaluationId), preguntas);
+        }
+
+        // 3. Devolver la evaluación actualizada
+        return await tx.Evaluacion.findUnique({
+          where: { id: parseInt(evaluationId) },
+          include: {
+            Pregunta: {
+              include: { Opcion: true },
+              orderBy: { orden: 'asc' }
+            },
+            Catedra: true,
+            UnidadPlan: { include: { PlanDeClases: true } }
+          }
+        });
       });
 
-      res.json(updatedEvaluation);
+      res.json(result);
     } catch (error) {
       console.error('Error updating evaluation:', error);
       res.status(500).json({ error: 'Error al actualizar la evaluación.', details: error.message });
     }
   });
+
+  // Función helper para sincronizar preguntas
+  async function syncPreguntas(tx, evaluationId, nuevasPreguntas) {
+    // Obtener preguntas existentes
+    const preguntasExistentes = await tx.Pregunta.findMany({
+      where: { evaluacionId: evaluationId },
+      include: { Opcion: true }
+    });
+
+    // Separar preguntas por tipo
+    const preguntasAActualizar = nuevasPreguntas.filter(p => p.id && typeof p.id === 'number');
+    const preguntasNuevas = nuevasPreguntas.filter(p => !p.id || typeof p.id !== 'number');
+    const idsPreguntasExistentes = preguntasExistentes.map(p => p.id).filter(id => id !== undefined && id !== null);
+    const idsPreguntasEnviadas = preguntasAActualizar.map(p => p.id).filter(id => id !== undefined && id !== null);
+    const preguntasAEliminar = idsPreguntasExistentes.filter(id => !idsPreguntasEnviadas.includes(id));
+
+    // 1. Eliminar preguntas que ya no están
+    if (preguntasAEliminar.length > 0) {
+      await tx.Pregunta.deleteMany({
+        where: { id: { in: preguntasAEliminar } }
+      });
+    }
+
+    // 2. Actualizar preguntas existentes
+    for (const pregunta of preguntasAActualizar) {
+      await tx.Pregunta.update({
+        where: { id: pregunta.id },
+        data: {
+          texto: pregunta.texto,
+          orden: pregunta.orden
+        }
+      });
+
+      // Sincronizar opciones de esta pregunta
+      await syncOpciones(tx, pregunta.id, pregunta.opciones || []);
+    }
+
+    // 3. Crear nuevas preguntas
+    for (const pregunta of preguntasNuevas) {
+      const nuevaPregunta = await tx.Pregunta.create({
+        data: {
+          texto: pregunta.texto,
+          orden: pregunta.orden,
+          evaluacionId: evaluationId
+        }
+      });
+
+      // Crear opciones para la nueva pregunta
+      if (pregunta.opciones && pregunta.opciones.length > 0) {
+        for (const opcion of pregunta.opciones) {
+          await tx.Opcion.create({
+            data: {
+              texto: opcion.texto,
+              es_correcta: opcion.es_correcta,
+              preguntaId: nuevaPregunta.id
+            }
+          });
+        }
+      }
+    }
+  }
+
+  // Función helper para sincronizar opciones
+  async function syncOpciones(tx, preguntaId, nuevasOpciones) {
+    // Obtener opciones existentes
+    const opcionesExistentes = await tx.Opcion.findMany({
+      where: { preguntaId: preguntaId }
+    });
+
+    // Separar opciones por tipo
+    const opcionesAActualizar = nuevasOpciones.filter(o => o.id && typeof o.id === 'number');
+    const opcionesNuevas = nuevasOpciones.filter(o => !o.id || typeof o.id !== 'number');
+    const idsOpcionesExistentes = opcionesExistentes.map(o => o.id);
+    const idsOpcionesEnviadas = opcionesAActualizar.map(o => o.id);
+    const opcionesAEliminar = idsOpcionesExistentes.filter(id => !idsOpcionesEnviadas.includes(id));
+
+    // 1. Eliminar opciones que ya no están
+    if (opcionesAEliminar.length > 0) {
+      await tx.Opcion.deleteMany({
+        where: { id: { in: opcionesAEliminar } }
+      });
+    }
+
+    // 2. Actualizar opciones existentes
+    for (const opcion of opcionesAActualizar) {
+      await tx.Opcion.update({
+        where: { id: opcion.id },
+        data: {
+          texto: opcion.texto,
+          es_correcta: opcion.es_correcta
+        }
+      });
+    }
+
+    // 3. Crear nuevas opciones
+    for (const opcion of opcionesNuevas) {
+      await tx.Opcion.create({
+        data: {
+          texto: opcion.texto,
+          es_correcta: opcion.es_correcta,
+          preguntaId: preguntaId
+        }
+      });
+    }
+  }
 
   // PUT /docente/evaluaciones/:evaluationId/preguntas - Actualizar preguntas y opciones
   router.put('/docente/evaluaciones/:evaluationId/preguntas', requireDocente, async (req, res) => {
@@ -2980,13 +3360,13 @@ module.exports = (prisma, transporter) => {
       }
 
       // Actualizar cada pregunta y sus opciones
-      for (const questionData of questions) {
+      for (const questionData of req.body.preguntas) {
         await prisma.Pregunta.update({
           where: { id: questionData.id },
           data: {
             texto: questionData.texto,
             Opcion: {
-              update: questionData.Opcion.map(optionData => ({
+              update: questionData.opciones.map(optionData => ({
                 where: { id: optionData.id },
                 data: {
                   texto: optionData.texto,
@@ -3391,6 +3771,119 @@ module.exports = (prisma, transporter) => {
     } catch (error) {
       console.error('Error al eliminar tarea maestra:', error);
       res.status(500).json({ error: 'Error al eliminar la tarea maestra.', details: error.message });
+    }
+  });
+
+  // POST /docente/catedra/:catedraId/alumnos/:alumnoId/evaluaciones/:evaluationId/manual-submit - Docente completa evaluación manualmente para un alumno
+  router.post('/docente/catedra/:catedraId/alumnos/:alumnoId/evaluaciones/:evaluationId/manual-submit', requireDocente, async (req, res) => {
+    const { catedraId, alumnoId, evaluationId } = req.params;
+    const { selectedAnswers } = req.body; // { questionId: optionId, ... }
+    const docenteId = req.docente.docenteId;
+
+    try {
+      // 1. Verificar que la cátedra pertenece al docente
+      const catedra = await prisma.catedra.findFirst({
+        where: { id: parseInt(catedraId), docenteId: docenteId },
+      });
+
+      if (!catedra) {
+        return res.status(404).json({ error: 'Cátedra no encontrada o acceso denegado.' });
+      }
+
+      // 2. Verificar que el alumno está inscrito en la cátedra
+      const catedraAlumno = await prisma.catedraAlumno.findFirst({
+        where: { catedraId: parseInt(catedraId), alumnoId: parseInt(alumnoId) },
+      });
+
+      if (!catedraAlumno) {
+        return res.status(404).json({ error: 'Alumno no inscrito en esta cátedra o no encontrado.' });
+      }
+
+      // 3. Obtener la asignación de evaluación
+      let evaluacionAsignacion = await prisma.evaluacionAsignacion.findUnique({
+        where: {
+          alumnoId_evaluacionId: {
+            alumnoId: parseInt(alumnoId),
+            evaluacionId: parseInt(evaluationId),
+          },
+        },
+        include: {
+          Evaluacion: {
+            include: {
+              Pregunta: {
+                include: {
+                  Opcion: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!evaluacionAsignacion) {
+        return res.status(404).json({ error: 'Asignación de evaluación no encontrada para este alumno.' });
+      }
+
+      // 4. Procesar y guardar las respuestas del alumno en una transacción
+      await prisma.$transaction(async (prisma) => {
+        // Eliminar respuestas anteriores para esta asignación si existieran
+        await prisma.respuestaAlumno.deleteMany({
+          where: {
+            alumnoId: parseInt(alumnoId),
+            Pregunta: {
+              evaluacionId: parseInt(evaluationId),
+            },
+          },
+        });
+
+        const questions = evaluacionAsignacion.Evaluacion.Pregunta;
+        let correctAnswersCount = 0;
+
+        for (const question of questions) {
+          const selectedOptionId = selectedAnswers[question.id.toString()];
+          if (selectedOptionId) {
+            // Guardar la respuesta del alumno
+            await prisma.respuestaAlumno.create({
+              data: {
+                alumnoId: parseInt(alumnoId),
+                preguntaId: question.id,
+                opcionElegidaId: parseInt(selectedOptionId),
+              },
+            });
+
+            // Verificar si la respuesta es correcta para un conteo automático
+            const correctOption = question.Opcion.find(o => o.es_correcta);
+            if (correctOption && correctOption.id === parseInt(selectedOptionId)) {
+              correctAnswersCount++;
+            }
+          }
+        }
+
+        // 5. Actualizar el estado de la asignación a REALIZADA
+        evaluacionAsignacion = await prisma.evaluacionAsignacion.update({
+          where: { id: evaluacionAsignacion.id },
+          data: { estado: 'REALIZADA' },
+        });
+
+        // 6. Opcional: Guardar calificación automática (número de respuestas correctas)
+        // Esto se podría revisar o permitir al docente una calificación manual posterior
+        await prisma.calificacionEvaluacion.upsert({
+          where: { evaluacionAsignacionId: evaluacionAsignacion.id },
+          update: { puntos: correctAnswersCount },
+          create: {
+            evaluacionAsignacionId: evaluacionAsignacion.id,
+            alumnoId: parseInt(alumnoId),
+            puntos: correctAnswersCount,
+            created_at: new Date(),
+          },
+        });
+      });
+
+      res.status(200).json({ message: 'Evaluación completada manualmente exitosamente.' });
+
+    } catch (error) {
+      console.error('Error al completar evaluación manualmente por docente:', error);
+      res.status(500).json({ error: 'Error al completar la evaluación manualmente.', details: error.message });
     }
   });
 

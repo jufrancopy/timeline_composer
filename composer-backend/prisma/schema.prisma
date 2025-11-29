@@ -32,6 +32,7 @@ model Alumno {
   Puntuacion             Puntuacion[]
   RespuestaAlumno        RespuestaAlumno[]
   TareaAsignacion        TareaAsignacion[]
+  CalificacionFinalAlumno CalificacionFinalAlumno[]
 }
 
 model Asistencia {
@@ -80,6 +81,7 @@ model Catedra {
   Publicacion       Publicacion[]
   Puntuacion        Puntuacion[]
   TareaMaestra      TareaMaestra[]
+  CalificacionFinalConfig CalificacionFinalConfig[]
 }
 
 model CatedraAlumno {
@@ -184,6 +186,7 @@ model DiaClase {
   id         Int          @id @default(autoincrement())
   fecha      DateTime
   dia_semana String
+  tipoDia    TipoDiaClase @default(NORMAL)
   created_at DateTime     @default(now())
   updated_at DateTime
   catedraId  Int
@@ -208,6 +211,7 @@ model Docente {
   PlanDeClases           PlanDeClases[]
   Publicacion            Publicacion[]
   PublicacionInteraccion PublicacionInteraccion[]
+  CalificacionFinalConfig CalificacionFinalConfig[]
 }
 
 model EditSuggestion {
@@ -323,6 +327,7 @@ model PlanDeClases {
 model Pregunta {
   id              Int               @id @default(autoincrement())
   texto           String
+  orden           Int               @default(0) // Nuevo campo para el orden de las preguntas
   evaluacionId    Int
   Opcion          Opcion[]
   Evaluacion      Evaluacion        @relation(fields: [evaluacionId], references: [id])
@@ -419,6 +424,41 @@ model TareaAsignacion {
   TareaMaestra       TareaMaestra @relation(fields: [tareaMaestraId], references: [id])
 
   @@unique([alumnoId, tareaMaestraId])
+}
+
+model CalificacionFinalConfig {
+  id                        Int                        @id @default(autoincrement())
+  titulo                    String
+  catedraId                 Int
+  docenteId                 Int
+  porcentajeMinimoAprobacion Float                      @default(60.0)
+  fechaCreacion             DateTime                   @default(now())
+  elementosConfigurados     Json // IDs de días de clase, tareas y evaluaciones
+  Catedra                   Catedra                    @relation(fields: [catedraId], references: [id])
+  Docente                   Docente                    @relation(fields: [docenteId], references: [id])
+  CalificacionFinalAlumno   CalificacionFinalAlumno[]
+}
+
+model CalificacionFinalAlumno {
+  id                        Int                      @id @default(autoincrement())
+  calificacionFinalConfigId Int
+  alumnoId                  Int
+  notaFinal                 Float
+  porcentajeAsistencia      Float? // Nuevo campo para el porcentaje de asistencia
+  porcentajeTareas          Float? // Nuevo campo para el porcentaje de tareas
+  porcentajeEvaluaciones    Float? // Nuevo campo para el porcentaje de evaluaciones
+  puntosObtenidosAsistencia Float?
+  puntosPosiblesAsistencia  Float?
+  puntosObtenidosTareas     Float?
+  puntosPosiblesTareas      Float?
+  puntosObtenidosEvaluaciones Float?
+  puntosPosiblesEvaluaciones Float?
+  escalaNota                Int?                     // Nuevo campo para la escala de nota cualitativa
+  fechaCalculo              DateTime                 @default(now())
+  CalificacionFinalConfig   CalificacionFinalConfig  @relation(fields: [calificacionFinalConfigId], references: [id])
+  Alumno                    Alumno                   @relation(fields: [alumnoId], references: [id])
+
+  @@unique([calificacionFinalConfigId, alumnoId])
 }
 
 model TareaMaestra {
@@ -521,3 +561,11 @@ enum TipoPuntuacion {
   EVALUACION
   APORTE
 }
+
+enum TipoDiaClase {
+  NORMAL
+  FERIADO
+  ASUETO
+  LLUVIA
+}
+

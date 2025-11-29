@@ -13,12 +13,14 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.10.1",
+    "composer-frontend": "file:../composer-frontend",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.4",
     "prisma": "^6.10.1",
+    "react-datepicker": "^8.9.0",
     "react-toastify": "^11.0.5"
   },
   "devDependencies": {

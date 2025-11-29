@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-const Modal = ({ isOpen, onClose, onSubmit, title, children, showSubmitButton = true, submitText = 'Enviar', cancelText = 'Cancelar' }) => {
+const Modal = ({ isOpen, onClose, onSubmit, title, children, showSubmitButton = true, submitText = 'Enviar', cancelText = 'Cancelar', isAttachmentModal = false }) => {
   if (!isOpen) {
     return null;
   }
@@ -12,7 +12,7 @@ const Modal = ({ isOpen, onClose, onSubmit, title, children, showSubmitButton = 
       onClick={onClose}
     >
       <div 
-        className="bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl flex flex-col"
+        className={`bg-slate-800 rounded-lg shadow-xl w-full ${isAttachmentModal ? 'max-w-7xl' : 'max-w-2xl'} flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-4 border-b border-slate-700">
@@ -20,7 +20,7 @@ const Modal = ({ isOpen, onClose, onSubmit, title, children, showSubmitButton = 
           <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
         </div>
 
-        <div className="p-6 overflow-y-auto" style={{ maxHeight: '70vh' }}>
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: isAttachmentModal ? '90vh' : '70vh' }}>
           {children}
         </div>
 
